@@ -1,0 +1,9 @@
+{
+  "metadata": {
+    "total_size": 24
+  },
+  "weight_map": {
+    "demo.vector.weight": "model-00001-of-00002.safetensors",
+    "demo.layers.0.mlp.up_proj.weight": "model-00002-of-00002.safetensors"
+  }
+}

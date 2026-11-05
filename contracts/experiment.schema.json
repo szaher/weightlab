@@ -1,0 +1,65 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://weightlab.local/schemas/experiment/v1",
+  "title": "WeightLab Experiment Manifest v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "experiment_id", "created_at", "objective", "source_models", "experiment", "evaluation", "provenance", "interpretation_status"],
+  "properties": {
+    "schema_version": {"const": 1},
+    "experiment_id": {"type": "string", "minLength": 1},
+    "created_at": {"type": "string", "format": "date-time"},
+    "objective": {"type": "string", "minLength": 1},
+    "source_models": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/model"}},
+    "experiment": {
+      "type": "object",
+      "required": ["mode", "compatibility_class", "operation", "parameters"],
+      "properties": {
+        "mode": {"enum": ["descriptive", "virtual_lora", "task_vector", "layer_ablation", "activation_patch"]},
+        "compatibility_class": {"enum": ["V", "L", "S", "X"]},
+        "operation": {"type": "string"},
+        "parameters": {"type": "object"},
+        "warnings": {"type": "array", "items": {"type": "string"}}
+      }
+    },
+    "evaluation": {
+      "type": "object",
+      "required": ["enabled"],
+      "properties": {
+        "enabled": {"type": "boolean"},
+        "dataset_id": {"type": ["string", "null"]},
+        "dataset_sha256": {"type": ["string", "null"]},
+        "backend": {"type": ["string", "null"]},
+        "generation": {"type": "object"},
+        "metrics": {"type": "object"},
+        "negative_control": {"type": ["string", "null"]}
+      }
+    },
+    "provenance": {
+      "type": "object",
+      "required": ["tool_version", "numerics_version", "quality"],
+      "properties": {
+        "tool_version": {"type": "string"},
+        "numerics_version": {"type": "string"},
+        "quality": {"enum": ["exact", "sampled", "mixed"]},
+        "device": {"type": "object"},
+        "seed": {"type": ["integer", "null"]}
+      }
+    },
+    "interpretation_status": {"enum": ["descriptive", "correlational", "interventional", "unverified"]}
+  },
+  "$defs": {
+    "model": {
+      "type": "object",
+      "required": ["id", "format", "fingerprint_method", "lineage_verified"],
+      "properties": {
+        "id": {"type": "string"},
+        "format": {"type": "string"},
+        "fingerprint_method": {"enum": ["sha256", "hf_cache_blob_sha256", "user_attested", "size_mtime", "none"]},
+        "sha256": {"type": ["string", "null"]},
+        "lineage_verified": {"type": "boolean"},
+        "base_id": {"type": ["string", "null"]}
+      }
+    }
+  }
+}

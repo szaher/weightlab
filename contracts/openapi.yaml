@@ -1,0 +1,1038 @@
+openapi: 3.1.0
+info:
+  title: WeightLab Local API
+  version: 0.2.0-draft
+  description: Draft R1 API contract; design artifact, not an implemented endpoint.
+servers:
+- url: http://127.0.0.1:{port}/api/v1
+  variables:
+    port:
+      default: '8765'
+security:
+- LocalToken: []
+components:
+  securitySchemes:
+    LocalToken:
+      type: http
+      scheme: bearer
+      bearerFormat: random-launch-token
+      description: Random token generated per launch and handed to the browser only via the URL fragment printed by `weightlab start` (`#token=...`); never embedded in served HTML, never logged, never exported (ADR-016).
+  schemas:
+    Error:
+      type: object
+      required:
+      - error
+      - request_id
+      properties:
+        request_id:
+          type: string
+        error:
+          type: object
+          required:
+          - code
+          - message
+          - retryable
+          properties:
+            code:
+              type: string
+            message:
+              type: string
+            retryable:
+              type: boolean
+            recommended_action:
+              type: string
+            details:
+              type: object
+              additionalProperties: true
+    ProjectCreate:
+      type: object
+      additionalProperties: false
+      required:
+      - name
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 120
+    Project:
+      type: object
+      required:
+      - id
+      - name
+      - created_at
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+    ModelImport:
+      type: object
+      additionalProperties: false
+      required:
+      - entry_path
+      - selected_root
+      properties:
+        entry_path:
+          type: string
+          minLength: 1
+        selected_root:
+          type: string
+          minLength: 1
+        display_name:
+          type: string
+    Model:
+      type: object
+      required:
+      - id
+      - display_name
+      - format
+      - status
+      properties:
+        id:
+          type: string
+        display_name:
+          type: string
+        format:
+          type: string
+          enum:
+          - safetensors
+          - sharded_safetensors
+        status:
+          type: string
+          enum:
+          - ready
+          - incomplete
+          - changed
+          - unsupported
+        tensor_count:
+          type: integer
+          minimum: 0
+        quick_fingerprint_kind:
+          type: string
+    Tensor:
+      type: object
+      required:
+      - id
+      - raw_key
+      - shape
+      - dtype
+      - rank
+      - byte_length
+      properties:
+        id:
+          type: string
+        raw_key:
+          type: string
+        shape:
+          type: array
+          items:
+            type: integer
+            minimum: 0
+        dtype:
+          type: string
+        rank:
+          type: integer
+          minimum: 0
+        byte_length:
+          type: integer
+          minimum: 0
+        role:
+          type:
+          - string
+          - 'null'
+        layer_index:
+          type:
+          - integer
+          - 'null'
+    Bounds:
+      type: object
+      additionalProperties: false
+      required:
+      - r0
+      - r1
+      - c0
+      - c1
+      properties:
+        r0:
+          type: integer
+          minimum: 0
+        r1:
+          type: integer
+          minimum: 0
+        c0:
+          type: integer
+          minimum: 0
+        c1:
+          type: integer
+          minimum: 0
+    View:
+      type: object
+      required:
+      - row_axis
+      - col_axis
+      - fixed_indices
+      - transpose
+      properties:
+        row_axis:
+          type: integer
+          minimum: 0
+        col_axis:
+          type: integer
+          minimum: 0
+        fixed_indices:
+          type: object
+          additionalProperties:
+            type: integer
+            minimum: 0
+        transpose:
+          type: boolean
+    RoiRequest:
+      type: object
+      additionalProperties: false
+      required:
+      - model_id
+      - tensor_id
+      - view
+      - roi
+      - output_dtype
+      properties:
+        model_id:
+          type: string
+        tensor_id:
+          type: string
+        view:
+          $ref: '#/components/schemas/View'
+        roi:
+          $ref: '#/components/schemas/Bounds'
+        output_dtype:
+          type: string
+          enum:
+          - float32
+          - float64
+    RoiResponse:
+      type: object
+      required:
+      - schema_version
+      - roi
+      - shape
+      - dtype
+      - exact
+      - values
+      - warnings
+      properties:
+        schema_version:
+          type: integer
+          const: 1
+        roi:
+          $ref: '#/components/schemas/Bounds'
+        shape:
+          type: array
+          items:
+            type: integer
+          minItems: 2
+          maxItems: 2
+        dtype:
+          type: string
+        exact:
+          type: boolean
+          const: true
+        values:
+          type: array
+          items:
+            type: array
+            items:
+              type:
+              - number
+              - 'null'
+        nonfinite_mask:
+          type:
+          - array
+          - 'null'
+          items:
+            type: array
+            items:
+              type:
+              - string
+              - 'null'
+              enum:
+              - nan
+              - pos_inf
+              - neg_inf
+              - null
+        warnings:
+          type: array
+          items:
+            type: string
+    TileRequest:
+      type: object
+      required:
+      - source
+      - view
+      - tile
+      - aggregation
+      - quality
+      properties:
+        source:
+          type: object
+          additionalProperties: true
+        view:
+          $ref: '#/components/schemas/View'
+        tile:
+          type: object
+          required:
+          - level
+          - x
+          - y
+          - size
+          properties:
+            level:
+              type: integer
+              minimum: 0
+              maximum: 63
+            x:
+              type: integer
+              minimum: 0
+            y:
+              type: integer
+              minimum: 0
+            size:
+              type: integer
+              minimum: 1
+              maximum: 256
+        aggregation:
+          type: string
+          enum:
+          - mean
+          - mean_abs
+          - rms
+          - min
+          - max
+        quality:
+          type: object
+          required:
+          - mode
+          properties:
+            mode:
+              type: string
+              description: auto = exact (direct read for L0-L3, cached pyramid for L>=4) when available, otherwise a labeled row-sampled preview for tensors above pyramid_exact_max_mib. exact returns 202 + job if the pyramid is not built yet. Per-cell scattered sampling is not offered (doc 03 section 5).
+              default: auto
+              enum:
+              - auto
+              - exact
+              - row_sampled
+            sampled_rows_per_block:
+              type: integer
+              minimum: 1
+              maximum: 256
+            seed:
+              type: integer
+    TileStatus:
+      type: integer
+      description: 0 finite; 1 block contains NaN; 2 contains +Inf; 3 contains -Inf; 4 several non-finite kinds; 5 no finite data (value placeholder, never drawn as a number).
+      enum: [0, 1, 2, 3, 4, 5]
+    TileMetadata:
+      type: object
+      required: [schema_version, cache_key, rows, cols, row_start, row_end, col_start, col_end, level, quality, aggregation, finite_count, nonfinite_count, source]
+      properties:
+        schema_version: {type: integer, const: 1}
+        cache_key: {type: string}
+        rows: {type: integer, minimum: 0, maximum: 256}
+        cols: {type: integer, minimum: 0, maximum: 256}
+        row_start: {type: integer, minimum: 0}
+        row_end: {type: integer, minimum: 0}
+        col_start: {type: integer, minimum: 0}
+        col_end: {type: integer, minimum: 0}
+        level: {type: integer, minimum: 0, maximum: 63}
+        quality: {type: string, enum: [exact, row_sampled]}
+        sampled_rows: {type: [integer, 'null'], minimum: 0}
+        sampling_policy: {type: [string, 'null']}
+        seed: {type: [integer, 'null']}
+        aggregation: {type: string, enum: [mean, mean_abs, rms, min, max]}
+        finite_count: {type: integer, minimum: 0}
+        nonfinite_count: {type: integer, minimum: 0}
+        source: {type: object, additionalProperties: true}
+        warnings: {type: array, items: {type: string}}
+    TileJson:
+      description: JSON form, allowed only for tiles with at most 16384 cells (128x128); for tests and debugging.
+      type: object
+      required: [metadata, values, status]
+      properties:
+        metadata: {$ref: '#/components/schemas/TileMetadata'}
+        values:
+          type: array
+          items: {type: array, items: {type: [number, 'null']}}
+        status:
+          type: array
+          items: {type: array, items: {$ref: '#/components/schemas/TileStatus'}}
+    JobRequest:
+      type: object
+      required:
+      - kind
+      - source
+      - quality
+      - budget
+      properties:
+        kind:
+          type: string
+          enum:
+          - tensor_stats
+          - exact_tile
+          - compare_stats
+        source:
+          type: object
+          additionalProperties: true
+        quality:
+          type: object
+          additionalProperties: true
+        budget:
+          type: object
+          description: Upper bounds requested by the client. Values above the server's configured caps (memory_budget_mib, max_threads, max_job_seconds) are rejected with 422 RESOURCE_LIMIT listing the caps in details; the server never raises its own limits on request.
+          required:
+          - max_working_set_mib
+          - max_threads
+          - max_wall_seconds
+          properties:
+            max_working_set_mib:
+              type: integer
+              minimum: 64
+              maximum: 65536
+            max_threads:
+              type: integer
+              minimum: 1
+              maximum: 64
+            max_wall_seconds:
+              type: integer
+              minimum: 1
+              maximum: 86400
+    Job:
+      type: object
+      required:
+      - job_id
+      - state
+      - progress
+      properties:
+        job_id:
+          type: string
+        state:
+          type: string
+          enum:
+          - created
+          - queued
+          - running
+          - completed
+          - canceled
+          - failed
+          - interrupted
+        progress:
+          type: number
+          minimum: 0
+          maximum: 1
+        poll_after_ms:
+          type: integer
+        result:
+          type:
+          - object
+          - 'null'
+          additionalProperties: true
+        error:
+          type:
+          - object
+          - 'null'
+          additionalProperties: true
+    ComparisonRequest:
+      type: object
+      required:
+      - model_a_id
+      - model_b_id
+      properties:
+        model_a_id:
+          type: string
+        model_b_id:
+          type: string
+        policy:
+          type: string
+          enum:
+          - strict
+          - descriptive_only
+          default: strict
+    Comparison:
+      type: object
+      required:
+      - id
+      - model_a_id
+      - model_b_id
+      - compatibility
+      properties:
+        id:
+          type: string
+        model_a_id:
+          type: string
+        model_b_id:
+          type: string
+        compatibility:
+          type: object
+          required:
+          - class
+          - reasons
+          properties:
+            class:
+              type: string
+              enum:
+              - V
+              - L
+              - S
+              - X
+            reasons:
+              type: array
+              items:
+                type: string
+    ExportRequest:
+      type: object
+      required:
+      - project_id
+      - format
+      - strip_absolute_paths
+      properties:
+        project_id:
+          type: string
+        format:
+          type: string
+          enum:
+          - json
+          - png
+        strip_absolute_paths:
+          type: boolean
+          default: true
+        view:
+          type: object
+          additionalProperties: true
+    AdapterImport:
+      type: object
+      additionalProperties: false
+      required:
+      - base_model_id
+      - adapter_directory
+      properties:
+        base_model_id:
+          type: string
+        adapter_directory:
+          type: string
+        strict_lineage:
+          type: boolean
+          default: true
+    Adapter:
+      type: object
+      required:
+      - id
+      - base_model_id
+      - status
+      - modules
+      properties:
+        id:
+          type: string
+        base_model_id:
+          type: string
+        status:
+          type: string
+          enum:
+          - ready
+          - partial
+          - unsupported
+          - lineage_unverified
+        modules:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+        warnings:
+          type: array
+          items:
+            type: string
+    BookmarkCreate:
+      type: object
+      required:
+      - view
+      properties:
+        view:
+          type: object
+          additionalProperties: true
+        note:
+          type: string
+    Bookmark:
+      type: object
+      required:
+      - id
+      - view
+      properties:
+        id:
+          type: string
+        view:
+          type: object
+          additionalProperties: true
+        note:
+          type:
+          - string
+          - 'null'
+  responses:
+    ValidationError:
+      description: Request failed validation or exceeds resource budget
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+paths:
+  /health:
+    get:
+      summary: Inspect local runtime
+      security: []
+      responses:
+        '200':
+          description: Runtime status
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - status
+                - version
+                - offline
+                properties:
+                  status:
+                    type: string
+                  version:
+                    type: string
+                  offline:
+                    type: boolean
+                  capabilities:
+                    type: array
+                    items:
+                      type: string
+  /projects:
+    get:
+      summary: List local projects
+      responses:
+        '200':
+          description: Projects
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Project'
+    post:
+      summary: Create a local project
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProjectCreate'
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Project'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+  /projects/{project_id}/models:
+    parameters:
+    - in: path
+      name: project_id
+      required: true
+      schema:
+        type: string
+    get:
+      summary: List imported models
+      responses:
+        '200':
+          description: Models
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Model'
+    post:
+      summary: Import user-selected model path
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ModelImport'
+      responses:
+        '201':
+          description: Model catalog created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Model'
+        '409':
+          $ref: '#/components/responses/ValidationError'
+  /models/{model_id}/tensors:
+    get:
+      summary: List tensors in imported model
+      parameters:
+      - in: path
+        name: model_id
+        required: true
+        schema:
+          type: string
+      - in: query
+        name: q
+        required: false
+        schema:
+          type: string
+      - in: query
+        name: limit
+        required: false
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 1000
+          default: 100
+      - in: query
+        name: offset
+        required: false
+        schema:
+          type: integer
+          minimum: 0
+          default: 0
+      responses:
+        '200':
+          description: Tensor catalog page
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - total
+                - items
+                properties:
+                  total:
+                    type: integer
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Tensor'
+  /tensors/roi:
+    post:
+      summary: Read a bounded exact numerical ROI
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RoiRequest'
+      responses:
+        '200':
+          description: Exact ROI
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RoiResponse'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+        '413':
+          $ref: '#/components/responses/ValidationError'
+  /tiles:
+    post:
+      summary: Compute an exact or explicitly sampled heatmap tile
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TileRequest'
+      responses:
+        '200':
+          description: Tile. Binary (default) is rows*cols float32 little-endian values in row-major order followed by rows*cols uint8 TileStatus codes; body length is exactly rows*cols*5 bytes. JSON only when Accept is application/json and the tile has at most 16384 cells.
+          headers:
+            X-WeightLab-Rows:
+              description: Output rows
+              schema: {type: integer}
+            X-WeightLab-Cols:
+              description: Output columns
+              schema: {type: integer}
+            X-WeightLab-Row-Start:
+              description: First covered tensor row (inclusive)
+              schema: {type: integer}
+            X-WeightLab-Row-End:
+              description: Last covered tensor row (exclusive)
+              schema: {type: integer}
+            X-WeightLab-Col-Start:
+              description: First covered tensor column (inclusive)
+              schema: {type: integer}
+            X-WeightLab-Col-End:
+              description: Last covered tensor column (exclusive)
+              schema: {type: integer}
+            X-WeightLab-Level:
+              description: Pyramid level; block size 2^level
+              schema: {type: integer}
+            X-WeightLab-Quality:
+              description: exact or row_sampled
+              schema: {type: string}
+            X-WeightLab-Sampled-Rows:
+              description: Rows read per block when row_sampled
+              schema: {type: integer}
+            X-WeightLab-Aggregation:
+              description: Aggregation function
+              schema: {type: string}
+            X-WeightLab-Cache-Key:
+              description: Key for GET /tiles/{cache_key}/metadata
+              schema: {type: string}
+          content:
+            application/vnd.weightlab.tile.v1:
+              schema:
+                type: string
+                format: binary
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TileJson'
+        '202':
+          description: Exact pyramid not built yet; job queued, poll job endpoint
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Job'
+        '406':
+          $ref: '#/components/responses/ValidationError'
+        '413':
+          $ref: '#/components/responses/ValidationError'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+  /tiles/{cache_key}/metadata:
+    get:
+      summary: Full metadata for a previously served tile
+      parameters:
+      - name: cache_key
+        in: path
+        required: true
+        schema: {type: string}
+      responses:
+        '200':
+          description: Tile metadata
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TileMetadata'
+        '404':
+          $ref: '#/components/responses/ValidationError'
+  /comparisons:
+    post:
+      summary: Analyze checkpoint compatibility
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ComparisonRequest'
+      responses:
+        '201':
+          description: New comparison
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Comparison'
+  /comparisons/{comparison_id}:
+    get:
+      summary: Get comparison and unmatched tensor details
+      parameters:
+      - in: path
+        name: comparison_id
+        required: true
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Comparison
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Comparison'
+  /jobs:
+    post:
+      summary: Queue bounded analysis job
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/JobRequest'
+      responses:
+        '202':
+          description: Job accepted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Job'
+  /jobs/{job_id}:
+    get:
+      summary: Inspect job status
+      parameters:
+      - in: path
+        name: job_id
+        required: true
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Job status
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Job'
+  /jobs/{job_id}/cancel:
+    post:
+      summary: Cancel queued or active job
+      parameters:
+      - in: path
+        name: job_id
+        required: true
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Latest job status
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Job'
+  /exports:
+    post:
+      summary: Export selected view with provenance
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ExportRequest'
+      responses:
+        '202':
+          description: Export job
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Job'
+  /settings:
+    get:
+      summary: Read local resource budget and privacy settings
+      responses:
+        '200':
+          description: Current settings
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+  /projects/{project_id}/adapters:
+    parameters:
+    - in: path
+      name: project_id
+      required: true
+      schema:
+        type: string
+    get:
+      summary: List supported adapter imports
+      responses:
+        '200':
+          description: Adapter list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Adapter'
+    post:
+      summary: Import a local PEFT adapter and validate its base mapping
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AdapterImport'
+      responses:
+        '201':
+          description: Adapter imported
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Adapter'
+        '409':
+          $ref: '#/components/responses/ValidationError'
+  /projects/{project_id}/bookmarks:
+    parameters:
+    - in: path
+      name: project_id
+      required: true
+      schema:
+        type: string
+    get:
+      summary: List saved views
+      responses:
+        '200':
+          description: Bookmarks
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Bookmark'
+    post:
+      summary: Save current view and note
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BookmarkCreate'
+      responses:
+        '201':
+          description: Bookmark saved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Bookmark'
+  /projects/{project_id}/bookmarks/{bookmark_id}:
+    parameters:
+    - in: path
+      name: project_id
+      required: true
+      schema:
+        type: string
+    - in: path
+      name: bookmark_id
+      required: true
+      schema:
+        type: string
+    delete:
+      summary: Remove a bookmark without touching checkpoint files
+      responses:
+        '204':
+          description: Bookmark deleted
+  /models/{model_id}/tensors/{tensor_id}:
+    get:
+      summary: Get exact tensor catalog metadata
+      parameters:
+      - in: path
+        name: model_id
+        required: true
+        schema:
+          type: string
+      - in: path
+        name: tensor_id
+        required: true
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Tensor metadata
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Tensor'

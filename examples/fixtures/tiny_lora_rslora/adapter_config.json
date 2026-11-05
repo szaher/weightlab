@@ -1,0 +1,19 @@
+{
+  "base_model_name_or_path": "tiny-base-fixture",
+  "bias": "none",
+  "inference_mode": true,
+  "peft_type": "LORA",
+  "task_type": "CAUSAL_LM",
+  "fan_in_fan_out": false,
+  "use_dora": false,
+  "modules_to_save": null,
+  "layers_to_transform": null,
+  "r": 4,
+  "lora_alpha": 8,
+  "use_rslora": true,
+  "rank_pattern": {},
+  "alpha_pattern": {},
+  "target_modules": [
+    "up_proj"
+  ]
+}

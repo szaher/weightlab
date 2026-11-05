@@ -1,0 +1,766 @@
+{
+  "schema_version": 2,
+  "generator_version": 2,
+  "seed": 7,
+  "purpose": "synthetic numerical fixture; no reasoning improvement or model training implied",
+  "tensor_key": "demo.layers.0.mlp.up_proj.weight",
+  "shape": [
+    8,
+    8
+  ],
+  "base_full": [
+    [
+      -1.0,
+      -0.949999988079071,
+      -0.8999999761581421,
+      -0.8500000238418579,
+      -0.800000011920929,
+      -0.75,
+      -0.699999988079071,
+      -0.6499999761581421
+    ],
+    [
+      -0.6000000238418579,
+      -0.550000011920929,
+      -0.5,
+      -0.44999998807907104,
+      -0.3999999761581421,
+      -0.3500000238418579,
+      -0.30000001192092896,
+      -0.25
+    ],
+    [
+      -0.19999998807907104,
+      -0.1499999761581421,
+      -0.10000002384185791,
+      -0.050000011920928955,
+      0.0,
+      0.04999995231628418,
+      0.10000002384185791,
+      0.1499999761581421
+    ],
+    [
+      0.20000004768371582,
+      0.25,
+      0.2999999523162842,
+      0.3500000238418579,
+      0.3999999761581421,
+      0.4500000476837158,
+      0.5,
+      0.5499999523162842
+    ],
+    [
+      0.6000000238418579,
+      0.6499999761581421,
+      0.7000000476837158,
+      0.75,
+      0.7999999523162842,
+      0.8500000238418579,
+      0.8999999761581421,
+      0.9500000476837158
+    ],
+    [
+      1.0,
+      1.0499999523162842,
+      1.0999999046325684,
+      1.1500000953674316,
+      1.2000000476837158,
+      1.25,
+      1.2999999523162842,
+      1.3499999046325684
+    ],
+    [
+      1.4000000953674316,
+      1.4500000476837158,
+      1.5,
+      1.5499999523162842,
+      1.5999999046325684,
+      1.6500000953674316,
+      1.7000000476837158,
+      1.75
+    ],
+    [
+      1.7999999523162842,
+      1.8499999046325684,
+      1.9000000953674316,
+      1.9500000476837158,
+      2.0,
+      2.049999952316284,
+      2.0999999046325684,
+      2.1500000953674316
+    ]
+  ],
+  "ft_full": [
+    [
+      -0.8999999761581421,
+      -0.75,
+      -0.8999999761581421,
+      -0.8500000238418579,
+      -0.800000011920929,
+      -0.75,
+      -0.699999988079071,
+      -0.6499999761581421
+    ],
+    [
+      -0.6000000238418579,
+      -0.25,
+      -0.5,
+      -0.44999998807907104,
+      -0.3999999761581421,
+      -0.3500000238418579,
+      -0.30000001192092896,
+      -0.25
+    ],
+    [
+      -0.19999998807907104,
+      -0.1499999761581421,
+      -0.10000002384185791,
+      -0.050000011920928955,
+      0.4000000059604645,
+      0.04999995231628418,
+      0.10000002384185791,
+      0.1499999761581421
+    ],
+    [
+      0.20000004768371582,
+      0.25,
+      0.2999999523162842,
+      0.3500000238418579,
+      0.3999999761581421,
+      0.9500000476837158,
+      0.5,
+      0.5499999523162842
+    ],
+    [
+      0.6000000238418579,
+      0.6499999761581421,
+      0.7000000476837158,
+      0.75,
+      1.399999976158142,
+      0.8500000238418579,
+      0.8999999761581421,
+      0.9500000476837158
+    ],
+    [
+      1.0,
+      1.0499999523162842,
+      1.7999999523162842,
+      1.1500000953674316,
+      1.2000000476837158,
+      1.25,
+      1.2999999523162842,
+      1.3499999046325684
+    ],
+    [
+      1.4000000953674316,
+      1.4500000476837158,
+      1.5,
+      1.5499999523162842,
+      1.5999999046325684,
+      1.6500000953674316,
+      1.7000000476837158,
+      2.549999952316284
+    ],
+    [
+      2.6999998092651367,
+      1.8499999046325684,
+      1.9000000953674316,
+      1.9500000476837158,
+      2.0,
+      2.049999952316284,
+      2.0999999046325684,
+      3.1500000953674316
+    ]
+  ],
+  "delta_full": [
+    [
+      0.10000002384185791,
+      0.19999998807907104,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0
+    ],
+    [
+      0.0,
+      0.30000001192092896,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0
+    ],
+    [
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.4000000059604645,
+      0.0,
+      0.0,
+      0.0
+    ],
+    [
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.5,
+      0.0,
+      0.0
+    ],
+    [
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.6000000238418579,
+      0.0,
+      0.0,
+      0.0
+    ],
+    [
+      0.0,
+      0.0,
+      0.7000000476837158,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0
+    ],
+    [
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.7999999523162842
+    ],
+    [
+      0.8999998569488525,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      1.0
+    ]
+  ],
+  "changed_positions": [
+    {
+      "row": 0,
+      "col": 0,
+      "delta": 0.10000002384185791
+    },
+    {
+      "row": 0,
+      "col": 1,
+      "delta": 0.19999998807907104
+    },
+    {
+      "row": 1,
+      "col": 1,
+      "delta": 0.30000001192092896
+    },
+    {
+      "row": 2,
+      "col": 4,
+      "delta": 0.4000000059604645
+    },
+    {
+      "row": 3,
+      "col": 5,
+      "delta": 0.5
+    },
+    {
+      "row": 4,
+      "col": 4,
+      "delta": 0.6000000238418579
+    },
+    {
+      "row": 5,
+      "col": 2,
+      "delta": 0.7000000476837158
+    },
+    {
+      "row": 6,
+      "col": 7,
+      "delta": 0.7999999523162842
+    },
+    {
+      "row": 7,
+      "col": 0,
+      "delta": 0.8999998569488525
+    },
+    {
+      "row": 7,
+      "col": 7,
+      "delta": 1.0
+    }
+  ],
+  "other_tensors": {
+    "demo.scalar": {
+      "shape": [],
+      "value": 3.5
+    },
+    "demo.one_by_one.weight": {
+      "shape": [
+        1,
+        1
+      ],
+      "value": [
+        [
+          -0.25
+        ]
+      ]
+    },
+    "demo.cube.weight": {
+      "shape": [
+        2,
+        4,
+        8
+      ],
+      "slice_axis0_index1_rows_1_3_cols_2_5": [
+        [
+          42.0,
+          43.0,
+          44.0
+        ],
+        [
+          50.0,
+          51.0,
+          52.0
+        ]
+      ]
+    },
+    "demo.special_nonfinite.weight": {
+      "nan": 1,
+      "pos_inf": 1,
+      "neg_inf": 1,
+      "finite": 5,
+      "finite_mean": 1.0
+    }
+  },
+  "dtypes": {
+    "file": "tiny_dtypes.safetensors",
+    "decoded_4x4": [
+      [
+        0.734375,
+        0.6953125,
+        0.1953125,
+        0.953125
+      ],
+      [
+        0.8359375,
+        0.2734375,
+        0.1015625,
+        -0.109375
+      ],
+      [
+        0.84375,
+        0.9375,
+        -0.203125,
+        -0.46875
+      ],
+      [
+        -0.90625,
+        0.40625,
+        0.46875,
+        -0.484375
+      ]
+    ],
+    "specials": [
+      "1.0",
+      "-2.0",
+      "nan",
+      "inf",
+      "-inf",
+      "0.0",
+      "-0.0",
+      "max_finite"
+    ],
+    "bf16_max_finite": 3.3895313892515355e+38,
+    "f16_max_finite": 65504.0,
+    "bf16_specials_bits": [
+      16256,
+      49152,
+      32704,
+      32640,
+      65408,
+      0,
+      32768,
+      32639
+    ],
+    "f16_specials_bits": [
+      15360,
+      49152,
+      32256,
+      31744,
+      64512,
+      0,
+      32768,
+      31743
+    ],
+    "note": "safetensors NumPy backend cannot read BF16; WeightLab must decode BF16 bits itself."
+  },
+  "tiles_257x263": {
+    "key": "demo.layers.0.self_attn.q_proj.weight",
+    "level0_tile_1_1_shape": [
+      1,
+      7
+    ],
+    "level1": {
+      "block": 2,
+      "output_shape": [
+        129,
+        132
+      ],
+      "last_block_count": 1,
+      "last_block_mean": 0.7926148176193237,
+      "first_block_mean": -0.4192400285974145
+    },
+    "level3": {
+      "block": 8,
+      "output_shape": [
+        33,
+        33
+      ],
+      "last_block_count": 7,
+      "last_block_mean": 0.7540533712932042,
+      "first_block_mean": -0.0749999352847226
+    }
+  },
+  "lora": {
+    "tiny_lora": {
+      "up_proj": {
+        "rank": 2,
+        "alpha": 4,
+        "scale": 2.0,
+        "delta_full": [
+          [
+            2.0,
+            0.0,
+            0.0,
+            0.0,
+            1.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          [
+            0.0,
+            1.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            2.0
+          ],
+          [
+            2.0,
+            1.0,
+            0.0,
+            0.0,
+            1.0,
+            0.0,
+            0.0,
+            2.0
+          ],
+          [
+            -2.0,
+            0.0,
+            0.0,
+            0.0,
+            -1.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          [
+            0.0,
+            0.5,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            1.0
+          ],
+          [
+            0.0,
+            1.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            2.0
+          ],
+          [
+            2.0,
+            -1.0,
+            0.0,
+            0.0,
+            1.0,
+            0.0,
+            0.0,
+            -2.0
+          ],
+          [
+            0.4000000059604645,
+            0.4000000059604645,
+            0.0,
+            0.0,
+            0.20000000298023224,
+            0.0,
+            0.0,
+            0.800000011920929
+          ]
+        ]
+      },
+      "down_proj": {
+        "rank": 1,
+        "alpha": 4,
+        "scale": 4.0,
+        "rank_from": "rank_pattern",
+        "delta_full": [
+          [
+            2.0,
+            0.0,
+            -4.0,
+            0.0,
+            0.0,
+            1.0,
+            0.0,
+            0.0
+          ],
+          [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          [
+            4.0,
+            0.0,
+            -8.0,
+            0.0,
+            0.0,
+            2.0,
+            0.0,
+            0.0
+          ],
+          [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          [
+            -2.0,
+            0.0,
+            4.0,
+            0.0,
+            0.0,
+            -1.0,
+            0.0,
+            0.0
+          ],
+          [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ]
+        ]
+      }
+    },
+    "tiny_lora_rslora": {
+      "up_proj": {
+        "rank": 4,
+        "alpha": 8,
+        "scale": 4.0,
+        "delta_full": [
+          [
+            -1.0269355773925781,
+            -2.220111846923828,
+            -1.1023139953613281,
+            -2.5161705017089844,
+            7.231956481933594,
+            3.383472442626953,
+            -8.754627227783203,
+            0.8688125610351562
+          ],
+          [
+            -0.7093048095703125,
+            -4.194362640380859,
+            3.395305633544922,
+            -1.20404052734375,
+            2.152263641357422,
+            -1.5412864685058594,
+            -2.9994544982910156,
+            2.0712356567382812
+          ],
+          [
+            -5.071712493896484,
+            2.1711082458496094,
+            -2.1010665893554688,
+            2.0301856994628906,
+            1.9930686950683594,
+            -2.0098838806152344,
+            -0.17662429809570312,
+            2.239574432373047
+          ],
+          [
+            -3.201129913330078,
+            -0.3712425231933594,
+            1.3367767333984375,
+            0.15089035034179688,
+            -0.7203254699707031,
+            -4.833171844482422,
+            3.3825340270996094,
+            1.6539344787597656
+          ],
+          [
+            -1.412567138671875,
+            -3.5967254638671875,
+            1.9895896911621094,
+            -1.5687103271484375,
+            4.029048919677734,
+            -0.4480628967285156,
+            -4.811794281005859,
+            2.0162582397460938
+          ],
+          [
+            2.304462432861328,
+            -5.136146545410156,
+            6.352653503417969,
+            1.6245765686035156,
+            -2.765522003173828,
+            -1.4788932800292969,
+            -0.6470375061035156,
+            2.2690773010253906
+          ],
+          [
+            3.0398483276367188,
+            -1.0814628601074219,
+            1.4975051879882812,
+            1.1505508422851562,
+            -1.8006134033203125,
+            2.152099609375,
+            -1.003662109375,
+            -0.35247802734375
+          ],
+          [
+            -0.024181365966796875,
+            4.684627532958984,
+            -2.4369888305664062,
+            1.8880271911621094,
+            -4.862293243408203,
+            -1.4571304321289062,
+            7.285926818847656,
+            -1.8423995971679688
+          ]
+        ]
+      }
+    },
+    "tiny_lora_dora_unsupported": {
+      "expected": "reject: use_dora"
+    }
+  },
+  "compat_expected_class": {
+    "tiny_base vs tiny_ft": "V (fixture manifest records both SHA-256 and shared base)",
+    "tiny_base vs compat/different_ancestry": "S",
+    "tiny_base vs compat/shape_mismatch": "X for demo.layers.0.mlp.up_proj.weight; other tensors inspectable",
+    "tiny_base vs compat/permuted_same_function": "S; identical function, large raw delta",
+    "compat/tied_embeddings vs compat/untied_reference": "lm_head absent due to tie_word_embeddings; not MISSING"
+  },
+  "malformed_expected": {
+    "truncated_payload.safetensors": "INVALID_FORMAT",
+    "header_length_exceeds_file.safetensors": "INVALID_FORMAT",
+    "corrupt_json.safetensors": "INVALID_FORMAT",
+    "unknown_dtype.safetensors": "UNSUPPORTED_DTYPE",
+    "shape_length_mismatch.safetensors": "INVALID_FORMAT",
+    "overflow_shape.safetensors": "INVALID_FORMAT",
+    "negative_shape.safetensors": "INVALID_FORMAT",
+    "offset_out_of_bounds.safetensors": "INVALID_FORMAT",
+    "overlapping_offsets.safetensors": "INVALID_FORMAT",
+    "gap_in_offsets.safetensors": "INVALID_FORMAT",
+    "duplicate_key.safetensors": "INVALID_FORMAT",
+    "missing_shard/": "MISSING_SHARD",
+    "path_traversal/": "INVALID_FORMAT (path outside selected root)",
+    "absolute_path/": "INVALID_FORMAT (absolute shard path)",
+    "key_not_in_shard/": "INVALID_FORMAT (index key absent from shard)"
+  },
+  "file_sha256": {
+    "compat/different_ancestry.safetensors": "fd8a6b1f25a4f9f2bb58aee1e54bde4a568b2c5f09ade2565af6b534785b54a1",
+    "compat/permuted_same_function.safetensors": "2bda6cb9ed5c5f769011d57575506a10eef7b76551766556f9a63ad3ded52adc",
+    "compat/shape_mismatch.safetensors": "28c5df686a172348fdb31f310ea1614001e0d8b4f1bbd4f8997e429585e748d5",
+    "compat/tied_embeddings/model.safetensors": "2e397e9abda513e0c82abd8e0020f7e7861d08b0c4b237ef982134e02b62352a",
+    "compat/untied_reference/model.safetensors": "8b04d170667fce80a04cf84c98f36912c73e873c65f754cff9c06009bb365726",
+    "malformed/absolute_path/model-00001-of-00002.safetensors": "86fc914f5a859886b662d73febad76e6f257e03507c8a47864ac9acec1a39259",
+    "malformed/corrupt_json.safetensors": "a9d10ae3ddd5ca47addf3e2c37c448a97175d5cf591ab7c573463e4b3ed370c0",
+    "malformed/duplicate_key.safetensors": "afed72d4b0d5e65baa635c363036a433ea0004e62ba0200bc103dd7b16c2188f",
+    "malformed/gap_in_offsets.safetensors": "0ca1bdb8939648a3cd57ef3d0e75767b0b8d22d25ac81697c32ac9b1e7aba55f",
+    "malformed/header_length_exceeds_file.safetensors": "07f001f30d7007d59ae8aef07012ceb609aa3b1bc93f77ad6d9af10fe1fc9f2a",
+    "malformed/key_not_in_shard/model-00001-of-00002.safetensors": "86fc914f5a859886b662d73febad76e6f257e03507c8a47864ac9acec1a39259",
+    "malformed/missing_shard/model-00001-of-00002.safetensors": "86fc914f5a859886b662d73febad76e6f257e03507c8a47864ac9acec1a39259",
+    "malformed/negative_shape.safetensors": "67c853f1f2d85acebd9de9d73eec613030d7523f2dd35a519e0bcd4eec9ba89b",
+    "malformed/offset_out_of_bounds.safetensors": "b40937893a8a21d19ad05feac62a6deaea074db93c74c6d07a60ed62524f78cf",
+    "malformed/overflow_shape.safetensors": "2ca3d5063b41ba3e2cfbcae9e765ac2269324ca3e4971d8121c15ec313a41604",
+    "malformed/overlapping_offsets.safetensors": "7c60f178556e4c4d32f31de2f9bf4108b49ad4a539220cbf950c5ff8b3af0157",
+    "malformed/path_traversal/model-00001-of-00002.safetensors": "86fc914f5a859886b662d73febad76e6f257e03507c8a47864ac9acec1a39259",
+    "malformed/shape_length_mismatch.safetensors": "051cd5ca02ce6ac9c9f74fa20a07061d61454628e99aa9d5c77a9e2c7cb2137b",
+    "malformed/truncated_payload.safetensors": "d1bf15cf3bacce1f0e43367ea3b3e0941f8a313969ccec6e77fdea14ed22d28d",
+    "malformed/unknown_dtype.safetensors": "9c81fe19c64226ff8fe41f74695b7e7d9abf3f55d2b4403d557a2899b2adabd7",
+    "tiny_base.safetensors": "8c7df989958a448e7ed6baa9dd4f49a59824045f14fe0a48882e792a36138ced",
+    "tiny_dtypes.safetensors": "f01de6627d8f8f770ce8a72881be75209c3276f16fb2f1bfd3d3d9224f8cdb0b",
+    "tiny_ft.safetensors": "0c2d7ffca3ecc994231141b48c3aacdb9ae6dd5cb0b164c8bd9853dd653d1071",
+    "tiny_lora/adapter_model.safetensors": "5ea2c555103e23d55a8ea35ae3b862ce5a786d6c6475cf00ae180f764d00a30c",
+    "tiny_lora_dora_unsupported/adapter_model.safetensors": "abb0af27897cd5b483546c941f4552e287d8011fbb577c1b50df4a636552b879",
+    "tiny_lora_rslora/adapter_model.safetensors": "284d457788ddcb1a3e937a74bdcd08ea28db164fce5006d60c2bfa8676d670da",
+    "tiny_sharded/model-00001-of-00002.safetensors": "2d21b46fbda254bd51e5f3693a339c20794674f9ef0fc4e2e3cc98421f7d4c0b",
+    "tiny_sharded/model-00002-of-00002.safetensors": "86fc914f5a859886b662d73febad76e6f257e03507c8a47864ac9acec1a39259"
+  }
+}

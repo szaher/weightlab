@@ -1,0 +1,5 @@
+{
+  "tie_word_embeddings": true,
+  "vocab_size": 16,
+  "hidden_size": 8
+}
