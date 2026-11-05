@@ -362,12 +362,12 @@ weightlab/
 
 **Coordinate convention:** Logical 2D tensor `(R,C)`, rows downward, columns rightward, zero-based, half-open rectangles `[r0,r1)×[c0,c1)`. For view level `L`, `block_size=2^L` input cells per aggregate cell. A rendered tile is `tile_size=256` aggregate cells per side (smaller at tensor edges). Tile `(x,y)` covers raw columns `[x*256*2^L,(x+1)*256*2^L)` and raw rows `[y*256*2^L,(y+1)*256*2^L)` clipped to tensor dimensions. All downsampling anchored at origin to guarantee deterministic parent-child consistency.
 
-At `L=0`: actual cell values (within the tile budget `max_tile_cells`, independent of the ROI-table budget). At `L>0`: aggregate summaries for the covered real cells using selected aggregation. A mean of children must be **count-weighted** at partial edges, and RMS must aggregate sums of squares rather than averaging per-block RMS values; min/max combine trivially. Cached aggregates store `(count,finite_count,sum,sum_sq,min,max,nonfinite_count)` sufficient for those aggregation policies.
+At `L=0`: actual cell values (within the tile budget `max_tile_cells`, independent of the ROI-table budget). At `L>0`: aggregate summaries for the covered real cells using selected aggregation. A mean of children must be **count-weighted** at partial edges, and RMS must aggregate sums of squares rather than averaging per-block RMS values; min/max combine trivially. Cached aggregates store `(count,finite_count,nan_count,pos_inf_count,neg_inf_count,sum,sum_abs,sum_sq,min,max)` (`count` is implied by block geometry), sufficient for every aggregation: mean = sum/finite_count, mean_abs = sum_abs/finite_count, RMS = sqrt(sum_sq/finite_count), min/max direct. All are mergeable by addition (counts, sums) or min/max.
 
 **Exact pyramid first (ADR-012).** Typical LLM weight matrices are 30-250 MiB on disk (4096x4096 BF16 = 32 MiB; 4096x14336 BF16 = 112 MiB). Reading one end to end in row stripes is sequential I/O and is cheaper than scattered sampling. Therefore:
 
 - Levels 0-3 are computed directly from a bounded row-stripe read of the covered region (an L3 tile covers at most 2048x2048 cells = 8 MiB of BF16).
-- Levels >= 4 are served from a cached exact pyramid whose base is level 4 (16x16-cell blocks). Each base block stores `(finite_count,sum,sum_sq,min,max,nan_count,pos_inf_count,neg_inf_count)` (~40 bytes per 256 cells, about 8% of a BF16 tensor's size); coarser levels are merged from children. The pyramid is built in one streaming pass, is exact, and is cached keyed by file fingerprint and numerics version.
+- Levels >= 4 are served from a cached exact pyramid whose base is level 4 (16x16-cell blocks). Each base block stores `(finite_count, nan_count, pos_inf_count, neg_inf_count, sum, sum_abs, sum_sq, min, max)`: four uint16 counts (8 B), three float64 sums (24 B) and float32 min/max over finite values (8 B), i.e. 40 bytes per 256-cell block, about 8% of a BF16 tensor's size (4% of F32). `sum_abs` is required for `mean_abs`; `sum_sq` for RMS; coarser levels are merged from children. The pyramid is built in one streaming pass, is exact, and is cached keyed by file fingerprint and numerics version.
 - Tensors up to `pyramid_exact_max_mib` (default 1024 MiB on disk) build the pyramid automatically in the background, with progress and cancel. Larger tensors (e.g. large-vocabulary embeddings / `lm_head`) first show a **row-sampled** preview: whole rows chosen by deterministic stride or SplitMix64 seed (doc 05 section 5), read sequentially, labeled with rows sampled; the exact pyramid is offered as an explicit queued job.
 - Per-cell scattered sampling is not used: k point samples per block over a 256x256 output is about 4M random accesses, each of which can touch a separate 4 KiB page, which is more I/O than an exact scan of most tensors.
 
@@ -518,13 +518,15 @@ Allow output ROI only if intermediate arrays fit budget. If user chooses a large
 
 ## 7. Model comparability classification
 
-**Class V (verified same base):** WeightLab can establish that A's files are byte-identical to the base the derivative declares, by one of:
+**Class V (verified same base):** WeightLab can establish *cryptographically* that A's files are byte-identical to the base the derivative declares (`lineage_evidence = cryptographically_verified`), by one of:
 1. SHA-256 of every referenced base file equals a hash recorded in the derivative's provenance (a WeightLab manifest, a model card hash list, or `expected_results.json` for fixtures).
 2. Offline Hugging Face hub cache: both repos resolve in the local cache, the derivative declares the base repo **and revision**, the base snapshot is that revision, and each LFS blob's filename (the hub cache names LFS blobs by the file's SHA-256) matches a fresh hash of the file. No download.
-3. User attestation: the user states that these exact files were the training base; hashes are recorded and the status is `V (user_attested)`, displayed as such.
 
 Plus the same architecture, tensor names/shapes and tokenizer/config where behavioral interpretation requires it. Real-world adapters usually record only `base_model_name_or_path` without a revision or hash; those are Class L, not V. Weight similarity (for example per-tensor cosine(A,B) > 0.99 across all matched tensors) is recorded as supporting evidence for Class L, never as proof of V.  
-**Class L (lineage declared but unverified):** Metadata references same base ID but no cryptographic proof; side-by-side descriptive comparisons allowed; transfer behind acknowledgment, default disabled.  
+
+User attestation is **not** a route to Class V. When the user states that these exact files were the training base, the hashes are recorded and the pair stays Class L with `lineage_evidence = user_attested`; that attestation satisfies the T2 acknowledgment (doc 06 section 6) but never unlocks behavior reserved for cryptographically verified lineage. Every compatibility decision records `lineage_evidence` as one of `cryptographically_verified`, `user_attested`, `declared` (name/ID only) or `none`.
+
+**Class L (lineage declared or attested, not cryptographically verified):** Metadata references same base ID (`declared`) or the user attested it (`user_attested`), but no cryptographic proof; side-by-side descriptive comparisons allowed; transfer behind acknowledgment, default disabled; the evidence kind is shown wherever the class is shown.  
 **Class S (shape-compatible only):** Exact names/shapes but unknown or different origin; difference may be meaningless due to parameter permutation/alignment; display with prominent caveat; transfer disabled.  
 **Class X (incompatible):** Missing required tensors, shape mismatch, incompatible dtype/architecture or unsupported packing; no direct numerical combine. Per-tensor matching subsets may still be visualized as **unverified inspection**.
 
@@ -713,8 +715,8 @@ Do not claim "better at reasoning" from math score alone; it is evidence for mea
 
 ## 6. Transfer eligibility rules
 
-**T1:** LoRA adapters from identical base weight hash and compatible target names/scaling -> eligible virtual composition; note potential interference.  
-**T2:** LoRA adapter + same model architecture and base ID but hash absent -> require explicit user acknowledgment and block export until verified or overridden research mode.  
+**T1:** LoRA adapters whose base is Class V (`lineage_evidence = cryptographically_verified`) with compatible target names/scaling -> eligible virtual composition; note potential interference.  
+**T2:** LoRA adapter + same model architecture and base ID, lineage `declared` or `user_attested` -> require explicit user acknowledgment (a recorded attestation counts) and block export until cryptographically verified or overridden in recorded research mode.  
 **T3:** Full-task delta and second fine-tune descended from exact shared base with matching tensor keys/shapes/dtypes/tokenizer -> permitted research-mode weighted addition, never silently assumed to improve behavior.  
 **T4:** Similar model names/architectures but different training base or unverified coordinate system -> descriptive compare only; no automatic direct merge.  
 **T5:** Different shapes/families -> no direct addition; an advanced projection/alignment study is separate scope, potentially using activation matching and calibration data, and requires proof of mapping.
@@ -997,7 +999,7 @@ If any non-finite exists, `values` uses JSON `null` at that position and `nonfin
 `quality.mode`: `auto` (default: exact from direct read or pyramid when available; otherwise a row-sampled preview, labeled), `exact` (202 + job if the pyramid is not built yet), `row_sampled` (with optional `sampled_rows_per_block`). Response formats, chosen by `Accept`, both defined in `contracts/openapi.yaml`:
 
 - `application/vnd.weightlab.tile.v1` (default, binary): `rows*cols` float32 little-endian values in row-major order, immediately followed by `rows*cols` uint8 status codes. Body length is exactly `rows*cols*5` bytes. Status: `0` finite, `1` block contains NaN, `2` contains +Inf, `3` contains -Inf, `4` contains several non-finite kinds, `5` no finite data (value is a NaN placeholder and must not be drawn as a number). For aggregate cells the value is the aggregate over finite elements and the status reports non-finite elements in the block.
-- `application/json`: only for tiles with <= 16,384 cells (128x128), for tests and debugging; `TileJson` with `values` (`null` where status != 0) and `status`.
+- `application/json`: only for tiles with <= 16,384 cells (128x128), for tests and debugging; `TileJson` with `values` and `status` carrying exactly the same information as the binary form: `values` holds the finite aggregate whenever one exists (status 0-4) and is `null` only for status 5 (no finite data). A block containing NaN/Inf therefore still reports its finite aggregate, with the non-finite kinds in `status`.
 
 Binary metadata headers: `X-WeightLab-Rows`, `X-WeightLab-Cols`, `X-WeightLab-Row-Start`, `X-WeightLab-Row-End`, `X-WeightLab-Col-Start`, `X-WeightLab-Col-End`, `X-WeightLab-Level`, `X-WeightLab-Quality` (`exact` or `row_sampled`), `X-WeightLab-Sampled-Rows`, `X-WeightLab-Aggregation`, `X-WeightLab-Cache-Key`. Full metadata (source identity, true block coverage, finite/non-finite counts, sampling policy) is at `GET /tiles/{cache_key}/metadata`. Cache key must include file fingerprints, coordinates, aggregation, scope, scale/LoRA config, app numerical version and sample seed. Color is client-side so colors can change without disk reread.
 
@@ -1222,7 +1224,7 @@ Memory targets to **verify**, not guaranteed present-day benchmarks:
 | Frontend decoded tile cache | 64 MiB target | evict |
 | Exact ROI table (`roi_max_cells`) | <= 4096 cells initial | prompt to narrow/export as stream |
 | Tile payload (`max_tile_cells`) | <= 256x256 = 65,536 cells (320 KiB binary incl. status) | no oversized tile responses |
-| Exact pyramid (`pyramid_exact_max_mib`) | auto-build for tensors <= 1024 MiB on disk; storage ~8% of BF16 tensor bytes | larger tensors: row-sampled preview + queued exact job |
+| Exact pyramid (`pyramid_exact_max_mib`) | auto-build for tensors <= 1024 MiB on disk; storage 40 B per 16x16 block incl. `sum_abs` (~8% of BF16, ~4% of F32 tensor bytes) | larger tensors: row-sampled preview + queued exact job |
 | Active tile jobs | 2 | queue/cancel stale |
 | Heavy full-scan jobs | 1 | queue |
 | CPU workers | max 2 by default | config controls |
@@ -1397,7 +1399,7 @@ Provided: `scripts/generate_demo_fixtures.py --output tests/fixtures/generated -
 - OpenAPI schema validation + generated client test where practical.
 - 400/401/403/404/409/413/422/429 exact error cases.
 - No cross-origin unauthenticated sensitive requests; random token is required by all non-public endpoints.
-- JSON response finite and valid; binary tile byte count = `rows*cols*sizeof(dtype)` when no separate mask channel.
+- JSON responses contain no NaN/Infinity literals. Binary tile body is exactly `rows*cols*5` bytes: `rows*cols` float32 little-endian values followed by `rows*cols` uint8 status codes; status values are within 0-5; status 1-4 cells carry the finite aggregate; status 5 cells are never drawn as numbers; header row/col ranges match the body shape. The JSON form of the same tile carries identical values and statuses (null only for status 5).
 - Job cancel idempotency and state machine transitions; no canceled job marked completed.
 - Projects persist and survive process restart, cache recomputes safely after version change.
 
@@ -1715,7 +1717,7 @@ Each ticket commits minimal vertical slice, proves its own acceptance and does n
 ### ADR-012: Exact pyramid first; row sampling only for very large tensors
 **Decision:** L0-L3 tiles from direct reads, L>=4 from an exact one-pass pyramid; row-sampled previews only above `pyramid_exact_max_mib`. Separate budgets for tiles (65,536 cells) and the ROI table (4,096 cells).
 **Why:** Most weight matrices are 30-250 MiB; one sequential pass is cheaper than scattered per-cell sampling, and results are exact.
-**Trade-off:** A background build per tensor and a pyramid cache of ~8% of BF16 tensor size.
+**Trade-off:** A background build per tensor and a pyramid cache of 40 B per 16x16 block (~8% of BF16 tensor size), including `sum_abs` for mean-absolute.
 
 ### ADR-013: Change report CLI before the UI
 **Decision:** Ship `weightlab diff` (R0.5) after the reader gate and validate it with practitioners before building the R1 UI.
@@ -1723,7 +1725,7 @@ Each ticket commits minimal vertical slice, proves its own acceptance and does n
 **Trade-off:** The first release is terminal-only.
 
 ### ADR-014: Operational lineage verification
-**Decision:** Class V requires file-content evidence: recorded SHA-256, offline Hugging Face cache blob hashes with a declared revision, or explicit user attestation (labeled). Name-only declarations are Class L.
+**Decision:** Class V requires cryptographic file-content evidence: recorded SHA-256, or offline Hugging Face cache blob hashes with a declared revision. User attestation is recorded as `lineage_evidence = user_attested` and keeps the pair in Class L (it satisfies the T2 acknowledgment only). Name-only declarations are Class L with `declared`.  
 **Why:** Real adapters rarely record base hashes; without an achievable verification path, V would be unreachable.
 **Trade-off:** Hashing large files is a slow, explicit job.
 

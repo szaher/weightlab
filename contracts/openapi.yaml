@@ -356,7 +356,7 @@ components:
         source: {type: object, additionalProperties: true}
         warnings: {type: array, items: {type: string}}
     TileJson:
-      description: JSON form, allowed only for tiles with at most 16384 cells (128x128); for tests and debugging.
+      description: JSON form, allowed only for tiles with at most 16384 cells (128x128); for tests and debugging. Carries the same information as the binary form - values holds the finite aggregate for status 0-4 and is null only for status 5 (no finite data).
       type: object
       required: [metadata, values, status]
       properties:

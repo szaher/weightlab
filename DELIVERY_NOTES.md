@@ -18,7 +18,7 @@ No WeightLab app, UI, production reader or trained model has been implemented. P
 - BF16/F16 mandatory from R0; WeightLab decodes BF16 itself (safetensors 0.8.0's NumPy backend cannot). Positioned-read reader instead of mmap (SIGBUS, Windows locks). ADR-011.
 - Tiles: direct reads for L0-L3, exact one-pass pyramid for L>=4, row-sampled preview only above `pyramid_exact_max_mib`; separate tile (65,536) and ROI-table (4,096) budgets. ADR-012.
 - New R0.5 `weightlab diff` change report CLI (FR-023) and practitioner validation before the UI. ADR-013.
-- Operational Class V lineage verification (hashes, offline HF cache blob hashes, user attestation). ADR-014.
+- Operational Class V lineage verification (recorded hashes, offline HF cache blob hashes); user attestation stays Class L with `lineage_evidence = user_attested`. ADR-014.
 - R3 evaluation on the viewer's own weights via transformers + PEFT; layer interventions as small derived adapters. ADR-015.
 - Launch token delivered via URL fragment. ADR-016.
 - LoRA: `fan_in_fan_out`, `rank_pattern`/`alpha_pattern`, `layers_to_transform`, embedding LoRA and DoRA rejection; tied embeddings reported as tied, not missing.
@@ -26,6 +26,7 @@ No WeightLab app, UI, production reader or trained model has been implemented. P
 - Fixtures: renamed `tiny_math` to `tiny_ft`; added rank-0, 1x1, BF16/F16, `down_proj`, rank-1/rsLoRA/DoRA adapters, `compat/`, malformed binaries; full 8x8 expectations for AC-001; all pseudo-random values via SplitMix64.
 - Found while regenerating fixtures: `safetensors.numpy.save_file` (0.8.0) silently transposes non-C-contiguous arrays and does not keep multi-key metadata order stable. The generator works around both (doc 03 section 11).
 - Reference 12 (Klabunde & Lemmerich) marked unverified.
+- Follow-up review: `sum_abs` added to pyramid records (mean-absolute), JSON tiles keep finite aggregates for blocks with non-finite values, attestation separated from cryptographic verification, binary tile test updated to 5 bytes per cell.
 - The previously shipped PDF was no longer in the working tree at revision time; regenerate with `--pdf` if needed.
 
 ## Suggested start

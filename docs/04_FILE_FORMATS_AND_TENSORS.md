@@ -92,13 +92,15 @@ Allow output ROI only if intermediate arrays fit budget. If user chooses a large
 
 ## 7. Model comparability classification
 
-**Class V (verified same base):** WeightLab can establish that A's files are byte-identical to the base the derivative declares, by one of:
+**Class V (verified same base):** WeightLab can establish *cryptographically* that A's files are byte-identical to the base the derivative declares (`lineage_evidence = cryptographically_verified`), by one of:
 1. SHA-256 of every referenced base file equals a hash recorded in the derivative's provenance (a WeightLab manifest, a model card hash list, or `expected_results.json` for fixtures).
 2. Offline Hugging Face hub cache: both repos resolve in the local cache, the derivative declares the base repo **and revision**, the base snapshot is that revision, and each LFS blob's filename (the hub cache names LFS blobs by the file's SHA-256) matches a fresh hash of the file. No download.
-3. User attestation: the user states that these exact files were the training base; hashes are recorded and the status is `V (user_attested)`, displayed as such.
 
 Plus the same architecture, tensor names/shapes and tokenizer/config where behavioral interpretation requires it. Real-world adapters usually record only `base_model_name_or_path` without a revision or hash; those are Class L, not V. Weight similarity (for example per-tensor cosine(A,B) > 0.99 across all matched tensors) is recorded as supporting evidence for Class L, never as proof of V.  
-**Class L (lineage declared but unverified):** Metadata references same base ID but no cryptographic proof; side-by-side descriptive comparisons allowed; transfer behind acknowledgment, default disabled.  
+
+User attestation is **not** a route to Class V. When the user states that these exact files were the training base, the hashes are recorded and the pair stays Class L with `lineage_evidence = user_attested`; that attestation satisfies the T2 acknowledgment (doc 06 section 6) but never unlocks behavior reserved for cryptographically verified lineage. Every compatibility decision records `lineage_evidence` as one of `cryptographically_verified`, `user_attested`, `declared` (name/ID only) or `none`.
+
+**Class L (lineage declared or attested, not cryptographically verified):** Metadata references same base ID (`declared`) or the user attested it (`user_attested`), but no cryptographic proof; side-by-side descriptive comparisons allowed; transfer behind acknowledgment, default disabled; the evidence kind is shown wherever the class is shown.  
 **Class S (shape-compatible only):** Exact names/shapes but unknown or different origin; difference may be meaningless due to parameter permutation/alignment; display with prominent caveat; transfer disabled.  
 **Class X (incompatible):** Missing required tensors, shape mismatch, incompatible dtype/architecture or unsupported packing; no direct numerical combine. Per-tensor matching subsets may still be visualized as **unverified inspection**.
 

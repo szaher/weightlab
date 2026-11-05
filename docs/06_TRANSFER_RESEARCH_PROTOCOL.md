@@ -46,8 +46,8 @@ Do not claim "better at reasoning" from math score alone; it is evidence for mea
 
 ## 6. Transfer eligibility rules
 
-**T1:** LoRA adapters from identical base weight hash and compatible target names/scaling -> eligible virtual composition; note potential interference.  
-**T2:** LoRA adapter + same model architecture and base ID but hash absent -> require explicit user acknowledgment and block export until verified or overridden research mode.  
+**T1:** LoRA adapters whose base is Class V (`lineage_evidence = cryptographically_verified`) with compatible target names/scaling -> eligible virtual composition; note potential interference.  
+**T2:** LoRA adapter + same model architecture and base ID, lineage `declared` or `user_attested` -> require explicit user acknowledgment (a recorded attestation counts) and block export until cryptographically verified or overridden in recorded research mode.  
 **T3:** Full-task delta and second fine-tune descended from exact shared base with matching tensor keys/shapes/dtypes/tokenizer -> permitted research-mode weighted addition, never silently assumed to improve behavior.  
 **T4:** Similar model names/architectures but different training base or unverified coordinate system -> descriptive compare only; no automatic direct merge.  
 **T5:** Different shapes/families -> no direct addition; an advanced projection/alignment study is separate scope, potentially using activation matching and calibration data, and requires proof of mapping.

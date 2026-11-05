@@ -61,7 +61,7 @@
 ### ADR-012: Exact pyramid first; row sampling only for very large tensors
 **Decision:** L0-L3 tiles from direct reads, L>=4 from an exact one-pass pyramid; row-sampled previews only above `pyramid_exact_max_mib`. Separate budgets for tiles (65,536 cells) and the ROI table (4,096 cells).
 **Why:** Most weight matrices are 30-250 MiB; one sequential pass is cheaper than scattered per-cell sampling, and results are exact.
-**Trade-off:** A background build per tensor and a pyramid cache of ~8% of BF16 tensor size.
+**Trade-off:** A background build per tensor and a pyramid cache of 40 B per 16x16 block (~8% of BF16 tensor size), including `sum_abs` for mean-absolute.
 
 ### ADR-013: Change report CLI before the UI
 **Decision:** Ship `weightlab diff` (R0.5) after the reader gate and validate it with practitioners before building the R1 UI.
@@ -69,7 +69,7 @@
 **Trade-off:** The first release is terminal-only.
 
 ### ADR-014: Operational lineage verification
-**Decision:** Class V requires file-content evidence: recorded SHA-256, offline Hugging Face cache blob hashes with a declared revision, or explicit user attestation (labeled). Name-only declarations are Class L.
+**Decision:** Class V requires cryptographic file-content evidence: recorded SHA-256, or offline Hugging Face cache blob hashes with a declared revision. User attestation is recorded as `lineage_evidence = user_attested` and keeps the pair in Class L (it satisfies the T2 acknowledgment only). Name-only declarations are Class L with `declared`.  
 **Why:** Real adapters rarely record base hashes; without an achievable verification path, V would be unreachable.
 **Trade-off:** Hashing large files is a slow, explicit job.
 

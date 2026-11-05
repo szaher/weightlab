@@ -55,7 +55,8 @@
       "properties": {
         "id": {"type": "string"},
         "format": {"type": "string"},
-        "fingerprint_method": {"enum": ["sha256", "hf_cache_blob_sha256", "user_attested", "size_mtime", "none"]},
+        "fingerprint_method": {"enum": ["sha256", "hf_cache_blob_sha256", "size_mtime", "none"]},
+        "lineage_evidence": {"enum": ["cryptographically_verified", "user_attested", "declared", "none"], "description": "Only cryptographically_verified permits compatibility class V; user_attested and declared are class L."},
         "sha256": {"type": ["string", "null"]},
         "lineage_verified": {"type": "boolean"},
         "base_id": {"type": ["string", "null"]}

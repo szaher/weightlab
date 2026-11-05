@@ -17,7 +17,7 @@ Memory targets to **verify**, not guaranteed present-day benchmarks:
 | Frontend decoded tile cache | 64 MiB target | evict |
 | Exact ROI table (`roi_max_cells`) | <= 4096 cells initial | prompt to narrow/export as stream |
 | Tile payload (`max_tile_cells`) | <= 256x256 = 65,536 cells (320 KiB binary incl. status) | no oversized tile responses |
-| Exact pyramid (`pyramid_exact_max_mib`) | auto-build for tensors <= 1024 MiB on disk; storage ~8% of BF16 tensor bytes | larger tensors: row-sampled preview + queued exact job |
+| Exact pyramid (`pyramid_exact_max_mib`) | auto-build for tensors <= 1024 MiB on disk; storage 40 B per 16x16 block incl. `sum_abs` (~8% of BF16, ~4% of F32 tensor bytes) | larger tensors: row-sampled preview + queued exact job |
 | Active tile jobs | 2 | queue/cancel stale |
 | Heavy full-scan jobs | 1 | queue |
 | CPU workers | max 2 by default | config controls |

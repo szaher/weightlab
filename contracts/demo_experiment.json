@@ -10,6 +10,7 @@
       "fingerprint_method": "sha256",
       "sha256": "8c7df989958a448e7ed6baa9dd4f49a59824045f14fe0a48882e792a36138ced",
       "lineage_verified": true,
+      "lineage_evidence": "cryptographically_verified",
       "base_id": "tiny-base-fixture"
     }
   ],

@@ -50,7 +50,7 @@ Provided: `scripts/generate_demo_fixtures.py --output tests/fixtures/generated -
 - OpenAPI schema validation + generated client test where practical.
 - 400/401/403/404/409/413/422/429 exact error cases.
 - No cross-origin unauthenticated sensitive requests; random token is required by all non-public endpoints.
-- JSON response finite and valid; binary tile byte count = `rows*cols*sizeof(dtype)` when no separate mask channel.
+- JSON responses contain no NaN/Infinity literals. Binary tile body is exactly `rows*cols*5` bytes: `rows*cols` float32 little-endian values followed by `rows*cols` uint8 status codes; status values are within 0-5; status 1-4 cells carry the finite aggregate; status 5 cells are never drawn as numbers; header row/col ranges match the body shape. The JSON form of the same tile carries identical values and statuses (null only for status 5).
 - Job cancel idempotency and state machine transitions; no canceled job marked completed.
 - Projects persist and survive process restart, cache recomputes safely after version change.
 
