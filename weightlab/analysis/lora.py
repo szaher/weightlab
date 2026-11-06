@@ -257,6 +257,28 @@ def _load_whole(ck: Checkpoint, key: str) -> npt.NDArray[np.float64]:
     return flat.reshape(meta.shape)
 
 
+def adapter_pairs(ad: Checkpoint) -> tuple[dict[str, dict[str, str]], list[tuple[str, str]]]:
+    """Group adapter keys into {module: {"A": key, "B": key}}; every other key is listed with a reason."""
+    pairs: dict[str, dict[str, str]] = {}
+    unsupported_keys: list[tuple[str, str]] = []
+    for key in (m.key for m in ad.metadata()):
+        m = _AB.match(key[len(PREFIX) :]) if key.startswith(PREFIX) else None
+        if m is None:
+            why = (
+                "DoRA magnitude vector"
+                if "lora_magnitude_vector" in key
+                else "embedding LoRA"
+                if "lora_embedding_" in key
+                else "modules_to_save weight"
+                if "modules_to_save" in key
+                else "not a supported LoRA key"
+            )
+            unsupported_keys.append((key, why))
+            continue
+        pairs.setdefault(m["module"], {})[m["which"]] = key
+    return pairs, unsupported_keys
+
+
 def analyze_adapter(
     base: Checkpoint,
     adapter_dir: Path,
@@ -273,23 +295,7 @@ def analyze_adapter(
         raise fail(ErrorCode.NOT_FOUND, "adapter_model.safetensors not found (adapter_model.bin is never loaded)")
     with open_checkpoint(weights, selected_root=root or adapter_dir, hash_files=True) as ad:
         digest = next(iter(ad.digests().values()))
-        pairs: dict[str, dict[str, str]] = {}
-        unsupported_keys: list[tuple[str, str]] = []
-        for key in (m.key for m in ad.metadata()):
-            m = _AB.match(key[len(PREFIX) :]) if key.startswith(PREFIX) else None
-            if m is None:
-                why = (
-                    "DoRA magnitude vector"
-                    if "lora_magnitude_vector" in key
-                    else "embedding LoRA"
-                    if "lora_embedding_" in key
-                    else "modules_to_save weight"
-                    if "modules_to_save" in key
-                    else "not a supported LoRA key"
-                )
-                unsupported_keys.append((key, why))
-                continue
-            pairs.setdefault(m["module"], {})[m["which"]] = key
+        pairs, unsupported_keys = adapter_pairs(ad)
         modules: list[Module] = []
         base_keys = {t.key for t in base.metadata()}
         for module, ab in pairs.items():
@@ -299,6 +305,79 @@ def analyze_adapter(
     analyzed_bases = {m.base_key for m in modules if m.base_key}
     without = sum(1 for k in base_keys if k not in analyzed_bases)
     return AdapterResult(cfg, modules, unsupported_keys, without, digest)
+
+
+@dataclass
+class ModulePlan:
+    """Metadata-only validation of one adapter module (no tensor data read)."""
+
+    module: Module
+    a_key: str | None = None
+    b_key: str | None = None
+    n_out: int = 0
+    n_in: int = 0
+
+    @property
+    def ok(self) -> bool:
+        return self.module.status == "planned"
+
+
+def plan_module(
+    base: Checkpoint, ad: Checkpoint, cfg: AdapterConfig, module: str, ab: dict[str, str], base_keys: set[str]
+) -> ModulePlan:
+    """Map an adapter module to its base tensor and resolve rank, alpha and scale. Status stays
+    `unsupported` with reasons unless every check passes, then `planned`."""
+    base_key = next((k for k in (f"{module}.weight", f"{module}.base_layer.weight") if k in base_keys), None)
+    mod = Module(module, base_key, "unsupported", transpose=cfg.fan_in_fan_out)
+    plan = ModulePlan(mod, ab.get("A"), ab.get("B"))
+    if cfg.global_unsupported:
+        mod.reasons += cfg.global_unsupported
+        return plan
+    if set(ab) != {"A", "B"}:
+        mod.reasons.append(f"lora_{'B' if 'A' in ab else 'A'} missing for this module")
+        return plan
+    if base_key is None:
+        mod.reasons.append("missing source base tensor (no .weight or .base_layer.weight in the base)")
+        return plan
+    if cfg.layers_to_transform is not None:
+        li = layer_index(module)
+        if li is None or li not in cfg.layers_to_transform:
+            mod.reasons.append(f"module layer {li} is outside layers_to_transform {cfg.layers_to_transform}")
+            return plan
+    scale = resolve_scale(cfg, module)
+    if isinstance(scale, str):
+        mod.reasons.append(scale)
+        return plan
+    rank, alpha, s, formula, rank_from = scale
+    mod.rank, mod.alpha, mod.scale, mod.scale_formula, mod.rank_from = rank, alpha, s, formula, rank_from
+    ma, mb, mw = ad.tensor(ab["A"]), ad.tensor(ab["B"]), base.tensor(base_key)
+    if len(ma.shape) != 2 or len(mb.shape) != 2 or len(mw.shape) != 2:
+        mod.reasons.append("only rank-2 linear weights are supported")
+        return plan
+    (ra, n_in), (n_out, rb) = ma.shape, mb.shape
+    if ra != rank or rb != rank:
+        swapped = ma.shape == (n_in, rank) or mb.shape == (rank, n_out)
+        mod.reasons.append(
+            f"rank mismatch: config r={rank}, lora_A {list(ma.shape)}, lora_B {list(mb.shape)}"
+            + (" (A/B swapped?)" if swapped else "")
+        )
+        return plan
+    expected = (n_in, n_out) if cfg.fan_in_fan_out else (n_out, n_in)
+    if mw.shape != expected:
+        mod.reasons.append(
+            f"base {list(mw.shape)} does not match B@A {[n_out, n_in]}"
+            + (" with fan_in_fan_out" if cfg.fan_in_fan_out else "")
+        )
+        return plan
+    if mw.dtype not in ("F64", "F32", "F16", "BF16"):
+        mod.reasons.append(f"base dtype {mw.dtype} is not a float")
+        return plan
+    if ma.dtype not in ("F64", "F32", "F16", "BF16") or mb.dtype not in ("F64", "F32", "F16", "BF16"):
+        mod.reasons.append("LoRA factors must be float tensors")
+        return plan
+    mod.status = "planned"
+    plan.n_out, plan.n_in = n_out, n_in
+    return plan
 
 
 def _analyze_module(
@@ -312,53 +391,16 @@ def _analyze_module(
     max_gmac: float,
     block_cells: int,
 ) -> Module:
-    base_key = next((k for k in (f"{module}.weight", f"{module}.base_layer.weight") if k in base_keys), None)
-    mod = Module(module, base_key, "unsupported", transpose=cfg.fan_in_fan_out)
-    if cfg.global_unsupported:
-        mod.reasons += cfg.global_unsupported
+    plan = plan_module(base, ad, cfg, module, ab, base_keys)
+    mod = plan.module
+    if not plan.ok:
         return mod
-    if set(ab) != {"A", "B"}:
-        mod.reasons.append(f"lora_{'B' if 'A' in ab else 'A'} missing for this module")
-        return mod
-    if base_key is None:
-        mod.reasons.append("missing source base tensor (no .weight or .base_layer.weight in the base)")
-        return mod
-    if cfg.layers_to_transform is not None:
-        li = layer_index(module)
-        if li is None or li not in cfg.layers_to_transform:
-            mod.reasons.append(f"module layer {li} is outside layers_to_transform {cfg.layers_to_transform}")
-            return mod
-    scale = resolve_scale(cfg, module)
-    if isinstance(scale, str):
-        mod.reasons.append(scale)
-        return mod
-    rank, alpha, s, formula, rank_from = scale
-    mod.rank, mod.alpha, mod.scale, mod.scale_formula, mod.rank_from = rank, alpha, s, formula, rank_from
+    mod.status = "unsupported"  # until analyzed, budget-limited or skipped below
+    assert mod.base_key is not None
+    assert mod.rank is not None
+    assert mod.scale is not None
+    base_key, rank, s, n_out, n_in = mod.base_key, mod.rank, mod.scale, plan.n_out, plan.n_in
     ma, mb, mw = ad.tensor(ab["A"]), ad.tensor(ab["B"]), base.tensor(base_key)
-    if len(ma.shape) != 2 or len(mb.shape) != 2 or len(mw.shape) != 2:
-        mod.reasons.append("only rank-2 linear weights are supported")
-        return mod
-    (ra, n_in), (n_out, rb) = ma.shape, mb.shape
-    if ra != rank or rb != rank:
-        swapped = ma.shape == (n_in, rank) or mb.shape == (rank, n_out)
-        mod.reasons.append(
-            f"rank mismatch: config r={rank}, lora_A {list(ma.shape)}, lora_B {list(mb.shape)}"
-            + (" (A/B swapped?)" if swapped else "")
-        )
-        return mod
-    expected = (n_in, n_out) if cfg.fan_in_fan_out else (n_out, n_in)
-    if mw.shape != expected:
-        mod.reasons.append(
-            f"base {list(mw.shape)} does not match B@A {[n_out, n_in]}"
-            + (" with fan_in_fan_out" if cfg.fan_in_fan_out else "")
-        )
-        return mod
-    if mw.dtype not in ("F64", "F32", "F16", "BF16"):
-        mod.reasons.append(f"base dtype {mw.dtype} is not a float")
-        return mod
-    if ma.dtype not in ("F64", "F32", "F16", "BF16") or mb.dtype not in ("F64", "F32", "F16", "BF16"):
-        mod.reasons.append("LoRA factors must be float tensors")
-        return mod
     gmac = n_out * n_in * rank / 1e9
     norm_only = gmac > max_gmac
     need = working_set_bytes(n_out, n_in, rank, norm_only, block_cells)

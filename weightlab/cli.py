@@ -1,7 +1,8 @@
-"""`weightlab` command line (R0.5: `weightlab diff`).
+"""`weightlab` command line.
 
     weightlab diff BASE DERIVED [--out DIR] [--json F] [--csv F] [--md F]
     weightlab diff BASE --adapter ADAPTER_DIR [...]
+    weightlab start [--port 0] [--host 127.0.0.1] [--data-dir DIR]
 
 Exit codes: 0 complete report; 3 report written but incomplete (unsupported/unmatched parts);
 2 input or validation error; 130 cancelled (nothing written).
@@ -32,6 +33,10 @@ def _parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(prog="weightlab", description="Local, CPU-only, read-only checkpoint change reports.")
     p.add_argument("--version", action="version", version=f"weightlab {__version__}")
     sub = p.add_subparsers(dest="command", required=True)
+    st = sub.add_parser("start", help="serve the local API on loopback (prints the URL with its access token)")
+    st.add_argument("--port", type=int, default=0, help="TCP port; 0 picks a free one (default)")
+    st.add_argument("--host", default="127.0.0.1", help="127.0.0.1 (default) or ::1; nothing else is accepted")
+    st.add_argument("--data-dir", type=Path, help="application data directory (default: platform user data dir)")
     d = sub.add_parser("diff", help="ranked change report: BASE vs DERIVED, or BASE + --adapter")
     d.add_argument("base", help="base checkpoint: .safetensors, *.safetensors.index.json or a model directory")
     d.add_argument("derived", nargs="?", help="derived checkpoint (omit with --adapter)")
@@ -179,11 +184,33 @@ def diff(args: argparse.Namespace) -> int:
     return EXIT_OK if report["complete"] else EXIT_INCOMPLETE
 
 
+def start(args: argparse.Namespace) -> int:
+    from weightlab.api.config import check_host
+    from weightlab.api.server import serve
+
+    try:
+        check_host(args.host)
+    except ValueError as e:
+        sys.stderr.write(f"error: {e}\n")
+        return EXIT_ERROR
+    if not 0 <= args.port < 65536:
+        sys.stderr.write("error: --port must be in 0-65535\n")
+        return EXIT_ERROR
+    try:
+        serve(args.host, args.port, args.data_dir)
+    except OSError as e:
+        sys.stderr.write(f"error: cannot listen on {args.host}:{args.port} ({e.strerror})\n")
+        return EXIT_ERROR
+    return EXIT_OK
+
+
 def main(argv: list[str] | None = None) -> int:
     args = _parser().parse_args(argv)
     try:
         if args.command == "diff":
             return diff(args)
+        if args.command == "start":
+            return start(args)
     except (KeyboardInterrupt, Cancelled):
         sys.stderr.write("\ncancelled: no report written\n")
         return EXIT_CANCELLED

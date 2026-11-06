@@ -24,7 +24,7 @@ from weightlab.core.errors import ErrorCode, fail
 from weightlab.core.limits import DEFAULT_LIMITS, Limits
 from weightlab.formats.base import Consistency, TensorMeta, strict_json
 from weightlab.formats.dtypes import DType, decode
-from weightlab.formats.fileio import PositionedFile
+from weightlab.formats.fileio import FileIdentity, PositionedFile
 from weightlab.formats.safetensors_reader import Header, read_header
 from weightlab.formats.selection import (
     View,
@@ -114,6 +114,10 @@ class Checkpoint:
     @property
     def entry_dir(self) -> Path:
         return self.entry.parent
+
+    def file_identities(self) -> dict[str, FileIdentity]:
+        """Identity of every shard as recorded when it was opened (size, mtime, ctime, device, inode)."""
+        return {sid: s.file.identity for sid, s in self._shards.items()}
 
     def file_info(self) -> list[FileInfo]:
         """Per-file fingerprint for provenance (sizes and times recorded at open)."""

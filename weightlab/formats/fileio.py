@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import hashlib
 import os
+import stat
 import sys
 import threading
 from dataclasses import dataclass
@@ -53,7 +54,9 @@ class PositionedFile:
 
     def __init__(self, path: Path) -> None:
         self.path = path
-        flags = os.O_RDONLY | getattr(os, "O_BINARY", 0) | getattr(os, "O_CLOEXEC", 0)
+        # O_NONBLOCK: a FIFO or device swapped in after any earlier check cannot block open(); it is then
+        # refused by the S_ISREG test on the handle below (doc 12 section 3: regular files only).
+        flags = os.O_RDONLY | getattr(os, "O_BINARY", 0) | getattr(os, "O_CLOEXEC", 0) | getattr(os, "O_NONBLOCK", 0)
         try:
             self._fd: int | None = os.open(path, flags)
         except FileNotFoundError:
@@ -61,9 +64,14 @@ class PositionedFile:
         except IsADirectoryError:
             raise fail(ErrorCode.INVALID_FORMAT, f"not a file: {path.name}") from None
         except PermissionError as e:
+            if os.path.isdir(path):  # Windows reports opening a directory as EACCES
+                raise fail(ErrorCode.INVALID_FORMAT, f"not a file: {path.name}") from None
             raise fail(ErrorCode.VALIDATION_ERROR, f"permission denied: {path.name} ({e.strerror})") from None
         try:
-            handle = FileIdentity.of(os.fstat(self._fd))
+            st = os.fstat(self._fd)
+            if not stat.S_ISREG(st.st_mode):
+                raise fail(ErrorCode.INVALID_FORMAT, f"not a regular file: {path.name}")
+            handle = FileIdentity.of(st)
             if handle != path_identity(path):
                 raise fail(ErrorCode.FILE_CHANGED, f"{path.name} changed while being opened")
         except BaseException:

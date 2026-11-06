@@ -1,4 +1,4 @@
-# Phase 0/0.5 application CI: format, lint, typecheck and the full test suite on all three desktop OSes,
+# Phase 0, 0.5 and 1 application CI: format, lint, typecheck and the full test suite on all three desktop OSes,
 # then the G0 and G0.5 evidence reports per OS as build artifacts (doc 13 section 9, doc 14 Phases 0 and 0.5).
 name: ci
 on:
@@ -44,3 +44,11 @@ jobs:
         with:
           name: g0.5-evidence-${{ matrix.os }}
           path: evidence/ci-g0.5
+      - name: Phase 1 foundation evidence (database + local API, full suite)
+        if: always()
+        run: uv run python scripts/phase1_evidence.py --out evidence/ci-phase1
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: phase1-evidence-${{ matrix.os }}
+          path: evidence/ci-phase1
