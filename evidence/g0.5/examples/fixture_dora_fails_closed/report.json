@@ -39,7 +39,7 @@
       "name": "weightlab",
       "version": "0.0.1.dev0",
       "parser_version": 1,
-      "numerics_version": 1
+      "numerics_version": 2
     },
     "created_at": "2026-11-06T00:00:00Z",
     "inputs": {
@@ -117,6 +117,7 @@
   "complete": false,
   "completeness": {
     "modules_analyzed": 0,
+    "modules_withheld": 0,
     "modules_norm_only": 0,
     "modules_unsupported": 1,
     "modules_skipped": 0,
@@ -161,6 +162,7 @@
     "delta_l2": 0.0,
     "delta_rms": null,
     "relative_l2": null,
+    "near_zero_reference": true,
     "max_abs_delta": null
   },
   "warnings": []

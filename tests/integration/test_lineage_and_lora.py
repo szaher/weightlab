@@ -291,6 +291,8 @@ def test_gram_trace_equals_direct_product() -> None:
         a = RNG.standard_normal((r, n_in))
         b = RNG.standard_normal((n_out, r))
         direct = float(np.linalg.norm(1.5 * (b @ a)))
-        got = gram_frobenius_ssq(a, b, 1.5).sqrt()
+        ssq, issue = gram_frobenius_ssq(a.copy(), b.copy(), 1.5)
+        got = ssq.sqrt()
+        assert issue is None
         assert got is not None
         assert abs(got - direct) <= 1e-12 * direct

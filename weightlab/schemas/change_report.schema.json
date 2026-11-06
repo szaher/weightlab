@@ -91,7 +91,8 @@
         "delta_l2": {"type": ["number", "null"], "minimum": 0},
         "delta_rms": {"type": ["number", "null"], "minimum": 0},
         "relative_l2": {"type": ["number", "null"], "minimum": 0},
-        "max_abs_delta": {"type": ["number", "null"], "minimum": 0}
+        "max_abs_delta": {"type": ["number", "null"], "minimum": 0},
+        "near_zero_reference": {"type": "boolean", "description": "||A|| < epsilon_norm: relative_l2 divides by epsilon_norm"}
       }
     }
   }

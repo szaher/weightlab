@@ -21,7 +21,7 @@ Counts: matched 8, missing_in_a 0, missing_in_b 0, tied 0, shape_mismatch 1, dty
 
 ## Completeness
 
-tensors_analyzed: 8, entries_not_compared: 1, tied_entries: 0
+tensors_analyzed: 8, tensors_withheld: 0, entries_not_compared: 1, tied_entries: 0
 
 ## Caveats
 
@@ -63,7 +63,7 @@ Whole model (analyzed tensors): rel L2 0.0, Δ L2 0.0, Δ RMS 0.0, 8 tensors, 67
 
 ## Provenance
 
-- weightlab 0.0.1.dev0 (parser v1, numerics v1), created 2026-11-06T00:00:00Z
+- weightlab 0.0.1.dev0 (parser v1, numerics v2), created 2026-11-06T00:00:00Z
 - Operation: delta, compute float64, coverage complete, consistency best_effort, epsilon_norm 1e-12
 - Files: tiny_base.safetensors 272076 B sha256 not computed; shape_mismatch.safetensors 272012 B sha256 d44de4c6deda2601a1644d0c8bb370dbb9ad82b2e2b3262451e3c59e490819ab
 - Paths included: False; input files opened read-only.

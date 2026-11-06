@@ -38,6 +38,12 @@ _AB = re.compile(r"^(?P<module>.+)\.lora_(?P<which>A|B)\.weight$")
 DEFAULT_MAX_GMAC = 50.0
 DEFAULT_BLOCK_CELLS = 1 << 18
 MAX_FACTOR_CELLS = 1 << 24  # A or B loaded whole: 128 MiB of float64 at most
+MAX_RANK = 1 << 16  # larger r / rank_pattern values are rejected as invalid configuration
+# Hard cap on the module working set, estimated from shapes before anything is allocated:
+# both factors in float64, plus either the row-block temporaries or the r x r Gram scratch.
+MAX_WORKING_SET_BYTES = 384 * 1024 * 1024
+_BLOCK_TEMPS = 4  # w, d, eff and a transposed slice per row block
+_GRAM_TEMPS = 3  # A A^T, B^T B (reused for the product) and one matmul temporary
 
 
 @dataclass
@@ -68,7 +74,11 @@ class Module:
     stats: PairStats | None = None
     norm_only_l2: float | None = None
     norm_only_ssq: ExpSum | None = None
+    norm_only_issue: str | None = None  # why the norm-only value is withheld (None = valid)
+    base_ssq: ExpSum | None = None
     base_norm_l2: float | None = None
+    base_finite: int = 0
+    base_nonfinite: int = 0
     reasons: list[str] = field(default_factory=list)
 
 
@@ -86,7 +96,17 @@ class AdapterResult:
 
 
 def _num(v: object) -> bool:
-    return type(v) in (int, float) and math.isfinite(v)  # type: ignore[arg-type]
+    """A finite JSON number that converts to float64 (huge JSON integers do not)."""
+    if type(v) not in (int, float):
+        return False
+    try:
+        return math.isfinite(float(v))  # type: ignore[arg-type]
+    except OverflowError:
+        return False
+
+
+def _rank_ok(v: object) -> bool:
+    return type(v) is int and 0 < v <= MAX_RANK
 
 
 def load_config(adapter_dir: Path, root: Path | None = None) -> AdapterConfig:
@@ -115,8 +135,11 @@ def load_config(adapter_dir: Path, root: Path | None = None) -> AdapterConfig:
     if doc.get("layers_pattern") not in (None, [], ""):
         unsupported.append("layers_pattern is not supported in R0.5")
     r, alpha = doc.get("r"), doc.get("lora_alpha")
-    if type(r) is not int or r <= 0 or not _num(alpha):
-        raise fail(ErrorCode.INVALID_FORMAT, "adapter_config needs a positive integer r and a numeric lora_alpha")
+    if not _rank_ok(r) or not _num(alpha):
+        raise fail(
+            ErrorCode.INVALID_FORMAT,
+            f"adapter_config needs an integer r in [1, {MAX_RANK}] and a finite numeric lora_alpha",
+        )
     for name in ("rank_pattern", "alpha_pattern"):
         if not isinstance(doc.get(name) or {}, dict):
             raise fail(ErrorCode.INVALID_FORMAT, f"{name} must be an object")
@@ -135,7 +158,7 @@ def load_config(adapter_dir: Path, root: Path | None = None) -> AdapterConfig:
             raise fail(ErrorCode.INVALID_FORMAT, f"{flag} must be a boolean")
     return AdapterConfig(
         doc,
-        r,
+        r,  # type: ignore[arg-type]  # _rank_ok() checked above
         float(alpha),  # type: ignore[arg-type]  # _num() checked above
         doc.get("use_rslora") is True,
         doc.get("fan_in_fan_out") is True,
@@ -167,25 +190,62 @@ def resolve_scale(cfg: AdapterConfig, module: str) -> tuple[int, float, float, s
         return err
     rank = cfg.r if rp is None else rv
     alpha = cfg.alpha if ap is None else av
-    if type(rank) is not int or rank <= 0 or not _num(alpha):
-        return "rank/alpha pattern value is not a positive integer / number"
+    if not _rank_ok(rank) or not _num(alpha):
+        return f"rank/alpha pattern value is not an integer in [1, {MAX_RANK}] / a finite number"
     alpha = float(alpha)
     if cfg.use_rslora:
         return rank, alpha, alpha / math.sqrt(rank), "alpha/sqrt(r) (rsLoRA)", "rank_pattern" if rp else "r"
     return rank, alpha, alpha / rank, "alpha/r", "rank_pattern" if rp else "r"
 
 
-def gram_frobenius_ssq(a: npt.NDArray[np.float64], b: npt.NDArray[np.float64], scale: float) -> ExpSum:
-    """||scale * B @ A||_F^2 = scale^2 * sum((B^T B) * (A A^T)), O((in+out) r^2)."""
+def gram_frobenius_ssq(
+    a: npt.NDArray[np.float64], b: npt.NDArray[np.float64], scale: float
+) -> tuple[ExpSum, str | None]:
+    """||scale * B @ A||_F^2 = scale^2 * sum((B^T B) * (A A^T)), O((in+out) r^2) time, 3 r^2 scratch.
+
+    Both factors are first scaled by exact powers of two so their largest magnitude is in [0.5, 1);
+    the scaled Gram sum is then far from float64 limits and the true exponent is carried separately
+    (an ExpSum), so huge or tiny factors neither overflow nor underflow to a false zero.
+    Returns (sum, issue): `issue` is set, and the sum must not be reported, when the factors are not
+    finite or when floating-point cancellation leaves no trustworthy non-negative value.
+    `a` and `b` are scaled in place (callers pass private copies)."""
+    out = ExpSum()
+    if not (np.isfinite(a).all() and np.isfinite(b).all()):
+        return out, "LoRA factors contain NaN/Inf"
+    pa = float(np.max(np.abs(a))) if a.size else 0.0
+    pb = float(np.max(np.abs(b))) if b.size else 0.0
+    if pa == 0.0 or pb == 0.0 or scale == 0.0:
+        return out, None  # exactly zero update
+    ka, kb = math.frexp(pa)[1], math.frexp(pb)[1]
+    np.ldexp(a, -ka, out=a)
+    np.ldexp(b, -kb, out=b)
     ga = a @ a.T
     gb = b.T @ b
-    total = float(np.sum(gb * ga))
-    out = ExpSum()
-    if total > 0 and math.isfinite(total):
-        m, e = math.frexp(total)
-        sm, se = math.frexp(scale * scale)
-        out.add(m * sm, e + se)
-    return out
+    np.multiply(gb, ga, out=gb)
+    total = float(np.sum(gb))
+    # Rounding error of the signed total is at most gamma * sum((|B|^T |B|) * (|A| |A|^T)) with
+    # gamma ~ (in + out + r^2) eps (Higham, dot products and sums); a total within twice that of zero
+    # (or negative) cannot be told apart from cancellation noise. Same buffers, no new scratch.
+    np.abs(a, out=a)
+    np.abs(b, out=b)
+    np.matmul(a, a.T, out=ga)
+    np.matmul(b.T, b, out=gb)
+    np.multiply(gb, ga, out=gb)
+    gamma = 2 * (a.shape[1] + b.shape[0] + a.shape[0] ** 2 + 2) * float(np.finfo(np.float64).eps)
+    bound = float(np.sum(gb)) * gamma
+    if not math.isfinite(total) or total <= bound:
+        return out, "Gram-trace sum lost to cancellation (B @ A nearly zero relative to its factors)"
+    m, e = math.frexp(total)
+    sm, se = math.frexp(scale)
+    out.add(m * sm * sm, e + 2 * (ka + kb + se))
+    return out, None
+
+
+def working_set_bytes(n_out: int, n_in: int, rank: int, norm_only: bool, block_cells: int) -> int:
+    """Upper estimate of the float64 bytes one module needs, computed before allocating."""
+    factors = 8 * rank * (n_in + n_out)
+    scratch = _GRAM_TEMPS * rank * rank if norm_only else _BLOCK_TEMPS * max(block_cells, n_in, n_out)
+    return factors + 8 * scratch
 
 
 def _load_whole(ck: Checkpoint, key: str) -> npt.NDArray[np.float64]:
@@ -299,33 +359,50 @@ def _analyze_module(
     if ma.dtype not in ("F64", "F32", "F16", "BF16") or mb.dtype not in ("F64", "F32", "F16", "BF16"):
         mod.reasons.append("LoRA factors must be float tensors")
         return mod
-    if ma.numel > MAX_FACTOR_CELLS or mb.numel > MAX_FACTOR_CELLS:
+    gmac = n_out * n_in * rank / 1e9
+    norm_only = gmac > max_gmac
+    need = working_set_bytes(n_out, n_in, rank, norm_only, block_cells)
+    if ma.numel > MAX_FACTOR_CELLS or mb.numel > MAX_FACTOR_CELLS or need > MAX_WORKING_SET_BYTES:
         mod.status = "skipped"
-        mod.reasons.append(f"LoRA factor above {MAX_FACTOR_CELLS} cells (resource limit)")
+        mod.reasons.append(
+            f"resource limit: estimated working set {need / 2**20:.0f} MiB (limit {MAX_WORKING_SET_BYTES >> 20} MiB, "
+            f"factors at most {MAX_FACTOR_CELLS} cells); nothing allocated"
+        )
         return mod
+    mod.gmac = gmac
     a = _load_whole(ad, ab["A"])
     b = _load_whole(ad, ab["B"])
-    mod.gmac = n_out * n_in * rank / 1e9
-    if mod.gmac > max_gmac:
+    esize = mw.byte_length // max(mw.numel, 1)
+    if norm_only:
         mod.status = "over_budget_norm_only"
-        mod.norm_only_ssq = gram_frobenius_ssq(a, b, s)
-        mod.norm_only_l2 = mod.norm_only_ssq.sqrt()
+        ssq, issue = gram_frobenius_ssq(a, b, s)  # scales a and b in place; not used afterwards
+        mod.norm_only_ssq, mod.norm_only_issue = ssq, issue
+        mod.norm_only_l2 = None if issue else ssq.sqrt()
         ssq_w = ExpSum()
         for chunk in base.iter_flat_chunks(base_key, base.limits.read_chunk_bytes):
             w = np.asarray(chunk, dtype=np.float64)
-            ssq_w.add_squares(w[np.isfinite(w)])
-            control.tick(w.size * (mw.byte_length // max(mw.numel, 1)), base_key)
+            fin = np.isfinite(w)
+            n_fin = int(fin.sum())
+            mod.base_finite += n_fin
+            mod.base_nonfinite += w.size - n_fin
+            ssq_w.add_squares(w if n_fin == w.size else w[fin])
+            control.tick(w.size * esize, base_key)
+        mod.base_ssq = ssq_w
         mod.base_norm_l2 = ssq_w.sqrt()
         mod.reasons.append(
-            f"{mod.gmac:.2f} GMAC above max_lora_scan_gmac={max_gmac}: Frobenius norm only "
-            "(Gram trace); max-abs, cosine and non-finite counts not computed"
+            f"{gmac:.2f} GMAC above max_lora_scan_gmac={max_gmac}: Frobenius norm only "
+            "(Gram trace); max-abs, cosine and non-finite counts of the update not computed"
         )
+        if issue:
+            mod.reasons.append(f"{issue}: delta norm withheld")
+        if mod.base_nonfinite:
+            mod.reasons.append(f"base has {mod.base_nonfinite} NaN/Inf element(s), excluded from ||W||")
         return mod
 
+    factors_finite = bool(np.isfinite(a).all() and np.isfinite(b).all())
     stats = PairStats()
     rows, cols = mw.shape
     step = max(1, block_cells // max(cols, 1))
-    esize = mw.byte_length // max(mw.numel, 1)
     bt = b.T  # (r, out), used for fan_in_fan_out
     for r0 in range(0, rows, step):
         r1 = min(rows, r0 + step)
@@ -333,10 +410,32 @@ def _analyze_module(
         with np.errstate(over="ignore", invalid="ignore"):
             d = s * (a[:, r0:r1].T @ bt) if cfg.fan_in_fan_out else s * (b[r0:r1] @ a)
             eff = w + d
-        stats.update(w.ravel(), eff.ravel(), d.ravel())
+        w, d, eff = w.ravel(), d.ravel(), eff.ravel()
+        if factors_finite:
+            # Finite W and finite factors: a non-finite delta or effective weight is float64
+            # overflow of WeightLab's own arithmetic, not a source NaN/Inf; withhold, never mask.
+            fw = np.isfinite(w)
+            fd = np.isfinite(d)
+            bad_d = fw & ~fd
+            bad_b = fw & fd & ~np.isfinite(eff)
+            n_d, n_b = int(bad_d.sum()), int(bad_b.sum())
+            if n_d or n_b:
+                keep = ~(bad_d | bad_b)
+                stats.add_overflow(n_d, n_b, n_d + n_b)
+                w, d, eff = w[keep], d[keep], eff[keep]
+        stats.update(w, eff, d)
         control.tick((r1 - r0) * cols * esize, base_key)
     mod.stats = stats
     mod.status = "analyzed"
+    if not factors_finite:
+        mod.reasons.append(
+            "LoRA factors contain NaN/Inf: affected effective weights are counted as non-finite B values"
+        )
+    if stats.delta_withheld:
+        mod.reasons.append(
+            f"float64 overflow in s B A ({stats.delta_overflow}) or W + s B A ({stats.b_overflow}) although inputs "
+            "are finite: delta metrics withheld"
+        )
     if cfg.fan_in_fan_out:
         mod.reasons.append("fan_in_fan_out: delta = scale * (B @ A).T in the stored (in, out) layout (transpose=true)")
     return mod

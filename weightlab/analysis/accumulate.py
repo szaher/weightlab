@@ -129,6 +129,7 @@ class PairStats:
     pos_inf_b: int = 0
     neg_inf_b: int = 0
     delta_overflow: int = 0
+    b_overflow: int = 0  # computed B (LoRA W + s B A) not representable although its inputs are finite
     changed: int = 0
     max_abs: float = 0.0
     ssq_delta: ExpSum = field(default_factory=ExpSum)
@@ -203,10 +204,23 @@ class PairStats:
         if yd is not None:
             self.ssq_delta.add(float(np.dot(yd[0], yd[0])), 2 * yd[1])
 
+    def add_overflow(self, n_delta: int, n_b: int, n_pairs: int) -> None:
+        """Record `n_pairs` finite-input positions whose computed delta (`n_delta`) or computed B
+        (`n_b`) left float64 range; they withhold the affected metrics instead of being counted
+        as source non-finite values."""
+        self.elements += n_pairs
+        self.finite_pairs += n_pairs
+        self.delta_overflow += n_delta
+        self.b_overflow += n_b
+
     # -- derived metrics (None = not defined or withheld) ---------------------------------
     @property
     def delta_withheld(self) -> bool:
-        return self.delta_overflow > 0
+        return self.delta_overflow > 0 or self.b_overflow > 0
+
+    @property
+    def b_withheld(self) -> bool:
+        return self.b_overflow > 0
 
     def delta_l2(self) -> float | None:
         return None if self.delta_withheld else self.ssq_delta.sqrt()
@@ -219,17 +233,13 @@ class PairStats:
     def relative_l2(self, eps_norm: float) -> float | None:
         if self.delta_withheld or self.finite_pairs == 0:
             return None
-        norm_a = self.ssq_a.sqrt()
-        if norm_a is not None and norm_a < eps_norm:
-            return _ratio_or_none(self.delta_l2(), eps_norm)
-        return sqrt_ratio(self.ssq_delta, self.ssq_a)
+        return relative_l2(self.ssq_delta, self.ssq_a, eps_norm)
 
     def near_zero_reference(self, eps_norm: float) -> bool:
-        norm_a = self.ssq_a.sqrt()
-        return norm_a is not None and norm_a < eps_norm
+        return near_zero(self.ssq_a, eps_norm)
 
     def cosine(self) -> float | None:
-        return cosine(self.dot_ab, self.ssq_a, self.ssq_b)
+        return None if self.b_withheld else cosine(self.dot_ab, self.ssq_a, self.ssq_b)
 
     def max_abs_delta(self) -> float | None:
         if self.delta_withheld or self.finite_pairs == 0:
@@ -242,6 +252,19 @@ def _ratio_or_none(num: float | None, den: float) -> float | None:
         return None
     v = num / den
     return v if math.isfinite(v) else None
+
+
+def near_zero(ssq_ref: ExpSum, eps_norm: float) -> bool:
+    norm = ssq_ref.sqrt()
+    return norm is not None and norm < eps_norm
+
+
+def relative_l2(ssq_delta: ExpSum, ssq_ref: ExpSum, eps_norm: float) -> float | None:
+    """||delta|| / max(||ref||, eps_norm): the one denominator policy for tensors, modules and
+    rollups. A zero or near-zero reference divides by eps_norm (never null for that reason)."""
+    if near_zero(ssq_ref, eps_norm):
+        return _ratio_or_none(ssq_delta.sqrt(), eps_norm)
+    return sqrt_ratio(ssq_delta, ssq_ref)
 
 
 @dataclass
@@ -277,5 +300,10 @@ class Rollup:
             return None
         return sqrt_ratio(self.ssq_delta, ExpSum(*math.frexp(float(self.finite_pairs))))
 
-    def relative_l2(self) -> float | None:
-        return None if self.withheld else sqrt_ratio(self.ssq_delta, self.ssq_a)
+    def relative_l2(self, eps_norm: float) -> float | None:
+        if self.withheld or self.finite_pairs == 0:
+            return None
+        return relative_l2(self.ssq_delta, self.ssq_a, eps_norm)
+
+    def near_zero_reference(self, eps_norm: float) -> bool:
+        return near_zero(self.ssq_a, eps_norm)

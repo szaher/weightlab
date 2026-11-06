@@ -13,7 +13,7 @@ Counts: modules 2, analyzed 2, over_budget_norm_only 0, unsupported 0, skipped 0
 
 ## Completeness
 
-modules_analyzed: 2, modules_norm_only: 0, modules_unsupported: 0, modules_skipped: 0, unsupported_adapter_keys: 0, base_tensors_without_adapter: 7
+modules_analyzed: 2, modules_withheld: 0, modules_norm_only: 0, modules_unsupported: 0, modules_skipped: 0, unsupported_adapter_keys: 0, base_tensors_without_adapter: 7
 
 ## Caveats
 
@@ -44,7 +44,7 @@ Whole model (analyzed tensors): rel L2 1.31653, Δ L2 12.9711, Δ RMS 1.1465, 2 
 
 ## Provenance
 
-- weightlab 0.0.1.dev0 (parser v1, numerics v1), created 2026-11-06T00:00:00Z
+- weightlab 0.0.1.dev0 (parser v1, numerics v2), created 2026-11-06T00:00:00Z
 - Operation: lora_effective_delta, compute float64, coverage complete, consistency best_effort, epsilon_norm 1e-12
 - Files: tiny_base.safetensors 272076 B sha256 a701e77f066883608beb2a1fc080d52f06ebffca227c1d6fd12de2d484e81133; adapter_model.safetensors ? B sha256 5ea2c555103e23d55a8ea35ae3b862ce5a786d6c6475cf00ae180f764d00a30c
 - Paths included: False; input files opened read-only.

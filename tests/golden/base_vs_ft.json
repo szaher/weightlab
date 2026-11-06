@@ -32,7 +32,7 @@
       "name": "weightlab",
       "version": "<version>",
       "parser_version": 1,
-      "numerics_version": 1
+      "numerics_version": 2
     },
     "created_at": "2026-11-06T00:00:00Z",
     "inputs": {
@@ -94,6 +94,7 @@
   "complete": true,
   "completeness": {
     "tensors_analyzed": 9,
+    "tensors_withheld": 0,
     "entries_not_compared": 0,
     "tied_entries": 0
   },
@@ -121,6 +122,7 @@
         "pos_inf_b": 0,
         "neg_inf_b": 0,
         "delta_overflow": 0,
+        "b_overflow": 0,
         "changed": 10
       },
       "metrics": {
@@ -263,6 +265,7 @@
         "pos_inf_b": 0,
         "neg_inf_b": 0,
         "delta_overflow": 0,
+        "b_overflow": 0,
         "changed": 0
       },
       "metrics": {
@@ -404,6 +407,7 @@
         "pos_inf_b": 0,
         "neg_inf_b": 0,
         "delta_overflow": 0,
+        "b_overflow": 0,
         "changed": 0
       },
       "metrics": {
@@ -545,6 +549,7 @@
         "pos_inf_b": 0,
         "neg_inf_b": 0,
         "delta_overflow": 0,
+        "b_overflow": 0,
         "changed": 0
       },
       "metrics": {
@@ -686,6 +691,7 @@
         "pos_inf_b": 0,
         "neg_inf_b": 0,
         "delta_overflow": 0,
+        "b_overflow": 0,
         "changed": 0
       },
       "metrics": {
@@ -824,6 +830,7 @@
         "pos_inf_b": 0,
         "neg_inf_b": 0,
         "delta_overflow": 0,
+        "b_overflow": 0,
         "changed": 0
       },
       "metrics": {
@@ -965,6 +972,7 @@
         "pos_inf_b": 1,
         "neg_inf_b": 1,
         "delta_overflow": 0,
+        "b_overflow": 0,
         "changed": 0
       },
       "metrics": {
@@ -1105,6 +1113,7 @@
         "pos_inf_b": 0,
         "neg_inf_b": 0,
         "delta_overflow": 0,
+        "b_overflow": 0,
         "changed": 0
       },
       "metrics": {
@@ -1246,6 +1255,7 @@
         "pos_inf_b": 0,
         "neg_inf_b": 0,
         "delta_overflow": 0,
+        "b_overflow": 0,
         "changed": 0
       },
       "metrics": {
@@ -1380,6 +1390,7 @@
       "delta_l2": 1.96214162932,
       "delta_rms": 0.00754006489684,
       "relative_l2": 0.0130370510255,
+      "near_zero_reference": false,
       "max_abs_delta": 1.0
     },
     {
@@ -1392,6 +1403,7 @@
       "delta_l2": 0.0,
       "delta_rms": 0.0,
       "relative_l2": 0.0,
+      "near_zero_reference": false,
       "max_abs_delta": 0.0
     }
   ],
@@ -1406,6 +1418,7 @@
       "delta_l2": 0.0,
       "delta_rms": 0.0,
       "relative_l2": 0.0,
+      "near_zero_reference": false,
       "max_abs_delta": 0.0
     },
     {
@@ -1418,6 +1431,7 @@
       "delta_l2": 0.0,
       "delta_rms": 0.0,
       "relative_l2": 0.0,
+      "near_zero_reference": false,
       "max_abs_delta": 0.0
     },
     {
@@ -1430,6 +1444,7 @@
       "delta_l2": 1.96214162932,
       "delta_rms": 0.245267703665,
       "relative_l2": 0.225429303479,
+      "near_zero_reference": false,
       "max_abs_delta": 1.0
     },
     {
@@ -1442,6 +1457,7 @@
       "delta_l2": 0.0,
       "delta_rms": 0.0,
       "relative_l2": 0.0,
+      "near_zero_reference": false,
       "max_abs_delta": 0.0
     }
   ],
@@ -1455,6 +1471,7 @@
     "delta_l2": 1.96214162932,
     "delta_rms": 0.00753544838826,
     "relative_l2": 0.00596888485517,
+    "near_zero_reference": false,
     "max_abs_delta": 1.0
   },
   "warnings": []

@@ -2,18 +2,23 @@
 
 Tensor keys and metadata strings are untrusted data: Markdown cells are escaped and CSV cells that
 a spreadsheet would evaluate as a formula (leading = + - @ tab CR) are prefixed with a quote.
-Files are written atomically (temporary file + rename) so a cancelled or failed run leaves no
-partial report behind.
+The files of one run are published as a set (`write_report_set`): a cancelled or failed export
+leaves neither a partial file nor a mix of old and new files behind.
 """
 
 from __future__ import annotations
 
+import contextlib
 import csv
 import io
 import json
 import math
 import os
+import shutil
+import signal
 import tempfile
+import threading
+from collections.abc import Iterator
 from pathlib import Path
 from typing import Any
 
@@ -238,13 +243,104 @@ def to_markdown(report: dict[str, Any], top: int = 25) -> str:
 
 
 def write_atomic(path: Path, text: str) -> None:
-    path = Path(os.path.abspath(path))
+    """One file: temporary file in the same directory, fsync, rename."""
+    write_report_set({path: text})
+
+
+def _stage(path: Path, text: str) -> Path:
     path.parent.mkdir(parents=True, exist_ok=True)
     fd, tmp = tempfile.mkstemp(prefix=f".{path.name}.", suffix=".tmp", dir=path.parent)
     try:
         with os.fdopen(fd, "w", encoding="utf-8", newline="") as f:
             f.write(text)
-        os.replace(tmp, path)
+            f.flush()
+            os.fsync(f.fileno())
     except BaseException:
         Path(tmp).unlink(missing_ok=True)
         raise
+    return Path(tmp)
+
+
+@contextlib.contextmanager
+def _sigint_deferred() -> Iterator[None]:
+    """Keep Ctrl-C from splitting the (short) rename phase; a deferred Ctrl-C is dropped because
+    the complete set has been published by then."""
+    if threading.current_thread() is not threading.main_thread():
+        yield
+        return
+    previous = signal.signal(signal.SIGINT, lambda *_: None)
+    try:
+        yield
+    finally:
+        signal.signal(signal.SIGINT, previous)
+
+
+def write_report_set(files: dict[Path, str], bundle_dir: Path | None = None) -> None:
+    """Publish several report files as one set: either every file is the new version or none is.
+
+    Phase 1 writes and fsyncs every file to a temporary name next to its target; any failure or
+    cancellation there removes the temporaries and publishes nothing. Phase 2 renames them into
+    place with Ctrl-C deferred; if a rename fails, files already replaced are restored from
+    backups. A `bundle_dir` (`--out`) that does not exist yet is staged as a temporary sibling
+    directory and appears with a single directory rename, so even a crash cannot expose half of it.
+    """
+    files = {Path(os.path.abspath(p)): t for p, t in files.items()}
+    if bundle_dir is not None:
+        bundle_dir = Path(os.path.abspath(bundle_dir))
+        inside = {p: t for p, t in files.items() if p.parent == bundle_dir}
+        if inside and not bundle_dir.exists():
+            bundle_dir.parent.mkdir(parents=True, exist_ok=True)
+            tmp_dir = Path(tempfile.mkdtemp(prefix=f".{bundle_dir.name}.", suffix=".tmp", dir=bundle_dir.parent))
+            try:
+                for p, t in inside.items():
+                    os.replace(_stage(tmp_dir / p.name, t), tmp_dir / p.name)
+                rest = {p: t for p, t in files.items() if p not in inside}
+                staged_rest = _stage_all(rest)
+                with _sigint_deferred():
+                    os.rename(tmp_dir, bundle_dir)  # fails if bundle_dir appeared meanwhile: nothing published
+                    _commit(staged_rest)
+            except BaseException:
+                shutil.rmtree(tmp_dir, ignore_errors=True)
+                raise
+            return
+    staged = _stage_all(files)
+    with _sigint_deferred():
+        _commit(staged)
+
+
+def _stage_all(files: dict[Path, str]) -> list[tuple[Path, Path]]:
+    staged: list[tuple[Path, Path]] = []
+    try:
+        for p, t in files.items():
+            staged.append((p, _stage(p, t)))
+    except BaseException:
+        for _, tmp in staged:
+            tmp.unlink(missing_ok=True)
+        raise
+    return staged
+
+
+def _commit(staged: list[tuple[Path, Path]]) -> None:
+    done: list[tuple[Path, Path | None]] = []  # (target, backup of its previous version)
+    try:
+        for target, tmp in staged:
+            backup = None
+            if target.exists():
+                fd, name = tempfile.mkstemp(prefix=f".{target.name}.", suffix=".bak", dir=target.parent)
+                os.close(fd)
+                backup = Path(name)
+                os.replace(target, backup)  # over the reserved empty file
+            done.append((target, backup))
+            os.replace(tmp, target)
+    except BaseException:
+        for target, backup in reversed(done):
+            if backup is not None:
+                os.replace(backup, target)
+            else:
+                target.unlink(missing_ok=True)
+        for _, tmp in staged:
+            tmp.unlink(missing_ok=True)
+        raise
+    for _, backup in done:
+        if backup is not None:
+            backup.unlink(missing_ok=True)

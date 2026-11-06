@@ -125,7 +125,7 @@ def test_rollup_combines_sums_of_squares() -> None:
     ref = pair_reference(whole_a, whole_b)
     assert close(r.delta_l2(), ref["delta_l2"])  # type: ignore[arg-type]
     assert close(r.delta_rms(), ref["delta_rms"])  # type: ignore[arg-type]
-    assert close(r.relative_l2(), ref["relative_l2"])  # type: ignore[arg-type]
+    assert close(r.relative_l2(1e-12), ref["relative_l2"])  # type: ignore[arg-type]
 
 
 def test_expsum_sqrt_exponent_parity() -> None:

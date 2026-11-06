@@ -31,7 +31,7 @@
       "name": "weightlab",
       "version": "<version>",
       "parser_version": 1,
-      "numerics_version": 1
+      "numerics_version": 2
     },
     "created_at": "2026-11-06T00:00:00Z",
     "inputs": {
@@ -110,6 +110,7 @@
   "complete": true,
   "completeness": {
     "modules_analyzed": 2,
+    "modules_withheld": 0,
     "modules_norm_only": 0,
     "modules_unsupported": 0,
     "modules_skipped": 0,
@@ -148,6 +149,7 @@
         "pos_inf_b": 0,
         "neg_inf_b": 0,
         "delta_overflow": 0,
+        "b_overflow": 0,
         "changed": 9
       },
       "metrics": {
@@ -297,6 +299,7 @@
         "pos_inf_b": 0,
         "neg_inf_b": 0,
         "delta_overflow": 0,
+        "b_overflow": 0,
         "changed": 22
       },
       "metrics": {
@@ -427,6 +430,7 @@
       "delta_l2": 12.9711217722,
       "delta_rms": 1.14649602059,
       "relative_l2": 1.31653099792,
+      "near_zero_reference": false,
       "max_abs_delta": 8.0
     }
   ],
@@ -441,6 +445,7 @@
       "delta_l2": 11.2249721603,
       "delta_rms": 1.40312152004,
       "relative_l2": 2.43150761559,
+      "near_zero_reference": false,
       "max_abs_delta": 8.0
     },
     {
@@ -453,6 +458,7 @@
       "delta_l2": 6.50000000229,
       "delta_rms": 0.812500000287,
       "relative_l2": 0.746781196239,
+      "near_zero_reference": false,
       "max_abs_delta": 2.0
     }
   ],
@@ -466,6 +472,7 @@
     "delta_l2": 12.9711217722,
     "delta_rms": 1.14649602059,
     "relative_l2": 1.31653099792,
+    "near_zero_reference": false,
     "max_abs_delta": 8.0
   },
   "warnings": []

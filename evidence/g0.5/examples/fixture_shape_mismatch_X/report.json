@@ -53,7 +53,7 @@
       "name": "weightlab",
       "version": "0.0.1.dev0",
       "parser_version": 1,
-      "numerics_version": 1
+      "numerics_version": 2
     },
     "created_at": "2026-11-06T00:00:00Z",
     "inputs": {
@@ -118,6 +118,7 @@
   "complete": false,
   "completeness": {
     "tensors_analyzed": 8,
+    "tensors_withheld": 0,
     "entries_not_compared": 1,
     "tied_entries": 0
   },
@@ -146,6 +147,7 @@
         "pos_inf_b": 0,
         "neg_inf_b": 0,
         "delta_overflow": 0,
+        "b_overflow": 0,
         "changed": 0
       },
       "metrics": {
@@ -287,6 +289,7 @@
         "pos_inf_b": 0,
         "neg_inf_b": 0,
         "delta_overflow": 0,
+        "b_overflow": 0,
         "changed": 0
       },
       "metrics": {
@@ -428,6 +431,7 @@
         "pos_inf_b": 0,
         "neg_inf_b": 0,
         "delta_overflow": 0,
+        "b_overflow": 0,
         "changed": 0
       },
       "metrics": {
@@ -569,6 +573,7 @@
         "pos_inf_b": 0,
         "neg_inf_b": 0,
         "delta_overflow": 0,
+        "b_overflow": 0,
         "changed": 0
       },
       "metrics": {
@@ -707,6 +712,7 @@
         "pos_inf_b": 0,
         "neg_inf_b": 0,
         "delta_overflow": 0,
+        "b_overflow": 0,
         "changed": 0
       },
       "metrics": {
@@ -848,6 +854,7 @@
         "pos_inf_b": 1,
         "neg_inf_b": 1,
         "delta_overflow": 0,
+        "b_overflow": 0,
         "changed": 0
       },
       "metrics": {
@@ -988,6 +995,7 @@
         "pos_inf_b": 0,
         "neg_inf_b": 0,
         "delta_overflow": 0,
+        "b_overflow": 0,
         "changed": 0
       },
       "metrics": {
@@ -1129,6 +1137,7 @@
         "pos_inf_b": 0,
         "neg_inf_b": 0,
         "delta_overflow": 0,
+        "b_overflow": 0,
         "changed": 0
       },
       "metrics": {
@@ -1263,6 +1272,7 @@
       "delta_l2": 0.0,
       "delta_rms": 0.0,
       "relative_l2": 0.0,
+      "near_zero_reference": false,
       "max_abs_delta": 0.0
     },
     {
@@ -1275,6 +1285,7 @@
       "delta_l2": 0.0,
       "delta_rms": 0.0,
       "relative_l2": 0.0,
+      "near_zero_reference": false,
       "max_abs_delta": 0.0
     }
   ],
@@ -1289,6 +1300,7 @@
       "delta_l2": 0.0,
       "delta_rms": 0.0,
       "relative_l2": 0.0,
+      "near_zero_reference": false,
       "max_abs_delta": 0.0
     },
     {
@@ -1301,6 +1313,7 @@
       "delta_l2": 0.0,
       "delta_rms": 0.0,
       "relative_l2": 0.0,
+      "near_zero_reference": false,
       "max_abs_delta": 0.0
     },
     {
@@ -1313,6 +1326,7 @@
       "delta_l2": 0.0,
       "delta_rms": 0.0,
       "relative_l2": 0.0,
+      "near_zero_reference": false,
       "max_abs_delta": 0.0
     }
   ],
@@ -1326,6 +1340,7 @@
     "delta_l2": 0.0,
     "delta_rms": 0.0,
     "relative_l2": 0.0,
+    "near_zero_reference": false,
     "max_abs_delta": 0.0
   },
   "warnings": []

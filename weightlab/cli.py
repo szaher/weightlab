@@ -21,7 +21,7 @@ from weightlab.analysis.change_report import SORT_KEYS, Options, run
 from weightlab.analysis.diff import DEFAULT_CHUNK_ELEMENTS, DEFAULT_EPS_NORM, Cancelled, RunControl
 from weightlab.analysis.lineage import LineageInputs, load_manifest
 from weightlab.analysis.lora import DEFAULT_MAX_GMAC
-from weightlab.analysis.report_io import rollup_csv, tensors_csv, to_json, to_markdown, write_atomic
+from weightlab.analysis.report_io import rollup_csv, tensors_csv, to_json, to_markdown, write_report_set
 from weightlab.core.errors import ErrorCode, WeightLabError
 from weightlab.formats.base import Consistency
 
@@ -123,8 +123,8 @@ def _progress(enabled: bool) -> tuple[RunControl, threading.Event]:
 def diff(args: argparse.Namespace) -> int:
     if (args.derived is None) == (args.adapter is None):
         raise WeightLabError(ErrorCode.VALIDATION_ERROR, "give either DERIVED or --adapter, not both or neither")
-    if args.top < 0 or args.chunk_elements <= 0 or args.epsilon_norm <= 0 or args.max_lora_gmac < 0:
-        raise WeightLabError(ErrorCode.VALIDATION_ERROR, "numeric options must be positive")
+    if args.top < 0:
+        raise WeightLabError(ErrorCode.VALIDATION_ERROR, "--top must be >= 0")
     outputs: dict[str, Path] = {}
     if args.out:
         o = Path(args.out)
@@ -144,7 +144,7 @@ def diff(args: argparse.Namespace) -> int:
         trust_manifest=args.trust_manifest,
         user_attestation=args.attest,
     )
-    opts = Options(
+    opts = Options(  # validated (finite, bounded) by Options.validate() before any input is opened
         sort=args.sort,
         eps_norm=args.epsilon_norm,
         chunk_elements=args.chunk_elements,
@@ -173,8 +173,7 @@ def diff(args: argparse.Namespace) -> int:
         "roles": rollup_csv(report, "roles"),
         "md": md,
     }
-    for kind, path in outputs.items():
-        write_atomic(path, texts[kind])
+    write_report_set({path: texts[kind] for kind, path in outputs.items()}, Path(args.out) if args.out else None)
     if not args.quiet:
         sys.stdout.write(md)
     return EXIT_OK if report["complete"] else EXIT_INCOMPLETE

@@ -27,6 +27,7 @@ PHASE05 = {
     "tests/integration/test_diff_golden.py": "Fixture reports vs generator values, compatibility classes, golden snapshots",
     "tests/integration/test_lineage_and_lora.py": "Lineage evidence paths, LoRA scale/layout, fail-closed adapters",
     "tests/integration/test_cli.py": "CLI exports, exit codes, output safety, escaping, privacy, cancellation",
+    "tests/integration/test_review_regressions.py": "PR #2 review regressions: epsilon rollups, limits, I64/U64, LoRA overflow/Gram/memory, export set",
     "tests/perf/test_diff_bounded.py": "Diff peak RSS independent of pair size",
 }
 

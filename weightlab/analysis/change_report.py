@@ -8,24 +8,31 @@ Metric objects follow `Metric` in contracts/openapi.yaml; the lineage block foll
 from __future__ import annotations
 
 import datetime as dt
+import math
 import os
+import re
 from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
 from weightlab import PARSER_VERSION, __version__
-from weightlab.analysis.accumulate import PairStats, Rollup
+from weightlab.analysis.accumulate import PairStats, Rollup, near_zero, relative_l2
 from weightlab.analysis.compat import Structure, compare_structure
 from weightlab.analysis.diff import DEFAULT_CHUNK_ELEMENTS, DEFAULT_EPS_NORM, NUMERICS_VERSION, RunControl, pair_stats
 from weightlab.analysis.lineage import Assessment, LineageInputs, assess
 from weightlab.analysis.lora import DEFAULT_MAX_GMAC, AdapterResult, Module, analyze_adapter
 from weightlab.analysis.roles import layer_index, role
+from weightlab.core.errors import ErrorCode, fail
 from weightlab.core.limits import MAX_SAFE_INTEGER
 from weightlab.formats.base import Consistency
 from weightlab.formats.checkpoint import Checkpoint, hub_cache_root
 
 REPORT_SCHEMA_VERSION = 1
+MIN_EPS_NORM = 1e-300
+MAX_EPS_NORM = 1.0
+MAX_CHUNK_ELEMENTS = 1 << 26  # 64 Mi elements: ~0.5 GiB of float64 per side, the most a chunk may cost
+MAX_LORA_GMAC = 1e6
 SORT_KEYS = ("relative_l2", "delta_l2", "delta_rms", "max_abs_delta", "cosine")
 CAUSAL_CAVEAT = (
     "Ranking by change magnitude describes how much parameters moved; it does not show that a "
@@ -43,6 +50,20 @@ class Options:
     include_paths: bool = False
     max_lora_gmac: float = DEFAULT_MAX_GMAC
     created_at: str | None = None  # override for reproducible output (else now, UTC)
+
+    def validate(self) -> None:
+        """Reject values that would disable a limit or a policy (NaN/Inf compare false)."""
+        problems = []
+        if self.sort not in SORT_KEYS:
+            problems.append(f"sort must be one of {', '.join(SORT_KEYS)}")
+        if not (math.isfinite(self.eps_norm) and MIN_EPS_NORM <= self.eps_norm <= MAX_EPS_NORM):
+            problems.append(f"epsilon_norm must be finite and in [{MIN_EPS_NORM}, {MAX_EPS_NORM}]")
+        if type(self.chunk_elements) is not int or not 1 <= self.chunk_elements <= MAX_CHUNK_ELEMENTS:
+            problems.append(f"chunk_elements must be an integer in [1, {MAX_CHUNK_ELEMENTS}]")
+        if not (math.isfinite(self.max_lora_gmac) and 0 <= self.max_lora_gmac <= MAX_LORA_GMAC):
+            problems.append(f"max_lora_gmac must be finite and in [0, {MAX_LORA_GMAC}]")
+        if problems:
+            raise fail(ErrorCode.VALIDATION_ERROR, "; ".join(problems))
 
 
 def _int(n: int) -> int | str:
@@ -90,7 +111,15 @@ def _precision(value: float | None, withheld: bool, defined: bool) -> str:
 def pair_metrics(s: PairStats, dtype: str, eps_norm: float) -> dict[str, dict[str, Any]]:
     n, f = s.elements, s.finite_pairs
     w = s.delta_withheld
-    warn_over = [f"{s.delta_overflow} finite pair(s) overflow float64 in B - A; delta metrics withheld"] if w else []
+    warn_over = (
+        [f"{s.delta_overflow} finite pair(s) overflow float64 in B - A; delta metrics withheld"]
+        if s.delta_overflow
+        else []
+    ) + (
+        [f"{s.b_overflow} computed B value(s) overflow float64; delta, cosine and norm_b withheld"]
+        if s.b_overflow
+        else []
+    )
     warn_none = ["no finite pairs"] if f == 0 else []
     out: dict[str, dict[str, Any]] = {}
     v = s.delta_l2()
@@ -136,8 +165,8 @@ def pair_metrics(s: PairStats, dtype: str, eps_norm: float) -> dict[str, dict[st
         dtype,
         n,
         f,
-        _precision(v, False, f > 0 and v is not None),
-        warnings=[] if v is not None else ["undefined: zero norm or no finite pairs"],
+        _precision(v, s.b_withheld, f > 0 and v is not None),
+        warnings=warn_over if s.b_withheld else [] if v is not None else ["undefined: zero norm or no finite pairs"],
     )
     v = s.max_abs_delta()
     out["max_abs_delta"] = metric(
@@ -151,9 +180,10 @@ def pair_metrics(s: PairStats, dtype: str, eps_norm: float) -> dict[str, dict[st
         warnings=warn_over + warn_none,
     )
     for side, ssq in (("a", s.ssq_a), ("b", s.ssq_b)):
-        v = ssq.sqrt()
+        held = side == "b" and s.b_withheld
+        v = None if held else ssq.sqrt()
         out[f"norm_{side}"] = metric(
-            "l2", v, f"||{side.upper()}||_2 over finite pairs", dtype, n, f, _precision(v, False, True)
+            "l2", v, f"||{side.upper()}||_2 over finite pairs", dtype, n, f, _precision(v, held, True)
         )
     return out
 
@@ -170,12 +200,13 @@ def counts(s: PairStats) -> dict[str, int | str]:
         "pos_inf_b",
         "neg_inf_b",
         "delta_overflow",
+        "b_overflow",
         "changed",
     )
     return {k: _int(getattr(s, k)) for k in keys}
 
 
-def _rollup_row(label: str, value: Any, r: Rollup) -> dict[str, Any]:
+def _rollup_row(label: str, value: Any, r: Rollup, eps: float) -> dict[str, Any]:
     return {
         label: value,
         "tensors": r.tensors,
@@ -185,7 +216,8 @@ def _rollup_row(label: str, value: Any, r: Rollup) -> dict[str, Any]:
         "withheld_tensors": r.withheld,
         "delta_l2": r.delta_l2(),
         "delta_rms": r.delta_rms(),
-        "relative_l2": r.relative_l2(),
+        "relative_l2": r.relative_l2(eps),
+        "near_zero_reference": r.near_zero_reference(eps),
         "max_abs_delta": None if r.withheld or r.finite_pairs == 0 else r.max_abs,
     }
 
@@ -221,7 +253,9 @@ def _sort_rows(rows: list[dict[str, Any]], key: str) -> None:
         row["rank"] = i
 
 
-def _rollups(items: list[tuple[str, PairStats]]) -> tuple[list[dict[str, Any]], list[dict[str, Any]], dict[str, Any]]:
+def _rollups(
+    items: list[tuple[str, PairStats]], eps: float
+) -> tuple[list[dict[str, Any]], list[dict[str, Any]], dict[str, Any]]:
     layers: dict[int | None, Rollup] = {}
     roles: dict[str, Rollup] = {}
     total = Rollup()
@@ -230,10 +264,10 @@ def _rollups(items: list[tuple[str, PairStats]]) -> tuple[list[dict[str, Any]], 
         roles.setdefault(role(key), Rollup()).add(s)
         total.add(s)
     layer_rows = [
-        _rollup_row("layer", li, r) for li, r in sorted(layers.items(), key=lambda kv: (kv[0] is None, kv[0] or 0))
+        _rollup_row("layer", li, r, eps) for li, r in sorted(layers.items(), key=lambda kv: (kv[0] is None, kv[0] or 0))
     ]
-    role_rows = [_rollup_row("role", name, r) for name, r in sorted(roles.items())]
-    return layer_rows, role_rows, _rollup_row("scope", "all_analyzed_tensors", total)
+    role_rows = [_rollup_row("role", name, r, eps) for name, r in sorted(roles.items())]
+    return layer_rows, role_rows, _rollup_row("scope", "all_analyzed_tensors", total, eps)
 
 
 def _class_caveat(cls: str) -> str | None:
@@ -349,7 +383,7 @@ def pair_report(a: Checkpoint, b: Checkpoint, lin: LineageInputs, opts: Options,
     a.check()
     b.check()
     _sort_rows(rows, opts.sort)
-    layers, roles, totals = _rollups(items)
+    layers, roles, totals = _rollups(items, opts.eps_norm)
     not_compared = [e for e in structure.entries if not e.analyzable]
     accounted = all(e.status == "tied" for e in not_compared)
     report = _base_report(
@@ -361,15 +395,45 @@ def pair_report(a: Checkpoint, b: Checkpoint, lin: LineageInputs, opts: Options,
     )
     report["compatibility"]["counts"] = structure.counts()
     report["compatibility"]["not_compared"] = [_entry_dict(e) for e in not_compared]
-    report["complete"] = accounted
+    withheld = sum(1 for r in rows if _withheld(r))
+    report["complete"] = accounted and withheld == 0
     report["completeness"] = {
         "tensors_analyzed": len(rows),
+        "tensors_withheld": withheld,
         "entries_not_compared": len(not_compared),
         "tied_entries": sum(1 for e in not_compared if e.status == "tied"),
     }
+    if withheld:
+        report["caveats"].insert(0, WITHHELD_CAVEAT.format(n=withheld))
     report.update(tensors=rows, layers=layers, roles=roles, totals=totals)
     report["warnings"] = [*a.warnings, *b.warnings]
     return report
+
+
+def _withheld(row: dict[str, Any]) -> bool:
+    """A reported tensor/module whose delta could not be represented or computed honestly."""
+    m = row["metrics"].get("delta_l2")
+    return m is not None and m["numeric_precision"] in ("overflowed", "unsupported")
+
+
+WITHHELD_CAVEAT = (
+    "Incomplete: {n} tensor(s)/module(s) have delta metrics withheld (float64 overflow or unreliable "
+    "arithmetic); totals and rollups that include them are withheld too."
+)
+
+
+_REPO_ID = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]*(/[A-Za-z0-9][A-Za-z0-9._-]*)?$")
+
+
+def looks_like_local_path(value: str) -> bool:
+    """True unless `value` is a plain Hugging Face repo id ("name" or "org/name"). Anything with
+    a drive, root, home, relative or backslash prefix, or more than one '/', is treated as a path."""
+    return not _REPO_ID.match(value) or value.startswith((".", "~"))
+
+
+def redact_path(value: str) -> str:
+    name = re.split(r"[\\/]", value.rstrip("/\\"))[-1] or "?"
+    return f"<local path redacted: {name}>"
 
 
 def _small(ck: Checkpoint) -> bool:
@@ -411,25 +475,41 @@ def _module_row(m: Module, base: Checkpoint, eps: float) -> dict[str, Any]:
         row["metrics"] = met
     elif m.status == "over_budget_norm_only" and meta is not None:
         n = meta.numel
+        issue = m.norm_only_issue
+        row["counts"] = {
+            "elements": _int(n),
+            "base_finite": _int(m.base_finite),
+            "base_nonfinite": _int(m.base_nonfinite),
+        }
+        issue_warn = [issue] if issue else []
         row["metrics"]["delta_l2"] = metric(
             "l2",
             m.norm_only_l2,
-            "||s B A||_F via s^2 sum((B^T B)*(A A^T))",
+            "||s B A||_F via s^2 sum((B^T B)*(A A^T)), power-of-two scaled; covers every element",
             dtype,
             n,
-            n,
-            _precision(m.norm_only_l2, False, True),
+            0 if issue else n,  # the update itself is finite everywhere when its norm is
+            _precision(m.norm_only_l2, False, issue is None),
+            warnings=issue_warn,
         )
-        rel = None if not m.base_norm_l2 or m.norm_only_l2 is None else m.norm_only_l2 / max(m.base_norm_l2, eps)
+        rel = None
+        near = False
+        if issue is None and m.norm_only_ssq is not None and m.base_ssq is not None:
+            rel = relative_l2(m.norm_only_ssq, m.base_ssq, eps)
+            near = near_zero(m.base_ssq, eps)
+        rel_warn = issue_warn + (["near_zero_reference: ||W|| < epsilon_norm"] if near else [])
+        if m.base_nonfinite:
+            rel_warn.append(f"||W|| excludes {m.base_nonfinite} NaN/Inf base element(s); ||s B A|| covers all")
         row["metrics"]["relative_l2"] = metric(
             "relative_l2",
             rel,
             "||s B A||_F / max(||W||_2, epsilon_norm)",
             dtype,
             n,
-            n,
-            _precision(rel, False, True),
+            m.base_finite,
+            _precision(rel, False, issue is None),
             epsilon=eps,
+            warnings=rel_warn,
         )
     return row
 
@@ -448,7 +528,10 @@ def adapter_report(
     cfg = load_config(adapter_dir, root)
     declared = cfg.raw.get("base_model_name_or_path")
     revision = cfg.raw.get("revision")
-    lin.declared_base = declared if isinstance(declared, str) and declared else None
+    declared = declared if isinstance(declared, str) and declared else None
+    if declared is not None and not opts.include_paths and looks_like_local_path(declared):
+        declared = redact_path(declared)  # also keeps it out of the lineage reasons
+    lin.declared_base = declared
     lin.declared_revision = revision if isinstance(revision, str) and revision else None
     control.total_bytes = sum(m.byte_length for m in base.metadata())
     if opts.consistency is Consistency.VERIFIED:
@@ -466,7 +549,7 @@ def adapter_report(
     rows = [_module_row(m, base, opts.eps_norm) for m in result.modules]
     _sort_rows(rows, opts.sort)
     items = [(m.base_key or m.module, m.stats) for m in result.modules if m.stats is not None]
-    layers, roles, totals = _rollups(items)
+    layers, roles, totals = _rollups(items, opts.eps_norm)
     adapter_info = {
         "format": "peft_lora",
         "entry": str(adapter_dir) if opts.include_paths else adapter_dir.name,
@@ -511,15 +594,19 @@ def adapter_report(
     report["compatibility"]["not_compared"] = [
         {"raw_key": k, "status": "unsupported_key", "reasons": [why]} for k, why in result.unsupported_keys
     ]
-    report["complete"] = result.complete
+    withheld = sum(1 for r in rows if _withheld(r))
+    report["complete"] = result.complete and withheld == 0
     report["completeness"] = {
         "modules_analyzed": status["analyzed"],
+        "modules_withheld": withheld,
         "modules_norm_only": status["over_budget_norm_only"],
         "modules_unsupported": status["unsupported"],
         "modules_skipped": status["skipped"],
         "unsupported_adapter_keys": len(result.unsupported_keys),
         "base_tensors_without_adapter": result.base_tensors_without_adapter,
     }
+    if withheld:
+        report["caveats"].insert(0, WITHHELD_CAVEAT.format(n=withheld))
     if not result.complete:
         report["caveats"].insert(
             0,
@@ -548,6 +635,7 @@ def run(
     open_ = opener or open_checkpoint
     lin = lineage or LineageInputs()
     opts = options or Options()
+    opts.validate()
     ctl = control or RunControl()
     verified = opts.consistency is Consistency.VERIFIED
     with open_(base_path, selected_root or hub_cache_root(base_path), hash_files=verified) as a:
