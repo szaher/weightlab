@@ -17,8 +17,6 @@ from pathlib import Path
 
 from weightlab.core.errors import ErrorCode, fail
 
-_WINDOWS = sys.platform == "win32"
-
 
 @dataclass(frozen=True)
 class FileIdentity:
@@ -85,7 +83,7 @@ class PositionedFile:
             return b""
         parts: list[bytes] = []
         done = 0
-        if _WINDOWS:
+        if sys.platform == "win32":  # literal check so mypy narrows per platform (no os.pread on Windows)
             with self._lock:
                 os.lseek(self.fd, offset, os.SEEK_SET)
                 while done < length:

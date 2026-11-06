@@ -24,8 +24,11 @@ jobs:
         run: uv run ruff format --check .
       - name: Lint
         run: uv run ruff check .
-      - name: Typecheck
-        run: uv run mypy
+      - name: Typecheck (every target platform, so platform branches are checked everywhere)
+        run: |
+          uv run mypy --platform linux
+          uv run mypy --platform darwin
+          uv run mypy --platform win32
       - name: Tests and G0 evidence (includes the 12 GiB sparse-file RSS benchmark)
         run: uv run python scripts/g0_evidence.py --out evidence/ci
       - uses: actions/upload-artifact@v4
