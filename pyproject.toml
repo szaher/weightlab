@@ -7,6 +7,9 @@ requires-python = ">=3.12"
 # Exact pins; uv.lock records the full resolved set with hashes.
 dependencies = ["numpy==2.5.4"]
 
+[project.scripts]
+weightlab = "weightlab.cli:main"
+
 [dependency-groups]
 dev = [
     "pytest==9.2.0",
@@ -15,6 +18,9 @@ dev = [
     "mypy==2.4.1",
     # Upstream reference used only as an accept/reject oracle and by the fixture generator.
     "safetensors==0.8.0",
+    # Contract validation of report fragments (Metric, LineageAssessment) in tests.
+    "jsonschema==4.26.0",
+    "pyyaml==6.0.3",
 ]
 
 [build-system]

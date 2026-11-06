@@ -11,7 +11,7 @@ This blueprint is frozen at **1.2-final**. Changes require a demonstrated implem
 
 ## Implementation status: Phase 0 (reader)
 
-The `weightlab/` package implements Phase 0 only: a strict, read-only SafeTensors catalog with sharded index validation and exact, lossless ROI reads behind a Python interface. No tiles, API, CLI or UI yet. Gate G0 evidence lives in `evidence/g0/`.
+The `weightlab/` package implements Phase 0 only: a strict, read-only SafeTensors catalog with sharded index validation and exact, lossless ROI reads behind a Python interface. No tiles, API or UI yet. Gate G0 evidence lives in `evidence/g0/`.
 
 ```bash
 uv sync --locked                     # Python 3.12+, pinned toolchain
@@ -28,6 +28,16 @@ with open_checkpoint("/models/my-model", selected_root="/models") as ck:
     print(ck.metadata()[:3])
     roi = ck.read_roi_raw("model.embed_tokens.weight", 0, 4, 0, 8)
     print(encode_roi(roi).to_json())   # lossless typed values (doc 09 section 2)
+```
+
+## Implementation status: Phase 0.5 (change report, WL-024)
+
+`weightlab diff` compares two checkpoints, or a base and a PEFT LoRA adapter, on top of the Phase 0 reader. It provides strict compatibility classes (X/V/L/S), exact streaming metrics (delta L2/RMS, relative L2, cosine, max-abs, non-finite counts), layer and role rankings, and JSON/CSV/Markdown exports with provenance. Memory stays bounded, inputs are read-only, and no model is run. No frontend, inference or transfer yet. The reference is `docs/cli/weightlab-diff.md`; Gate G0.5 evidence, example reports and known limitations are in `evidence/g0.5/` (macOS only; Windows validation is deferred and not passed).
+
+```bash
+uv run weightlab diff base/ derived/ --out report/              # report.json, tensors/layers/roles.csv, report.md
+uv run weightlab diff base/ --adapter lora/ --json lora.json     # LoRA effective delta vs base
+uv run python scripts/g05_evidence.py --out evidence/g0.5        # tests + diff benchmark -> G0.5_<os>.md
 ```
 
 ## Read this first

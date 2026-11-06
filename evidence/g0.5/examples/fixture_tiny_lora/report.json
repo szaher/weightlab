@@ -1,0 +1,473 @@
+{
+  "schema_version": 1,
+  "report_kind": "weightlab_change_report",
+  "mode": "adapter",
+  "orientation": "B_minus_A",
+  "compatibility": {
+    "lineage": {
+      "compatibility_class": "V",
+      "base_file_identity_verified": true,
+      "base_identity_method": "sha256_recorded",
+      "lineage_claim_source": "synthetic_fixture_generator",
+      "lineage_trust_level": "proven_by_construction",
+      "lineage_evidence": "cryptographically_verified",
+      "transfer_eligibility": "T1",
+      "reasons": [
+        "synthetic fixture pair (tiny_lora built from tiny_base by the generator): ancestry known by construction"
+      ]
+    },
+    "counts": {
+      "modules": 2,
+      "analyzed": 2,
+      "over_budget_norm_only": 0,
+      "unsupported": 0,
+      "skipped": 0
+    },
+    "not_compared": []
+  },
+  "provenance": {
+    "schema_version": 1,
+    "tool": {
+      "name": "weightlab",
+      "version": "0.0.1.dev0",
+      "parser_version": 1,
+      "numerics_version": 1
+    },
+    "created_at": "2026-11-06T00:00:00Z",
+    "inputs": {
+      "base": {
+        "format": "safetensors",
+        "entry": "tiny_base.safetensors",
+        "files": [
+          {
+            "name": "tiny_base.safetensors",
+            "size": 272076,
+            "mtime_ns": 1793923540523435127,
+            "sha256": "a701e77f066883608beb2a1fc080d52f06ebffca227c1d6fd12de2d484e81133"
+          }
+        ],
+        "fingerprint_kind": "sha256",
+        "strong_hash_verified": true,
+        "tensor_count": 9,
+        "tensor_bytes": 271220
+      },
+      "adapter": {
+        "format": "peft_lora",
+        "entry": "tiny_lora",
+        "files": [
+          {
+            "name": "adapter_model.safetensors",
+            "sha256": "5ea2c555103e23d55a8ea35ae3b862ce5a786d6c6475cf00ae180f764d00a30c"
+          }
+        ],
+        "declared_base": "tiny-base-fixture",
+        "declared_revision": null,
+        "config": {
+          "peft_type": "LORA",
+          "r": 2,
+          "lora_alpha": 4,
+          "use_rslora": false,
+          "use_dora": false,
+          "fan_in_fan_out": false,
+          "rank_pattern": {
+            "down_proj": 1
+          },
+          "alpha_pattern": {},
+          "layers_to_transform": null,
+          "target_modules": [
+            "up_proj",
+            "down_proj"
+          ],
+          "bias": "none"
+        }
+      }
+    },
+    "operation": {
+      "kind": "lora_effective_delta",
+      "orientation": "B_minus_A",
+      "definition": "A = base W, B = W + s * (B_lora @ A_lora); delta computed directly",
+      "compute_dtype": "float64",
+      "max_lora_scan_gmac": 50.0
+    },
+    "quality": {
+      "coverage": "complete",
+      "sampling_method": null
+    },
+    "privacy": {
+      "paths_included": false
+    },
+    "read_only": true
+  },
+  "caveats": [
+    "Ranking by change magnitude describes how much parameters moved; it does not show that a tensor matters for any behavior (doc 05 section 9).",
+    "Layer and role labels are heuristics from tensor key names, not identity."
+  ],
+  "settings": {
+    "sort": "relative_l2",
+    "epsilon_norm": 1e-12,
+    "chunk_elements": 1048576,
+    "consistency": "best_effort"
+  },
+  "complete": true,
+  "completeness": {
+    "modules_analyzed": 2,
+    "modules_norm_only": 0,
+    "modules_unsupported": 0,
+    "modules_skipped": 0,
+    "unsupported_adapter_keys": 0,
+    "base_tensors_without_adapter": 7
+  },
+  "tensors": [
+    {
+      "rank": 1,
+      "key": "demo.layers.0.mlp.down_proj.weight",
+      "module": "demo.layers.0.mlp.down_proj",
+      "layer": 0,
+      "role": "mlp.down",
+      "status": "analyzed",
+      "shape": [
+        8,
+        8
+      ],
+      "lora": {
+        "rank": 1,
+        "alpha": 4.0,
+        "scale": 4.0,
+        "scale_formula": "alpha/r",
+        "rank_from": "rank_pattern",
+        "transpose": false,
+        "gmac": 6.4e-08
+      },
+      "counts": {
+        "elements": 64,
+        "finite_pairs": 64,
+        "invalid_pairs": 0,
+        "nan_a": 0,
+        "pos_inf_a": 0,
+        "neg_inf_a": 0,
+        "nan_b": 0,
+        "pos_inf_b": 0,
+        "neg_inf_b": 0,
+        "delta_overflow": 0,
+        "changed": 9
+      },
+      "metrics": {
+        "delta_l2": {
+          "name": "l2",
+          "value": 11.224972160321824,
+          "units": null,
+          "method": "||s B A||_2 over finite pairs (power-of-two scaled sum of squares)",
+          "source_dtype": "F32",
+          "compute_dtype": "float64",
+          "element_count": 64,
+          "finite_count": 64,
+          "sample_count": null,
+          "coverage": "complete",
+          "numeric_precision": "rounded",
+          "seed": null,
+          "epsilon": null,
+          "numerical_warnings": []
+        },
+        "delta_rms": {
+          "name": "rms",
+          "value": 1.403121520040228,
+          "units": null,
+          "method": "sqrt(sum((s B A)^2)/finite_pairs)",
+          "source_dtype": "F32",
+          "compute_dtype": "float64",
+          "element_count": 64,
+          "finite_count": 64,
+          "sample_count": null,
+          "coverage": "complete",
+          "numeric_precision": "rounded",
+          "seed": null,
+          "epsilon": null,
+          "numerical_warnings": []
+        },
+        "relative_l2": {
+          "name": "relative_l2",
+          "value": 2.4315076155889845,
+          "units": null,
+          "method": "||s B A||_2 / max(||A||_2, epsilon_norm) over finite pairs",
+          "source_dtype": "F32",
+          "compute_dtype": "float64",
+          "element_count": 64,
+          "finite_count": 64,
+          "sample_count": null,
+          "coverage": "complete",
+          "numeric_precision": "rounded",
+          "seed": null,
+          "epsilon": 1e-12,
+          "numerical_warnings": []
+        },
+        "cosine": {
+          "name": "cosine",
+          "value": 0.5439573786034094,
+          "units": null,
+          "method": "cos(W, W + s B A)",
+          "source_dtype": "F32",
+          "compute_dtype": "float64",
+          "element_count": 64,
+          "finite_count": 64,
+          "sample_count": null,
+          "coverage": "complete",
+          "numeric_precision": "rounded",
+          "seed": null,
+          "epsilon": null,
+          "numerical_warnings": []
+        },
+        "max_abs_delta": {
+          "name": "max_abs",
+          "value": 8.0,
+          "units": null,
+          "method": "max |s B A| over finite pairs",
+          "source_dtype": "F32",
+          "compute_dtype": "float64",
+          "element_count": 64,
+          "finite_count": 64,
+          "sample_count": null,
+          "coverage": "complete",
+          "numeric_precision": "rounded",
+          "seed": null,
+          "epsilon": null,
+          "numerical_warnings": []
+        },
+        "norm_a": {
+          "name": "l2",
+          "value": 4.616465968831768,
+          "units": null,
+          "method": "||W||_2 (base) over finite elements",
+          "source_dtype": "F32",
+          "compute_dtype": "float64",
+          "element_count": 64,
+          "finite_count": 64,
+          "sample_count": null,
+          "coverage": "complete",
+          "numeric_precision": "rounded",
+          "seed": null,
+          "epsilon": null,
+          "numerical_warnings": []
+        },
+        "norm_b": {
+          "name": "l2",
+          "value": 13.046537803815303,
+          "units": null,
+          "method": "||W + s B A||_2 (effective) over finite elements",
+          "source_dtype": "F32",
+          "compute_dtype": "float64",
+          "element_count": 64,
+          "finite_count": 64,
+          "sample_count": null,
+          "coverage": "complete",
+          "numeric_precision": "rounded",
+          "seed": null,
+          "epsilon": null,
+          "numerical_warnings": []
+        }
+      },
+      "caveat": null
+    },
+    {
+      "rank": 2,
+      "key": "demo.layers.0.mlp.up_proj.weight",
+      "module": "demo.layers.0.mlp.up_proj",
+      "layer": 0,
+      "role": "mlp.up",
+      "status": "analyzed",
+      "shape": [
+        8,
+        8
+      ],
+      "lora": {
+        "rank": 2,
+        "alpha": 4.0,
+        "scale": 2.0,
+        "scale_formula": "alpha/r",
+        "rank_from": "r",
+        "transpose": false,
+        "gmac": 1.28e-07
+      },
+      "counts": {
+        "elements": 64,
+        "finite_pairs": 64,
+        "invalid_pairs": 0,
+        "nan_a": 0,
+        "pos_inf_a": 0,
+        "neg_inf_a": 0,
+        "nan_b": 0,
+        "pos_inf_b": 0,
+        "neg_inf_b": 0,
+        "delta_overflow": 0,
+        "changed": 22
+      },
+      "metrics": {
+        "delta_l2": {
+          "name": "l2",
+          "value": 6.500000002292486,
+          "units": null,
+          "method": "||s B A||_2 over finite pairs (power-of-two scaled sum of squares)",
+          "source_dtype": "F32",
+          "compute_dtype": "float64",
+          "element_count": 64,
+          "finite_count": 64,
+          "sample_count": null,
+          "coverage": "complete",
+          "numeric_precision": "rounded",
+          "seed": null,
+          "epsilon": null,
+          "numerical_warnings": []
+        },
+        "delta_rms": {
+          "name": "rms",
+          "value": 0.8125000002865608,
+          "units": null,
+          "method": "sqrt(sum((s B A)^2)/finite_pairs)",
+          "source_dtype": "F32",
+          "compute_dtype": "float64",
+          "element_count": 64,
+          "finite_count": 64,
+          "sample_count": null,
+          "coverage": "complete",
+          "numeric_precision": "rounded",
+          "seed": null,
+          "epsilon": null,
+          "numerical_warnings": []
+        },
+        "relative_l2": {
+          "name": "relative_l2",
+          "value": 0.746781196238801,
+          "units": null,
+          "method": "||s B A||_2 / max(||A||_2, epsilon_norm) over finite pairs",
+          "source_dtype": "F32",
+          "compute_dtype": "float64",
+          "element_count": 64,
+          "finite_count": 64,
+          "sample_count": null,
+          "coverage": "complete",
+          "numeric_precision": "rounded",
+          "seed": null,
+          "epsilon": 1e-12,
+          "numerical_warnings": []
+        },
+        "cosine": {
+          "name": "cosine",
+          "value": 0.8131470235754374,
+          "units": null,
+          "method": "cos(W, W + s B A)",
+          "source_dtype": "F32",
+          "compute_dtype": "float64",
+          "element_count": 64,
+          "finite_count": 64,
+          "sample_count": null,
+          "coverage": "complete",
+          "numeric_precision": "rounded",
+          "seed": null,
+          "epsilon": null,
+          "numerical_warnings": []
+        },
+        "max_abs_delta": {
+          "name": "max_abs",
+          "value": 2.0,
+          "units": null,
+          "method": "max |s B A| over finite pairs",
+          "source_dtype": "F32",
+          "compute_dtype": "float64",
+          "element_count": 64,
+          "finite_count": 64,
+          "sample_count": null,
+          "coverage": "complete",
+          "numeric_precision": "rounded",
+          "seed": null,
+          "epsilon": null,
+          "numerical_warnings": []
+        },
+        "norm_a": {
+          "name": "l2",
+          "value": 8.704022054960737,
+          "units": null,
+          "method": "||W||_2 (base) over finite elements",
+          "source_dtype": "F32",
+          "compute_dtype": "float64",
+          "element_count": 64,
+          "finite_count": 64,
+          "sample_count": null,
+          "coverage": "complete",
+          "numeric_precision": "rounded",
+          "seed": null,
+          "epsilon": null,
+          "numerical_warnings": []
+        },
+        "norm_b": {
+          "name": "l2",
+          "value": 11.149887874198804,
+          "units": null,
+          "method": "||W + s B A||_2 (effective) over finite elements",
+          "source_dtype": "F32",
+          "compute_dtype": "float64",
+          "element_count": 64,
+          "finite_count": 64,
+          "sample_count": null,
+          "coverage": "complete",
+          "numeric_precision": "rounded",
+          "seed": null,
+          "epsilon": null,
+          "numerical_warnings": []
+        }
+      },
+      "caveat": null
+    }
+  ],
+  "layers": [
+    {
+      "layer": 0,
+      "tensors": 2,
+      "elements": 128,
+      "finite_pairs": 128,
+      "invalid_pairs": 0,
+      "withheld_tensors": 0,
+      "delta_l2": 12.971121772221643,
+      "delta_rms": 1.146496020591799,
+      "relative_l2": 1.3165309979189004,
+      "max_abs_delta": 8.0
+    }
+  ],
+  "roles": [
+    {
+      "role": "mlp.down",
+      "tensors": 1,
+      "elements": 64,
+      "finite_pairs": 64,
+      "invalid_pairs": 0,
+      "withheld_tensors": 0,
+      "delta_l2": 11.224972160321824,
+      "delta_rms": 1.403121520040228,
+      "relative_l2": 2.4315076155889845,
+      "max_abs_delta": 8.0
+    },
+    {
+      "role": "mlp.up",
+      "tensors": 1,
+      "elements": 64,
+      "finite_pairs": 64,
+      "invalid_pairs": 0,
+      "withheld_tensors": 0,
+      "delta_l2": 6.500000002292486,
+      "delta_rms": 0.8125000002865608,
+      "relative_l2": 0.746781196238801,
+      "max_abs_delta": 2.0
+    }
+  ],
+  "totals": {
+    "scope": "all_analyzed_tensors",
+    "tensors": 2,
+    "elements": 128,
+    "finite_pairs": 128,
+    "invalid_pairs": 0,
+    "withheld_tensors": 0,
+    "delta_l2": 12.971121772221643,
+    "delta_rms": 1.146496020591799,
+    "relative_l2": 1.3165309979189004,
+    "max_abs_delta": 8.0
+  },
+  "warnings": []
+}

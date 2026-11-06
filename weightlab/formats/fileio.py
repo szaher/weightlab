@@ -31,6 +31,22 @@ class FileIdentity:
         return cls(st.st_size, st.st_mtime_ns, st.st_ctime_ns, st.st_dev, st.st_ino)
 
 
+def path_identity(path: Path) -> FileIdentity:
+    """Identity of whatever the path resolves to now (symlinks followed).
+
+    Windows: `os.stat` by path may return directory-entry metadata that lags the file's own
+    (observed in CI right after a write), so the path is opened briefly and the handle is
+    queried, making both sides of the comparison come from GetFileInformationByHandle.
+    """
+    if sys.platform == "win32":
+        fd = os.open(path, os.O_RDONLY | os.O_BINARY)
+        try:
+            return FileIdentity.of(os.fstat(fd))
+        finally:
+            os.close(fd)
+    return FileIdentity.of(os.stat(path))
+
+
 class PositionedFile:
     """One read-only handle. POSIX reads use os.pread (position-independent, thread-safe);
     Windows uses seek + read under a lock because the file position is shared."""
@@ -48,7 +64,7 @@ class PositionedFile:
             raise fail(ErrorCode.VALIDATION_ERROR, f"permission denied: {path.name} ({e.strerror})") from None
         try:
             handle = FileIdentity.of(os.fstat(self._fd))
-            if handle != FileIdentity.of(os.stat(path)):
+            if handle != path_identity(path):
                 raise fail(ErrorCode.FILE_CHANGED, f"{path.name} changed while being opened")
         except BaseException:
             self.close()
@@ -67,7 +83,7 @@ class PositionedFile:
         """Best-effort identity check of handle and path against the identity recorded at open."""
         try:
             handle = FileIdentity.of(os.fstat(self.fd))
-            current = FileIdentity.of(os.stat(self.path))
+            current = path_identity(self.path)
         except OSError:
             raise fail(ErrorCode.FILE_CHANGED, f"{self.path.name} is no longer accessible") from None
         if handle != self.identity:

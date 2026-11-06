@@ -1,0 +1,10 @@
+rank,key,layer,role,status,shape,dtype_a,dtype_b,elements,finite_pairs,invalid_pairs,nan_a,pos_inf_a,neg_inf_a,nan_b,pos_inf_b,neg_inf_b,delta_overflow,changed,delta_l2,delta_rms,relative_l2,cosine,max_abs_delta,norm_a,norm_b,numeric_precision,caveat
+1,demo.layers.0.mlp.up_proj.weight,0,mlp.up,matched,8x8,F32,F32,64,64,0,0,0,0,0,0,0,0,10,1.9621416293179186,0.24526770366473982,0.22542930347926027,0.9816545091729997,1.0,8.704022054960737,9.59114169894498,rounded,
+2,demo.cube.weight,,other,matched,2x4x8,F32,F32,64,64,0,0,0,0,0,0,0,0,0,0.0,0.0,0.0,1.0,0.0,292.1369541841634,292.1369541841634,rounded,
+3,demo.layers.0.mlp.down_proj.weight,0,mlp.down,matched,8x8,F32,F32,64,64,0,0,0,0,0,0,0,0,0,0.0,0.0,0.0,1.0,0.0,4.616465968831768,4.616465968831768,rounded,
+4,demo.layers.0.self_attn.q_proj.weight,0,attention.q,matched,257x263,F32,F32,67591,67591,0,0,0,0,0,0,0,0,0,0.0,0.0,0.0,1.0,0.0,150.18218728975938,150.18218728975938,rounded,
+5,demo.one_by_one.weight,,other,matched,1x1,F32,F32,1,1,0,0,0,0,0,0,0,0,0,0.0,0.0,0.0,1.0,0.0,0.25,0.25,rounded,
+6,demo.scalar,,other,matched,,F32,F32,1,1,0,0,0,0,0,0,0,0,0,0.0,0.0,0.0,1.0,0.0,3.5,3.5,rounded,
+7,demo.special_nonfinite.weight,,other,matched,2x4,F32,F32,8,5,3,1,1,1,1,1,1,0,0,0.0,0.0,0.0,1.0,0.0,3.872983346207417,3.872983346207417,rounded,
+8,demo.vector.weight,,other,matched,6,F32,F32,6,6,0,0,0,0,0,0,0,0,0,0.0,0.0,0.0,1.0,0.0,6.264982043070834,6.264982043070834,rounded,
+9,demo.zeros.weight,,other,matched,2x3,F32,F32,6,6,0,0,0,0,0,0,0,0,0,0.0,0.0,0.0,,0.0,0.0,0.0,rounded/unsupported,"near_zero_reference: ||A|| < epsilon_norm, relative_l2 divides by epsilon_norm"

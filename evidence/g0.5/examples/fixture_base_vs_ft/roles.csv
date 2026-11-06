@@ -1,0 +1,5 @@
+role,tensors,elements,finite_pairs,invalid_pairs,withheld_tensors,delta_l2,delta_rms,relative_l2,max_abs_delta
+attention.q,1,67591,67591,0,0,0.0,0.0,0.0,0.0
+mlp.down,1,64,64,0,0,0.0,0.0,0.0,0.0
+mlp.up,1,64,64,0,0,1.9621416293179186,0.24526770366473982,0.22542930347926027,1.0
+other,6,86,83,3,0,0.0,0.0,0.0,0.0
