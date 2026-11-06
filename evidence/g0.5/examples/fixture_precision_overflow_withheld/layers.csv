@@ -1,2 +1,2 @@
-layer,tensors,elements,finite_pairs,invalid_pairs,withheld_tensors,delta_l2,delta_rms,relative_l2,max_abs_delta
-,7,28,28,0,1,,,,
+layer,tensors,elements,finite_pairs,invalid_pairs,withheld_tensors,delta_l2,delta_rms,relative_l2,max_abs_delta,near_zero_reference,withheld_metrics
+,7,28,28,0,1,,,,,false,delta_l2/delta_rms/max_abs_delta/relative_l2

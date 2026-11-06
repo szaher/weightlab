@@ -21,7 +21,7 @@ from weightlab.formats.base import Consistency
 from weightlab.formats.checkpoint import Checkpoint
 
 NUMERICS_VERSION = 2  # 2: exact 64-bit integer deltas, epsilon policy in rollups, LoRA overflow tracking
-DEFAULT_CHUNK_ELEMENTS = 1 << 20  # 1 Mi elements per side per chunk
+DEFAULT_CHUNK_ELEMENTS = 1 << 18  # 256 Ki elements per side: ~16 MiB of float64 temporaries (doc 11: 16-64 MiB)
 DEFAULT_EPS_NORM = 1e-12
 
 Progress = Callable[[int, int, str], None]  # (bytes done, bytes total, current key)

@@ -13,7 +13,7 @@ Counts: modules 2, analyzed 2, over_budget_norm_only 0, unsupported 0, skipped 0
 
 ## Completeness
 
-modules_analyzed: 2, modules_withheld: 0, modules_norm_only: 0, modules_unsupported: 0, modules_skipped: 0, unsupported_adapter_keys: 0, base_tensors_without_adapter: 7
+modules_analyzed: 2, modules_withheld: 0, rollups_withheld: 0, modules_norm_only: 0, modules_unsupported: 0, modules_skipped: 0, unsupported_adapter_keys: 0, base_tensors_without_adapter: 7
 
 ## Caveats
 

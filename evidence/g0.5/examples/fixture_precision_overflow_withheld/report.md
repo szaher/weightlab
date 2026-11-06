@@ -13,11 +13,11 @@ Counts: matched 7, missing_in_a 0, missing_in_b 0, tied 0, shape_mismatch 0, dty
 
 ## Completeness
 
-tensors_analyzed: 7, tensors_withheld: 1, entries_not_compared: 0, tied_entries: 0
+tensors_analyzed: 7, tensors_withheld: 1, rollups_withheld: 3, entries_not_compared: 0, tied_entries: 0
 
 ## Caveats
 
-- Incomplete: 1 tensor(s)/module(s) have delta metrics withheld (float64 overflow or unreliable arithmetic); totals and rollups that include them are withheld too.
+- Incomplete: 1 tensor(s)/module(s) and 3 rollup(s) have metrics withheld (float64 overflow or unreliable arithmetic); see 'withheld_metrics'.
 - Class S: no lineage evidence; raw deltas may be meaningless (parameter permutation/alignment).
 - Ranking by change magnitude describes how much parameters moved; it does not show that a tensor matters for any behavior (doc 05 section 9).
 - Layer and role labels are heuristics from tensor key names, not identity.

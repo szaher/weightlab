@@ -84,7 +84,7 @@
     "read_only": true
   },
   "caveats": [
-    "Incomplete: 1 tensor(s)/module(s) have delta metrics withheld (float64 overflow or unreliable arithmetic); totals and rollups that include them are withheld too.",
+    "Incomplete: 1 tensor(s)/module(s) and 3 rollup(s) have metrics withheld (float64 overflow or unreliable arithmetic); see `withheld_metrics`.",
     "Class S: no lineage evidence; raw deltas may be meaningless (parameter permutation/alignment).",
     "Ranking by change magnitude describes how much parameters moved; it does not show that a tensor matters for any behavior (doc 05 section 9).",
     "Layer and role labels are heuristics from tensor key names, not identity."
@@ -92,13 +92,14 @@
   "settings": {
     "sort": "relative_l2",
     "epsilon_norm": 1e-12,
-    "chunk_elements": 1048576,
+    "chunk_elements": 262144,
     "consistency": "best_effort"
   },
   "complete": false,
   "completeness": {
     "tensors_analyzed": 7,
     "tensors_withheld": 1,
+    "rollups_withheld": 3,
     "entries_not_compared": 0,
     "tied_entries": 0
   },
@@ -242,6 +243,7 @@
           "numerical_warnings": []
         }
       },
+      "withheld_metrics": [],
       "caveat": "Class S: no lineage evidence; raw deltas may be meaningless (parameter permutation/alignment)."
     },
     {
@@ -383,6 +385,7 @@
           "numerical_warnings": []
         }
       },
+      "withheld_metrics": [],
       "caveat": "Class S: no lineage evidence; raw deltas may be meaningless (parameter permutation/alignment)."
     },
     {
@@ -524,6 +527,7 @@
           "numerical_warnings": []
         }
       },
+      "withheld_metrics": [],
       "caveat": "Class S: no lineage evidence; raw deltas may be meaningless (parameter permutation/alignment)."
     },
     {
@@ -665,6 +669,7 @@
           "numerical_warnings": []
         }
       },
+      "withheld_metrics": [],
       "caveat": "Class S: no lineage evidence; raw deltas may be meaningless (parameter permutation/alignment)."
     },
     {
@@ -806,6 +811,7 @@
           "numerical_warnings": []
         }
       },
+      "withheld_metrics": [],
       "caveat": "Class S: no lineage evidence; raw deltas may be meaningless (parameter permutation/alignment)."
     },
     {
@@ -947,6 +953,7 @@
           "numerical_warnings": []
         }
       },
+      "withheld_metrics": [],
       "caveat": "Class S: no lineage evidence; raw deltas may be meaningless (parameter permutation/alignment)."
     },
     {
@@ -1096,6 +1103,14 @@
           "numerical_warnings": []
         }
       },
+      "withheld_metrics": [
+        "delta_l2",
+        "delta_rms",
+        "max_abs_delta",
+        "norm_a",
+        "norm_b",
+        "relative_l2"
+      ],
       "caveat": "Class S: no lineage evidence; raw deltas may be meaningless (parameter permutation/alignment)."
     }
   ],
@@ -1110,8 +1125,14 @@
       "delta_l2": null,
       "delta_rms": null,
       "relative_l2": null,
+      "max_abs_delta": null,
       "near_zero_reference": false,
-      "max_abs_delta": null
+      "withheld_metrics": [
+        "delta_l2",
+        "delta_rms",
+        "max_abs_delta",
+        "relative_l2"
+      ]
     }
   ],
   "roles": [
@@ -1125,8 +1146,14 @@
       "delta_l2": null,
       "delta_rms": null,
       "relative_l2": null,
+      "max_abs_delta": null,
       "near_zero_reference": false,
-      "max_abs_delta": null
+      "withheld_metrics": [
+        "delta_l2",
+        "delta_rms",
+        "max_abs_delta",
+        "relative_l2"
+      ]
     }
   ],
   "totals": {
@@ -1139,8 +1166,14 @@
     "delta_l2": null,
     "delta_rms": null,
     "relative_l2": null,
+    "max_abs_delta": null,
     "near_zero_reference": false,
-    "max_abs_delta": null
+    "withheld_metrics": [
+      "delta_l2",
+      "delta_rms",
+      "max_abs_delta",
+      "relative_l2"
+    ]
   },
   "warnings": []
 }

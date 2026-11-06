@@ -335,3 +335,147 @@ def test_huge_json_numbers_fail_cleanly(tmp_path: Path, cfg: dict[str, Any], kin
         r = run(base, adapter=ad)
         assert rows(r)[UP]["status"] == "unsupported"
         assert r["complete"] is False
+
+
+# == review round 2 ==========================================================================
+# -- R1: LoRA overflow positions keep their finite base values in ||W|| -----------------------
+def test_lora_overflow_keeps_exact_base_norm(tmp_path: Path) -> None:
+    base = f64(tmp_path / "base", {UP: np.array([[1.0, 1.0]])})
+    ad = adapter64(tmp_path / "ad", np.array([[1e200, 0.0]]), np.array([[1e200]]))  # overflows at [0, 0] only
+    r = run(base, adapter=ad)
+    validate(r)
+    row = rows(r)[UP]
+    assert row["counts"]["delta_overflow"] == 1
+    assert row["counts"]["b_overflow"] == 1
+    assert row["counts"]["finite_pairs"] == 2
+    assert value(row, "norm_a") == math.sqrt(2.0)  # both base elements, not just the non-overflowing one
+    assert row["metrics"]["norm_a"]["numeric_precision"] == "rounded"
+    for name in ("norm_b", "cosine", "delta_l2", "relative_l2"):  # B is unrepresentable at [0, 0]
+        assert value(row, name) is None
+        assert row["metrics"][name]["numeric_precision"] == "overflowed"
+    assert row["withheld_metrics"] == sorted(
+        ["cosine", "delta_l2", "delta_rms", "max_abs_delta", "norm_b", "relative_l2"]
+    )
+    assert r["complete"] is False
+
+
+# -- R2: any overflowed metric (not only delta_l2) makes the report incomplete ---------------
+def test_relative_l2_overflow_alone_marks_incomplete(tmp_path: Path) -> None:
+    a, b = np.zeros((1, 1)), np.full((1, 1), 1e200)  # ||delta|| fine; 1e200 / 1e-300 overflows
+    r = run(f64(tmp_path / "a", {UP: a}), f64(tmp_path / "b", {UP: b}), options=Options(eps_norm=1e-300))
+    validate(r)
+    row = rows(r)[UP]
+    assert value(row, "delta_l2") == 1e200
+    assert value(row, "relative_l2") is None
+    assert row["metrics"]["relative_l2"]["numeric_precision"] == "overflowed"
+    assert row["metrics"]["cosine"]["numeric_precision"] == "unsupported"  # zero vector: undefined, not withheld
+    assert row["withheld_metrics"] == ["relative_l2"]
+    assert r["totals"]["withheld_metrics"] == ["relative_l2"]
+    assert r["complete"] is False
+    assert r["completeness"]["tensors_withheld"] == 1
+    assert r["caveats"][0].startswith("Incomplete")
+
+
+def test_undefined_metrics_do_not_mark_incomplete(tmp_path: Path) -> None:
+    z = np.zeros((1, 2))  # cosine undefined (zero vectors), everything else exactly 0
+    r = run(f64(tmp_path / "a", {UP: z}), f64(tmp_path / "b", {UP: z}))
+    row = rows(r)[UP]
+    assert value(row, "cosine") is None
+    assert row["withheld_metrics"] == []
+    assert r["complete"] is True
+
+
+def test_rollup_only_overflow_marks_incomplete(tmp_path: Path) -> None:
+    k1, k2 = "model.layers.0.mlp.up_proj.weight", "model.layers.1.self_attn.q_proj.weight"
+    a = {k1: np.ones((1, 1)), k2: np.ones((1, 1))}
+    b = {k1: np.full((1, 1), 1.5e308), k2: np.full((1, 1), 1.5e308)}  # each delta fine, the total norm is not
+    r = run(f64(tmp_path / "a", a), f64(tmp_path / "b", b))
+    validate(r)
+    assert all(t["withheld_metrics"] == [] for t in r["tensors"])
+    assert r["totals"]["delta_l2"] is None
+    assert r["totals"]["withheld_metrics"] == ["delta_l2"]
+    assert math.isclose(r["totals"]["delta_rms"], 1.5e308, rel_tol=1e-15)
+    assert r["completeness"] == {**r["completeness"], "tensors_withheld": 0, "rollups_withheld": 1}
+    assert r["complete"] is False
+
+
+# -- R3: mixed output destinations roll back together -----------------------------------------
+@pytest.mark.parametrize("fail_at", ["stage", "commit"])
+def test_mixed_targets_roll_back_new_out_dir(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, fail_at: str) -> None:
+    out, elsewhere = tmp_path / "reports", tmp_path / "elsewhere" / "report.json"
+    files = {out / "report.json": "j", out / "report.md": "m", elsewhere: "e"}
+    if fail_at == "stage":
+        real_stage = report_io._stage
+
+        def stage(path: Path, text: str) -> Path:
+            if path == elsewhere:
+                raise OSError("disk full")
+            return real_stage(path, text)
+
+        monkeypatch.setattr(report_io, "_stage", stage)
+    else:
+        real_replace = os.replace
+
+        def replace(src: Any, dst: Any) -> None:
+            if Path(dst) == elsewhere:
+                assert out.exists()  # the --out directory was already published at this point
+                raise OSError("disk full")
+            real_replace(src, dst)
+
+        monkeypatch.setattr(report_io.os, "replace", replace)
+    with pytest.raises(OSError, match="disk full"):
+        report_io.write_report_set(files, out)
+    assert not out.exists()
+    assert not elsewhere.exists()
+    leftovers = [p.name for p in tmp_path.rglob("*") if p.is_file()]
+    assert leftovers == []  # no temporary files or directories left behind
+
+
+def test_mixed_targets_existing_files_restored(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    out, elsewhere = tmp_path / "reports", tmp_path / "elsewhere" / "report.json"
+    out.mkdir()
+    elsewhere.parent.mkdir()
+    for p in (out / "report.json", elsewhere):
+        p.write_text("old")
+    real_replace = os.replace
+
+    def replace(src: Any, dst: Any) -> None:
+        if Path(dst) == elsewhere and str(src).endswith(".tmp"):
+            raise OSError("disk full")
+        real_replace(src, dst)
+
+    monkeypatch.setattr(report_io.os, "replace", replace)
+    with pytest.raises(OSError, match="disk full"):
+        report_io.write_report_set({out / "report.json": "new", elsewhere: "new"}, out)
+    assert (out / "report.json").read_text() == "old"
+    assert elsewhere.read_text() == "old"
+    assert sorted(p.name for p in tmp_path.rglob("*") if p.is_file()) == ["report.json", "report.json"]
+
+
+# -- R4: CSV carries b_overflow and withheld_metrics like the JSON ----------------------------
+def test_csv_exports_overflow_columns(tmp_path: Path) -> None:
+    import csv
+    import io
+
+    base = f64(tmp_path / "base", {UP: np.array([[1.0, 1.0]])})
+    ad = adapter64(tmp_path / "ad", np.array([[1e200, 0.0]]), np.array([[1e200]]))
+    out = tmp_path / "out"
+    assert main(["diff", str(base), "--adapter", str(ad), "--out", str(out), "--quiet"]) == 3
+    row = next(csv.DictReader(io.StringIO((out / "tensors.csv").read_text())))
+    assert row["b_overflow"] == "1"
+    assert row["delta_overflow"] == "1"
+    assert "relative_l2" in row["withheld_metrics"].split("/")
+    total = next(csv.DictReader(io.StringIO((out / "layers.csv").read_text())))
+    assert "delta_l2" in total["withheld_metrics"].split("/")
+
+
+# -- CI: the memory probe never reads 0 ------------------------------------------------------
+def test_memory_probe_reports_a_real_counter() -> None:
+    import sys
+
+    from weightlab.core.memory import peak_memory
+
+    m = peak_memory()
+    assert m.peak > 1 << 20
+    want = {"darwin": "macos_phys_footprint_peak", "win32": "windows_peak_working_set"}.get(sys.platform, "linux_vmhwm")
+    assert m.metric == want

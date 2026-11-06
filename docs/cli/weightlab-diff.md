@@ -19,9 +19,11 @@ weightlab diff BASE --adapter ADAPTER_DIR [...]  # A = W, B = W + s * (B_lora @ 
 | `--json F` / `--csv F` / `--md F` | one file each |
 | (none) | Markdown summary on stdout unless `--quiet` |
 
-The files of one run are published as a set. Every file is first written and fsynced under a temporary name; a failure or Ctrl-C at that stage removes the temporaries and publishes nothing. The renames then run with Ctrl-C deferred, and a failed rename restores the files already replaced. A new `--out` directory appears with a single directory rename. WeightLab refuses to write into any input directory.
+The files of one run are published as a set. Every file is first written and fsynced under a temporary name; a failure or Ctrl-C at that stage removes the temporaries and publishes nothing. The renames then run with Ctrl-C deferred. If any step fails, including when `--out` is combined with `--json/--csv/--md` elsewhere, everything already published by the run is rolled back: replaced files are restored from backups, and new files and a newly created `--out` directory are removed. Rollback is best effort (it cannot help if the disk itself disappears), and publication is not atomic for concurrent readers: while the renames run, another process can see some files new and others old. Only a new `--out` directory appears atomically, with a single directory rename. WeightLab refuses to write into any input directory.
 
-Exit codes: `0` complete report; `3` report written but incomplete (`complete: false`: unmatched tensors, unsupported, skipped or budget-limited adapter modules, or any tensor/module whose delta metrics are withheld); `2` error, including invalid options (nothing written); `130` cancelled with Ctrl-C (nothing written).
+Exit codes: `0` complete report; `3` report written but incomplete (`complete: false`: unmatched tensors; unsupported, skipped or budget-limited adapter modules; or any withheld metric); `2` error, including invalid options (nothing written); `130` cancelled with Ctrl-C (nothing written).
+
+A metric is *withheld* when its true value exists but cannot be reported: `numeric_precision: overflowed` in any metric of a tensor, module or rollup (each lists them in `withheld_metrics`, also in the CSVs), or a Gram norm lost to cancellation. Mathematically undefined values, such as cosine with a zero vector or the RMS of no finite pairs, are `unsupported`; they are not withheld and do not make a report incomplete.
 
 `--epsilon-norm` must be finite and in [1e-300, 1]; `--max-lora-gmac` must be finite and in [0, 1e6]; `--chunk-elements` must be in [1, 2^26]. NaN and Inf are rejected, because they would silently disable a comparison-based limit. The library enforces the same rules (`Options.validate()`).
 
@@ -31,7 +33,7 @@ The JSON report follows `weightlab/schemas/change_report.schema.json`. Each metr
 
 I64/U64 deltas are formed exactly (each value split into 32-bit halves) and rounded to float64 once, so a nonzero integer difference such as 2^53 vs 2^53 + 1 is never reported as zero. Norms and cosine of I64/U64 tensors use float64-rounded values (`rounded`, doc 05 §2). Every narrower integer converts to float64 exactly.
 
-All metrics stream over the tensor in chunks (`--chunk-elements`, default 1,048,576) in float64 and are exact up to float64 rounding. They are independent of the chunk size except for rounding. Squared sums are kept as mantissa × 2^e, so norms of finite inputs never overflow.
+All metrics stream over the tensor in chunks (`--chunk-elements`, default 262,144) in float64 and are exact up to float64 rounding. They are independent of the chunk size except for rounding. Squared sums are kept as mantissa × 2^e, so norms of finite inputs never overflow.
 
 | Metric | Definition |
 |---|---|
@@ -63,7 +65,7 @@ Tensors are matched by exact key only. Renamed keys are mentioned in `reasons` a
 
 Supported: PEFT `LORA` with `lora_A`/`lora_B` linear weights, `r`/`lora_alpha`, rsLoRA (`alpha/√r`), `rank_pattern`/`alpha_pattern` with literal suffix keys, `fan_in_fan_out` (Conv1D layout), `layers_to_transform`. The effective delta s·(B_lora@A_lora) is computed in row blocks and compared with the base weight exactly as for a pair. Modules whose dense product exceeds `--max-lora-gmac` (default 50 GMAC) get the Frobenius norm from the Gram trace and status `over_budget_norm_only`, and the report becomes incomplete. The Gram trace scales both factors by exact powers of two first, so huge or tiny factors neither overflow nor underflow to a false zero. When the factors contain NaN/Inf, or the signed Gram sum is within its rounding-error bound of zero (cancellation), the norm is withheld (`unsupported`). Its `relative_l2` uses the same ε policy. `||W||` excludes NaN/Inf base elements, which are counted and reported.
 
-Overflow in WeightLab's own arithmetic, where the inputs are finite but s·B@A or W + s·B@A leaves float64, is counted in `delta_overflow` / `b_overflow`. The affected metrics are withheld (`overflowed`), never masked as source NaN/Inf. Non-finite factors make the affected effective weights genuinely non-finite; they are counted as non-finite B values.
+Overflow in WeightLab's own arithmetic, where the inputs are finite but s·B@A or W + s·B@A leaves float64, is counted in `delta_overflow` / `b_overflow`. The affected metrics are withheld (`overflowed`), never masked as source NaN/Inf. Wherever B overflowed, `norm_b` and cosine are withheld too; the finite base values there still count towards ‖W‖, so `norm_a` stays exact. Non-finite factors make the affected effective weights genuinely non-finite; they are counted as non-finite B values.
 
 Memory: each module's working set (both factors in float64, plus row-block temporaries or the 3·r² Gram scratch) is estimated from the shapes before anything is loaded. Modules above 384 MiB, or with a factor above 2^24 cells, are `skipped` with a resource-limit reason. `r` and `rank_pattern` values must be integers in [1, 65536], and `lora_alpha` / `alpha_pattern` values must be finite float64 numbers; out-of-range JSON numbers are validation errors, not crashes.
 

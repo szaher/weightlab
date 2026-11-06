@@ -206,7 +206,22 @@ def counts(s: PairStats) -> dict[str, int | str]:
     return {k: _int(getattr(s, k)) for k in keys}
 
 
+def withheld_metrics(metrics: dict[str, dict[str, Any]], extra: tuple[str, ...] = ()) -> list[str]:
+    """Metrics whose true value exists but could not be reported: `overflowed` precision (the value
+    left float64 range) plus `extra` (e.g. a Gram norm lost to cancellation). Mathematically undefined
+    values (cosine with a zero vector, RMS of no finite pairs) are `unsupported` and not listed."""
+    return sorted({k for k, m in metrics.items() if m["numeric_precision"] == "overflowed"} | set(extra))
+
+
 def _rollup_row(label: str, value: Any, r: Rollup, eps: float) -> dict[str, Any]:
+    vals = {
+        "delta_l2": r.delta_l2(),
+        "delta_rms": r.delta_rms(),
+        "relative_l2": r.relative_l2(eps),
+        "max_abs_delta": None if r.withheld or r.finite_pairs == 0 else r.max_abs,
+    }
+    # With finite pairs every rollup metric is defined, so a null is a withheld member or overflow.
+    held = sorted(k for k, v in vals.items() if v is None and r.finite_pairs > 0)
     return {
         label: value,
         "tensors": r.tensors,
@@ -214,11 +229,9 @@ def _rollup_row(label: str, value: Any, r: Rollup, eps: float) -> dict[str, Any]
         "finite_pairs": _int(r.finite_pairs),
         "invalid_pairs": _int(r.invalid_pairs),
         "withheld_tensors": r.withheld,
-        "delta_l2": r.delta_l2(),
-        "delta_rms": r.delta_rms(),
-        "relative_l2": r.relative_l2(eps),
+        **vals,
         "near_zero_reference": r.near_zero_reference(eps),
-        "max_abs_delta": None if r.withheld or r.finite_pairs == 0 else r.max_abs,
+        "withheld_metrics": held,
     }
 
 
@@ -362,7 +375,8 @@ def pair_report(a: Checkpoint, b: Checkpoint, lin: LineageInputs, opts: Options,
                 "dtype_a": e.a.dtype,
                 "dtype_b": e.b.dtype,
                 "counts": counts(s),
-                "metrics": pair_metrics(s, dtype, opts.eps_norm),
+                "metrics": (met := pair_metrics(s, dtype, opts.eps_norm)),
+                "withheld_metrics": withheld_metrics(met),
                 "caveat": "; ".join(
                     x
                     for x in (
@@ -395,30 +409,31 @@ def pair_report(a: Checkpoint, b: Checkpoint, lin: LineageInputs, opts: Options,
     )
     report["compatibility"]["counts"] = structure.counts()
     report["compatibility"]["not_compared"] = [_entry_dict(e) for e in not_compared]
-    withheld = sum(1 for r in rows if _withheld(r))
-    report["complete"] = accounted and withheld == 0
+    withheld, rollups_withheld = _withheld_counts(rows, layers, roles, totals)
+    report["complete"] = accounted and withheld == 0 and rollups_withheld == 0
     report["completeness"] = {
         "tensors_analyzed": len(rows),
         "tensors_withheld": withheld,
+        "rollups_withheld": rollups_withheld,
         "entries_not_compared": len(not_compared),
         "tied_entries": sum(1 for e in not_compared if e.status == "tied"),
     }
-    if withheld:
-        report["caveats"].insert(0, WITHHELD_CAVEAT.format(n=withheld))
+    if withheld or rollups_withheld:
+        report["caveats"].insert(0, WITHHELD_CAVEAT.format(n=withheld, m=rollups_withheld))
     report.update(tensors=rows, layers=layers, roles=roles, totals=totals)
     report["warnings"] = [*a.warnings, *b.warnings]
     return report
 
 
-def _withheld(row: dict[str, Any]) -> bool:
-    """A reported tensor/module whose delta could not be represented or computed honestly."""
-    m = row["metrics"].get("delta_l2")
-    return m is not None and m["numeric_precision"] in ("overflowed", "unsupported")
+def _withheld_counts(rows: list[dict[str, Any]], layers: list[dict[str, Any]], roles: list[dict[str, Any]],
+                     totals: dict[str, Any]) -> tuple[int, int]:  # fmt: skip
+    return (sum(1 for r in rows if r["withheld_metrics"]),
+            sum(1 for r in [*layers, *roles, totals] if r["withheld_metrics"]))  # fmt: skip
 
 
 WITHHELD_CAVEAT = (
-    "Incomplete: {n} tensor(s)/module(s) have delta metrics withheld (float64 overflow or unreliable "
-    "arithmetic); totals and rollups that include them are withheld too."
+    "Incomplete: {n} tensor(s)/module(s) and {m} rollup(s) have metrics withheld (float64 overflow or "
+    "unreliable arithmetic); see `withheld_metrics`."
 )
 
 
@@ -511,6 +526,7 @@ def _module_row(m: Module, base: Checkpoint, eps: float) -> dict[str, Any]:
             epsilon=eps,
             warnings=rel_warn,
         )
+    row["withheld_metrics"] = withheld_metrics(row["metrics"], ("delta_l2", "relative_l2") if m.norm_only_issue else ())
     return row
 
 
@@ -594,19 +610,20 @@ def adapter_report(
     report["compatibility"]["not_compared"] = [
         {"raw_key": k, "status": "unsupported_key", "reasons": [why]} for k, why in result.unsupported_keys
     ]
-    withheld = sum(1 for r in rows if _withheld(r))
-    report["complete"] = result.complete and withheld == 0
+    withheld, rollups_withheld = _withheld_counts(rows, layers, roles, totals)
+    report["complete"] = result.complete and withheld == 0 and rollups_withheld == 0
     report["completeness"] = {
         "modules_analyzed": status["analyzed"],
         "modules_withheld": withheld,
+        "rollups_withheld": rollups_withheld,
         "modules_norm_only": status["over_budget_norm_only"],
         "modules_unsupported": status["unsupported"],
         "modules_skipped": status["skipped"],
         "unsupported_adapter_keys": len(result.unsupported_keys),
         "base_tensors_without_adapter": result.base_tensors_without_adapter,
     }
-    if withheld:
-        report["caveats"].insert(0, WITHHELD_CAVEAT.format(n=withheld))
+    if withheld or rollups_withheld:
+        report["caveats"].insert(0, WITHHELD_CAVEAT.format(n=withheld, m=rollups_withheld))
     if not result.complete:
         report["caveats"].insert(
             0,

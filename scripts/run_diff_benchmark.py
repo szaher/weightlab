@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """Phase 0.5 change-report benchmark (G0.5): memory stays bounded as the compared pair grows, and
 real checkpoints/adapters run end to end. Every case runs `weightlab diff` in a fresh process
-that reports its own peak RSS, elapsed time and bytes read.
+that reports its own peak memory (`weightlab.core.memory`: macOS phys_footprint peak, Linux
+VmHWM, Windows peak working set; the resident peak is recorded too), elapsed time and bytes read.
 
     python scripts/run_diff_benchmark.py --dir /tmp/wl --sizes-gib 0.25,1,4 --json out.json \
         [--pair BASE DERIVED] [--adapter BASE ADAPTER_DIR]
@@ -40,22 +41,7 @@ CHILD = r"""
 import json, sys, time
 t0 = time.perf_counter()
 
-def peak_rss() -> int:
-    if sys.platform == "win32":
-        import ctypes
-        from ctypes import wintypes
-        class PMC(ctypes.Structure):
-            _fields_ = [("cb", wintypes.DWORD), ("PageFaultCount", wintypes.DWORD),
-                        ("PeakWorkingSetSize", ctypes.c_size_t), ("WorkingSetSize", ctypes.c_size_t),
-                        ("QuotaPeakPagedPoolUsage", ctypes.c_size_t), ("QuotaPagedPoolUsage", ctypes.c_size_t),
-                        ("QuotaPeakNonPagedPoolUsage", ctypes.c_size_t), ("QuotaNonPagedPoolUsage", ctypes.c_size_t),
-                        ("PagefileUsage", ctypes.c_size_t), ("PeakPagefileUsage", ctypes.c_size_t)]
-        c = PMC(); c.cb = ctypes.sizeof(PMC)
-        ctypes.windll.psapi.GetProcessMemoryInfo(ctypes.windll.kernel32.GetCurrentProcess(), ctypes.byref(c), c.cb)
-        return int(c.PeakWorkingSetSize)
-    import resource
-    r = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
-    return int(r if sys.platform == "darwin" else r * 1024)
+from weightlab.core.memory import peak_memory
 
 from weightlab.cli import main
 from weightlab.formats.checkpoint import Checkpoint
@@ -65,11 +51,13 @@ def close(self):
     read[0] += self.bytes_read
     _close(self)
 Checkpoint.close = close
-out = {"rss_after_import": peak_rss()}
+m0 = peak_memory()
+out = {"memory_metric": m0.metric, "mem_after_import": m0.peak, "resident_after_import": m0.resident_peak}
 t = time.perf_counter()
 code = main(sys.argv[1:])
-out.update(exit_code=code, diff_seconds=time.perf_counter() - t, rss_peak=peak_rss(), bytes_read=read[0],
-           total_seconds=time.perf_counter() - t0)
+m1 = peak_memory()
+out.update(exit_code=code, diff_seconds=time.perf_counter() - t, mem_peak=m1.peak, resident_peak=m1.resident_peak,
+           bytes_read=read[0], total_seconds=time.perf_counter() - t0)
 print(json.dumps(out))
 """
 
@@ -164,7 +152,7 @@ def dense_pair(workdir: Path, size_gib: float) -> dict[str, object]:
     res.update(case=f"b05_dense_bf16_pair_{size_gib}gib", pair_bytes=pair_bytes, delta_l2=got,
                expected_delta_l2=math.sqrt(ssq), metrics_correct=math.isclose(got, math.sqrt(ssq), rel_tol=1e-9),
                throughput_mib_s_per_side=pair_bytes / 2 / float(res["diff_seconds"]) / 2**20,  # type: ignore[arg-type]
-               rss_growth_bytes=int(res["rss_peak"]) - int(res["rss_after_import"]))  # type: ignore[call-overload]  # fmt: skip
+               mem_growth_bytes=int(res["mem_peak"]) - int(res["mem_after_import"]))  # type: ignore[call-overload]  # fmt: skip
     return res
 
 
@@ -200,7 +188,7 @@ def lora_b06(workdir: Path, rank: int, n: int = 8192) -> dict[str, object]:
     res.update(case=f"b06_lora_{n}x{n}_rank{rank}", status=row["status"], gmac=row["lora"]["gmac"],
                delta_l2=got, expected_delta_l2=math.sqrt(ssq),
                metrics_correct=row["status"] == "analyzed" and math.isclose(got, math.sqrt(ssq), rel_tol=1e-9),
-               rss_growth_bytes=int(res["rss_peak"]) - int(res["rss_after_import"]))  # type: ignore[call-overload]  # fmt: skip
+               mem_growth_bytes=int(res["mem_peak"]) - int(res["mem_after_import"]))  # type: ignore[call-overload]  # fmt: skip
     return res
 
 
@@ -242,7 +230,7 @@ def synthetic(workdir: Path, size_gib: float, chunk: int | None) -> dict[str, ob
     res.update(
         case=f"synthetic_sparse_bf16_{size_gib}gib", elements_per_side=elements, pair_bytes=pair_bytes,
         throughput_mib_s_per_side=pair_bytes / 2 / secs / 2**20,
-        rss_growth_bytes=int(res["rss_peak"]) - int(res["rss_after_import"]),  # type: ignore[call-overload]
+        mem_growth_bytes=int(res["mem_peak"]) - int(res["mem_after_import"]),  # type: ignore[call-overload]
         delta_l2=row["delta_l2"]["value"], expected_delta_l2=want_l2,
         max_abs_delta=row["max_abs_delta"]["value"], expected_max_abs_delta=2.0,
         metrics_correct=math.isclose(row["delta_l2"]["value"], want_l2, rel_tol=1e-15)
@@ -255,7 +243,7 @@ def real(workdir: Path, name: str, args: list[str], inputs: list[Path]) -> dict[
     res = diff(args, workdir / "reports" / f"{name}.json")
     size = sum(f.stat().st_size for p in inputs for f in ([p] if p.is_file() else p.glob("*.safetensors")))
     res.update(case=name, input_safetensors_bytes=size,
-               rss_growth_bytes=int(res["rss_peak"]) - int(res["rss_after_import"]))  # type: ignore[call-overload]  # fmt: skip
+               mem_growth_bytes=int(res["mem_peak"]) - int(res["mem_after_import"]))  # type: ignore[call-overload]  # fmt: skip
     return res
 
 
@@ -280,7 +268,7 @@ def main() -> int:
         base, ad = args.adapter
         cases.append(real(args.dir, "real_lora_adapter", [str(base), "--adapter", str(ad)], [base, ad]))
     synth = [c for c in cases if str(c["case"]).startswith("synthetic")]
-    growth = [int(c["rss_growth_bytes"]) for c in synth]  # type: ignore[call-overload]
+    growth = [int(c["mem_growth_bytes"]) for c in synth]  # type: ignore[call-overload]
     out = {
         "benchmark": "weightlab diff (G0.5)",
         "platform": platform.platform(), "python": platform.python_version(), "machine": platform.machine(),
@@ -289,7 +277,7 @@ def main() -> int:
         "summary": {
             "synthetic_all_correct": all(bool(c["metrics_correct"]) for c in synth),
             "dense_all_correct": all(bool(c["metrics_correct"]) for c in cases if str(c["case"]).startswith("b0")),
-            "synthetic_rss_growth_range_bytes": [min(growth), max(growth)] if growth else None,
+            "synthetic_mem_growth_range_bytes": [min(growth), max(growth)] if growth else None,
             "synthetic_size_ratio": (max(c["pair_bytes"] for c in synth) / min(c["pair_bytes"] for c in synth))  # type: ignore[type-var,operator]
             if synth else None,
         },

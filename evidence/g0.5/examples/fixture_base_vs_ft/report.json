@@ -90,13 +90,14 @@
   "settings": {
     "sort": "relative_l2",
     "epsilon_norm": 1e-12,
-    "chunk_elements": 1048576,
+    "chunk_elements": 262144,
     "consistency": "best_effort"
   },
   "complete": true,
   "completeness": {
     "tensors_analyzed": 9,
     "tensors_withheld": 0,
+    "rollups_withheld": 0,
     "entries_not_compared": 0,
     "tied_entries": 0
   },
@@ -241,6 +242,7 @@
           "numerical_warnings": []
         }
       },
+      "withheld_metrics": [],
       "caveat": null
     },
     {
@@ -384,6 +386,7 @@
           "numerical_warnings": []
         }
       },
+      "withheld_metrics": [],
       "caveat": null
     },
     {
@@ -526,6 +529,7 @@
           "numerical_warnings": []
         }
       },
+      "withheld_metrics": [],
       "caveat": null
     },
     {
@@ -668,6 +672,7 @@
           "numerical_warnings": []
         }
       },
+      "withheld_metrics": [],
       "caveat": null
     },
     {
@@ -810,6 +815,7 @@
           "numerical_warnings": []
         }
       },
+      "withheld_metrics": [],
       "caveat": null
     },
     {
@@ -949,6 +955,7 @@
           "numerical_warnings": []
         }
       },
+      "withheld_metrics": [],
       "caveat": null
     },
     {
@@ -1091,6 +1098,7 @@
           "numerical_warnings": []
         }
       },
+      "withheld_metrics": [],
       "caveat": null
     },
     {
@@ -1232,6 +1240,7 @@
           "numerical_warnings": []
         }
       },
+      "withheld_metrics": [],
       "caveat": null
     },
     {
@@ -1378,6 +1387,7 @@
           "numerical_warnings": []
         }
       },
+      "withheld_metrics": [],
       "caveat": "near_zero_reference: ||A|| < epsilon_norm, relative_l2 divides by epsilon_norm"
     }
   ],
@@ -1392,8 +1402,9 @@
       "delta_l2": 1.9621416293179186,
       "delta_rms": 0.0075400648968406096,
       "relative_l2": 0.01303705102552179,
+      "max_abs_delta": 1.0,
       "near_zero_reference": false,
-      "max_abs_delta": 1.0
+      "withheld_metrics": []
     },
     {
       "layer": null,
@@ -1405,8 +1416,9 @@
       "delta_l2": 0.0,
       "delta_rms": 0.0,
       "relative_l2": 0.0,
+      "max_abs_delta": 0.0,
       "near_zero_reference": false,
-      "max_abs_delta": 0.0
+      "withheld_metrics": []
     }
   ],
   "roles": [
@@ -1420,8 +1432,9 @@
       "delta_l2": 0.0,
       "delta_rms": 0.0,
       "relative_l2": 0.0,
+      "max_abs_delta": 0.0,
       "near_zero_reference": false,
-      "max_abs_delta": 0.0
+      "withheld_metrics": []
     },
     {
       "role": "mlp.down",
@@ -1433,8 +1446,9 @@
       "delta_l2": 0.0,
       "delta_rms": 0.0,
       "relative_l2": 0.0,
+      "max_abs_delta": 0.0,
       "near_zero_reference": false,
-      "max_abs_delta": 0.0
+      "withheld_metrics": []
     },
     {
       "role": "mlp.up",
@@ -1446,8 +1460,9 @@
       "delta_l2": 1.9621416293179186,
       "delta_rms": 0.24526770366473982,
       "relative_l2": 0.22542930347926027,
+      "max_abs_delta": 1.0,
       "near_zero_reference": false,
-      "max_abs_delta": 1.0
+      "withheld_metrics": []
     },
     {
       "role": "other",
@@ -1459,8 +1474,9 @@
       "delta_l2": 0.0,
       "delta_rms": 0.0,
       "relative_l2": 0.0,
+      "max_abs_delta": 0.0,
       "near_zero_reference": false,
-      "max_abs_delta": 0.0
+      "withheld_metrics": []
     }
   ],
   "totals": {
@@ -1473,8 +1489,9 @@
     "delta_l2": 1.9621416293179186,
     "delta_rms": 0.007535448388255227,
     "relative_l2": 0.005968884855165,
+    "max_abs_delta": 1.0,
     "near_zero_reference": false,
-    "max_abs_delta": 1.0
+    "withheld_metrics": []
   },
   "warnings": []
 }

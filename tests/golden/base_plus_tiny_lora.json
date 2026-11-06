@@ -104,13 +104,14 @@
   "settings": {
     "sort": "relative_l2",
     "epsilon_norm": 1e-12,
-    "chunk_elements": 1048576,
+    "chunk_elements": 262144,
     "consistency": "best_effort"
   },
   "complete": true,
   "completeness": {
     "modules_analyzed": 2,
     "modules_withheld": 0,
+    "rollups_withheld": 0,
     "modules_norm_only": 0,
     "modules_unsupported": 0,
     "modules_skipped": 0,
@@ -155,7 +156,7 @@
       "metrics": {
         "delta_l2": {
           "name": "l2",
-          "value": 11.2249721603,
+          "value": 11.224972160321824,
           "units": null,
           "method": "||s B A||_2 over finite pairs (power-of-two scaled sum of squares)",
           "source_dtype": "F32",
@@ -171,7 +172,7 @@
         },
         "delta_rms": {
           "name": "rms",
-          "value": 1.40312152004,
+          "value": 1.403121520040228,
           "units": null,
           "method": "sqrt(sum((s B A)^2)/finite_pairs)",
           "source_dtype": "F32",
@@ -187,7 +188,7 @@
         },
         "relative_l2": {
           "name": "relative_l2",
-          "value": 2.43150761559,
+          "value": 2.4315076155889845,
           "units": null,
           "method": "||s B A||_2 / max(||A||_2, epsilon_norm) over finite pairs",
           "source_dtype": "F32",
@@ -203,7 +204,7 @@
         },
         "cosine": {
           "name": "cosine",
-          "value": 0.543957378603,
+          "value": 0.5439573786034094,
           "units": null,
           "method": "cos(W, W + s B A)",
           "source_dtype": "F32",
@@ -235,7 +236,7 @@
         },
         "norm_a": {
           "name": "l2",
-          "value": 4.61646596883,
+          "value": 4.616465968831768,
           "units": null,
           "method": "||W||_2 (base) over finite elements",
           "source_dtype": "F32",
@@ -251,7 +252,7 @@
         },
         "norm_b": {
           "name": "l2",
-          "value": 13.0465378038,
+          "value": 13.046537803815303,
           "units": null,
           "method": "||W + s B A||_2 (effective) over finite elements",
           "source_dtype": "F32",
@@ -266,7 +267,8 @@
           "numerical_warnings": []
         }
       },
-      "caveat": null
+      "caveat": null,
+      "withheld_metrics": []
     },
     {
       "rank": 2,
@@ -305,7 +307,7 @@
       "metrics": {
         "delta_l2": {
           "name": "l2",
-          "value": 6.50000000229,
+          "value": 6.500000002292486,
           "units": null,
           "method": "||s B A||_2 over finite pairs (power-of-two scaled sum of squares)",
           "source_dtype": "F32",
@@ -321,7 +323,7 @@
         },
         "delta_rms": {
           "name": "rms",
-          "value": 0.812500000287,
+          "value": 0.8125000002865608,
           "units": null,
           "method": "sqrt(sum((s B A)^2)/finite_pairs)",
           "source_dtype": "F32",
@@ -337,7 +339,7 @@
         },
         "relative_l2": {
           "name": "relative_l2",
-          "value": 0.746781196239,
+          "value": 0.746781196238801,
           "units": null,
           "method": "||s B A||_2 / max(||A||_2, epsilon_norm) over finite pairs",
           "source_dtype": "F32",
@@ -353,7 +355,7 @@
         },
         "cosine": {
           "name": "cosine",
-          "value": 0.813147023575,
+          "value": 0.8131470235754374,
           "units": null,
           "method": "cos(W, W + s B A)",
           "source_dtype": "F32",
@@ -385,7 +387,7 @@
         },
         "norm_a": {
           "name": "l2",
-          "value": 8.70402205496,
+          "value": 8.704022054960737,
           "units": null,
           "method": "||W||_2 (base) over finite elements",
           "source_dtype": "F32",
@@ -401,7 +403,7 @@
         },
         "norm_b": {
           "name": "l2",
-          "value": 11.1498878742,
+          "value": 11.149887874198804,
           "units": null,
           "method": "||W + s B A||_2 (effective) over finite elements",
           "source_dtype": "F32",
@@ -416,7 +418,8 @@
           "numerical_warnings": []
         }
       },
-      "caveat": null
+      "caveat": null,
+      "withheld_metrics": []
     }
   ],
   "layers": [
@@ -427,11 +430,12 @@
       "finite_pairs": 128,
       "invalid_pairs": 0,
       "withheld_tensors": 0,
-      "delta_l2": 12.9711217722,
-      "delta_rms": 1.14649602059,
-      "relative_l2": 1.31653099792,
+      "delta_l2": 12.971121772221643,
+      "delta_rms": 1.146496020591799,
+      "relative_l2": 1.3165309979189004,
+      "max_abs_delta": 8.0,
       "near_zero_reference": false,
-      "max_abs_delta": 8.0
+      "withheld_metrics": []
     }
   ],
   "roles": [
@@ -442,11 +446,12 @@
       "finite_pairs": 64,
       "invalid_pairs": 0,
       "withheld_tensors": 0,
-      "delta_l2": 11.2249721603,
-      "delta_rms": 1.40312152004,
-      "relative_l2": 2.43150761559,
+      "delta_l2": 11.224972160321824,
+      "delta_rms": 1.403121520040228,
+      "relative_l2": 2.4315076155889845,
+      "max_abs_delta": 8.0,
       "near_zero_reference": false,
-      "max_abs_delta": 8.0
+      "withheld_metrics": []
     },
     {
       "role": "mlp.up",
@@ -455,11 +460,12 @@
       "finite_pairs": 64,
       "invalid_pairs": 0,
       "withheld_tensors": 0,
-      "delta_l2": 6.50000000229,
-      "delta_rms": 0.812500000287,
-      "relative_l2": 0.746781196239,
+      "delta_l2": 6.500000002292486,
+      "delta_rms": 0.8125000002865608,
+      "relative_l2": 0.746781196238801,
+      "max_abs_delta": 2.0,
       "near_zero_reference": false,
-      "max_abs_delta": 2.0
+      "withheld_metrics": []
     }
   ],
   "totals": {
@@ -469,11 +475,12 @@
     "finite_pairs": 128,
     "invalid_pairs": 0,
     "withheld_tensors": 0,
-    "delta_l2": 12.9711217722,
-    "delta_rms": 1.14649602059,
-    "relative_l2": 1.31653099792,
+    "delta_l2": 12.971121772221643,
+    "delta_rms": 1.146496020591799,
+    "relative_l2": 1.3165309979189004,
+    "max_abs_delta": 8.0,
     "near_zero_reference": false,
-    "max_abs_delta": 8.0
+    "withheld_metrics": []
   },
   "warnings": []
 }

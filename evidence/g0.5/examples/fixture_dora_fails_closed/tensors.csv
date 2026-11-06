@@ -1,2 +1,2 @@
-rank,key,layer,role,status,shape,lora_rank,lora_scale,gmac,elements,finite_pairs,invalid_pairs,nan_a,pos_inf_a,neg_inf_a,nan_b,pos_inf_b,neg_inf_b,delta_overflow,changed,delta_l2,delta_rms,relative_l2,cosine,max_abs_delta,norm_a,norm_b,numeric_precision,caveat
-1,demo.layers.0.mlp.up_proj.weight,0,mlp.up,unsupported,8x8,,,,,,,,,,,,,,,,,,,,,,,use_dora=true (DoRA magnitude vectors are not supported)
+rank,key,layer,role,status,shape,lora_rank,lora_scale,gmac,elements,finite_pairs,invalid_pairs,nan_a,pos_inf_a,neg_inf_a,nan_b,pos_inf_b,neg_inf_b,delta_overflow,b_overflow,changed,delta_l2,delta_rms,relative_l2,cosine,max_abs_delta,norm_a,norm_b,numeric_precision,withheld_metrics,caveat
+1,demo.layers.0.mlp.up_proj.weight,0,mlp.up,unsupported,8x8,,,,,,,,,,,,,,,,,,,,,,,,,use_dora=true (DoRA magnitude vectors are not supported)

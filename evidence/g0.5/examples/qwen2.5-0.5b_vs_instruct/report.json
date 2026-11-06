@@ -91,13 +91,14 @@
   "settings": {
     "sort": "relative_l2",
     "epsilon_norm": 1e-12,
-    "chunk_elements": 1048576,
+    "chunk_elements": 262144,
     "consistency": "best_effort"
   },
   "complete": true,
   "completeness": {
     "tensors_analyzed": 290,
     "tensors_withheld": 0,
+    "rollups_withheld": 0,
     "entries_not_compared": 0,
     "tied_entries": 0
   },
@@ -131,7 +132,7 @@
       "metrics": {
         "delta_l2": {
           "name": "l2",
-          "value": 20.321836155495067,
+          "value": 20.321836155495063,
           "units": null,
           "method": "||B-A||_2 over finite pairs (power-of-two scaled sum of squares)",
           "source_dtype": "BF16",
@@ -147,7 +148,7 @@
         },
         "delta_rms": {
           "name": "rms",
-          "value": 0.001741721033044826,
+          "value": 0.0017417210330448259,
           "units": null,
           "method": "sqrt(sum((B-A)^2)/finite_pairs)",
           "source_dtype": "BF16",
@@ -163,7 +164,7 @@
         },
         "relative_l2": {
           "name": "relative_l2",
-          "value": 0.11155847765111031,
+          "value": 0.11155847765111025,
           "units": null,
           "method": "||B-A||_2 / max(||A||_2, epsilon_norm) over finite pairs",
           "source_dtype": "BF16",
@@ -179,7 +180,7 @@
         },
         "cosine": {
           "name": "cosine",
-          "value": 0.9939060338269035,
+          "value": 0.9939060338269027,
           "units": null,
           "method": "dot(A,B)/(||A|| ||B||) over finite pairs",
           "source_dtype": "BF16",
@@ -211,7 +212,7 @@
         },
         "norm_a": {
           "name": "l2",
-          "value": 182.163082388502,
+          "value": 182.1630823885021,
           "units": null,
           "method": "||A||_2 over finite pairs",
           "source_dtype": "BF16",
@@ -227,7 +228,7 @@
         },
         "norm_b": {
           "name": "l2",
-          "value": 177.92689619434438,
+          "value": 177.9268961943444,
           "units": null,
           "method": "||B||_2 over finite pairs",
           "source_dtype": "BF16",
@@ -242,6 +243,7 @@
           "numerical_warnings": []
         }
       },
+      "withheld_metrics": [],
       "caveat": "Class S: no lineage evidence; raw deltas may be meaningless (parameter permutation/alignment)."
     },
     {
@@ -273,7 +275,7 @@
       "metrics": {
         "delta_l2": {
           "name": "l2",
-          "value": 2.022510489258009,
+          "value": 2.0225104892580092,
           "units": null,
           "method": "||B-A||_2 over finite pairs (power-of-two scaled sum of squares)",
           "source_dtype": "BF16",
@@ -289,7 +291,7 @@
         },
         "delta_rms": {
           "name": "rms",
-          "value": 0.002257266171046885,
+          "value": 0.0022572661710468854,
           "units": null,
           "method": "sqrt(sum((B-A)^2)/finite_pairs)",
           "source_dtype": "BF16",
@@ -384,6 +386,7 @@
           "numerical_warnings": []
         }
       },
+      "withheld_metrics": [],
       "caveat": "Class S: no lineage evidence; raw deltas may be meaningless (parameter permutation/alignment)."
     },
     {
@@ -415,7 +418,7 @@
       "metrics": {
         "delta_l2": {
           "name": "l2",
-          "value": 1.2508729528794171,
+          "value": 1.2508729528794174,
           "units": null,
           "method": "||B-A||_2 over finite pairs (power-of-two scaled sum of squares)",
           "source_dtype": "BF16",
@@ -463,7 +466,7 @@
         },
         "cosine": {
           "name": "cosine",
-          "value": 0.9946863473389391,
+          "value": 0.994686347338939,
           "units": null,
           "method": "dot(A,B)/(||A|| ||B||) over finite pairs",
           "source_dtype": "BF16",
@@ -495,7 +498,7 @@
         },
         "norm_a": {
           "name": "l2",
-          "value": 12.014078851211718,
+          "value": 12.01407885121172,
           "units": null,
           "method": "||A||_2 over finite pairs",
           "source_dtype": "BF16",
@@ -526,6 +529,7 @@
           "numerical_warnings": []
         }
       },
+      "withheld_metrics": [],
       "caveat": "Class S: no lineage evidence; raw deltas may be meaningless (parameter permutation/alignment)."
     },
     {
@@ -605,7 +609,7 @@
         },
         "cosine": {
           "name": "cosine",
-          "value": 0.9947515864773089,
+          "value": 0.9947515864773088,
           "units": null,
           "method": "dot(A,B)/(||A|| ||B||) over finite pairs",
           "source_dtype": "BF16",
@@ -668,6 +672,7 @@
           "numerical_warnings": []
         }
       },
+      "withheld_metrics": [],
       "caveat": "Class S: no lineage evidence; raw deltas may be meaningless (parameter permutation/alignment)."
     },
     {
@@ -699,7 +704,7 @@
       "metrics": {
         "delta_l2": {
           "name": "l2",
-          "value": 1.9612947131221787,
+          "value": 1.9612947131221785,
           "units": null,
           "method": "||B-A||_2 over finite pairs (power-of-two scaled sum of squares)",
           "source_dtype": "BF16",
@@ -715,7 +720,7 @@
         },
         "delta_rms": {
           "name": "rms",
-          "value": 0.00218894499232386,
+          "value": 0.0021889449923238598,
           "units": null,
           "method": "sqrt(sum((B-A)^2)/finite_pairs)",
           "source_dtype": "BF16",
@@ -747,7 +752,7 @@
         },
         "cosine": {
           "name": "cosine",
-          "value": 0.9951505634048963,
+          "value": 0.9951505634048965,
           "units": null,
           "method": "dot(A,B)/(||A|| ||B||) over finite pairs",
           "source_dtype": "BF16",
@@ -810,6 +815,7 @@
           "numerical_warnings": []
         }
       },
+      "withheld_metrics": [],
       "caveat": "Class S: no lineage evidence; raw deltas may be meaningless (parameter permutation/alignment)."
     },
     {
@@ -841,7 +847,7 @@
       "metrics": {
         "delta_l2": {
           "name": "l2",
-          "value": 1.8728307363547225,
+          "value": 1.8728307363547223,
           "units": null,
           "method": "||B-A||_2 over finite pairs (power-of-two scaled sum of squares)",
           "source_dtype": "BF16",
@@ -857,7 +863,7 @@
         },
         "delta_rms": {
           "name": "rms",
-          "value": 0.0020902128753958957,
+          "value": 0.0020902128753958952,
           "units": null,
           "method": "sqrt(sum((B-A)^2)/finite_pairs)",
           "source_dtype": "BF16",
@@ -952,6 +958,7 @@
           "numerical_warnings": []
         }
       },
+      "withheld_metrics": [],
       "caveat": "Class S: no lineage evidence; raw deltas may be meaningless (parameter permutation/alignment)."
     },
     {
@@ -983,7 +990,7 @@
       "metrics": {
         "delta_l2": {
           "name": "l2",
-          "value": 1.810281396099373,
+          "value": 1.8102813960993729,
           "units": null,
           "method": "||B-A||_2 over finite pairs (power-of-two scaled sum of squares)",
           "source_dtype": "BF16",
@@ -1015,7 +1022,7 @@
         },
         "relative_l2": {
           "name": "relative_l2",
-          "value": 0.09449606799752124,
+          "value": 0.09449606799752122,
           "units": null,
           "method": "||B-A||_2 / max(||A||_2, epsilon_norm) over finite pairs",
           "source_dtype": "BF16",
@@ -1079,7 +1086,7 @@
         },
         "norm_b": {
           "name": "l2",
-          "value": 18.886827864614972,
+          "value": 18.88682786461497,
           "units": null,
           "method": "||B||_2 over finite pairs",
           "source_dtype": "BF16",
@@ -1094,6 +1101,7 @@
           "numerical_warnings": []
         }
       },
+      "withheld_metrics": [],
       "caveat": "Class S: no lineage evidence; raw deltas may be meaningless (parameter permutation/alignment)."
     },
     {
@@ -1236,6 +1244,7 @@
           "numerical_warnings": []
         }
       },
+      "withheld_metrics": [],
       "caveat": "Class S: no lineage evidence; raw deltas may be meaningless (parameter permutation/alignment)."
     },
     {
@@ -1315,7 +1324,7 @@
         },
         "cosine": {
           "name": "cosine",
-          "value": 0.9956430912685806,
+          "value": 0.9956430912685805,
           "units": null,
           "method": "dot(A,B)/(||A|| ||B||) over finite pairs",
           "source_dtype": "BF16",
@@ -1363,7 +1372,7 @@
         },
         "norm_b": {
           "name": "l2",
-          "value": 19.06004914847086,
+          "value": 19.060049148470863,
           "units": null,
           "method": "||B||_2 over finite pairs",
           "source_dtype": "BF16",
@@ -1378,6 +1387,7 @@
           "numerical_warnings": []
         }
       },
+      "withheld_metrics": [],
       "caveat": "Class S: no lineage evidence; raw deltas may be meaningless (parameter permutation/alignment)."
     },
     {
@@ -1409,7 +1419,7 @@
       "metrics": {
         "delta_l2": {
           "name": "l2",
-          "value": 1.7601304585085584,
+          "value": 1.7601304585085586,
           "units": null,
           "method": "||B-A||_2 over finite pairs (power-of-two scaled sum of squares)",
           "source_dtype": "BF16",
@@ -1457,7 +1467,7 @@
         },
         "cosine": {
           "name": "cosine",
-          "value": 0.9956729439766868,
+          "value": 0.9956729439766867,
           "units": null,
           "method": "dot(A,B)/(||A|| ||B||) over finite pairs",
           "source_dtype": "BF16",
@@ -1489,7 +1499,7 @@
         },
         "norm_a": {
           "name": "l2",
-          "value": 18.79168171881565,
+          "value": 18.791681718815653,
           "units": null,
           "method": "||A||_2 over finite pairs",
           "source_dtype": "BF16",
@@ -1520,6 +1530,7 @@
           "numerical_warnings": []
         }
       },
+      "withheld_metrics": [],
       "caveat": "Class S: no lineage evidence; raw deltas may be meaningless (parameter permutation/alignment)."
     },
     {
@@ -1567,7 +1578,7 @@
         },
         "delta_rms": {
           "name": "rms",
-          "value": 0.0018714235498383288,
+          "value": 0.0018714235498383286,
           "units": null,
           "method": "sqrt(sum((B-A)^2)/finite_pairs)",
           "source_dtype": "BF16",
@@ -1583,7 +1594,7 @@
         },
         "relative_l2": {
           "name": "relative_l2",
-          "value": 0.09185415501933838,
+          "value": 0.09185415501933837,
           "units": null,
           "method": "||B-A||_2 / max(||A||_2, epsilon_norm) over finite pairs",
           "source_dtype": "BF16",
@@ -1599,7 +1610,7 @@
         },
         "cosine": {
           "name": "cosine",
-          "value": 0.9958511536480773,
+          "value": 0.995851153648077,
           "units": null,
           "method": "dot(A,B)/(||A|| ||B||) over finite pairs",
           "source_dtype": "BF16",
@@ -1647,7 +1658,7 @@
         },
         "norm_b": {
           "name": "l2",
-          "value": 41.82391211968263,
+          "value": 41.82391211968264,
           "units": null,
           "method": "||B||_2 over finite pairs",
           "source_dtype": "BF16",
@@ -1662,6 +1673,7 @@
           "numerical_warnings": []
         }
       },
+      "withheld_metrics": [],
       "caveat": "Class S: no lineage evidence; raw deltas may be meaningless (parameter permutation/alignment)."
     },
     {
@@ -1725,7 +1737,7 @@
         },
         "relative_l2": {
           "name": "relative_l2",
-          "value": 0.09129819973374446,
+          "value": 0.09129819973374448,
           "units": null,
           "method": "||B-A||_2 / max(||A||_2, epsilon_norm) over finite pairs",
           "source_dtype": "BF16",
@@ -1741,7 +1753,7 @@
         },
         "cosine": {
           "name": "cosine",
-          "value": 0.9959023843997603,
+          "value": 0.9959023843997602,
           "units": null,
           "method": "dot(A,B)/(||A|| ||B||) over finite pairs",
           "source_dtype": "BF16",
@@ -1773,7 +1785,7 @@
         },
         "norm_a": {
           "name": "l2",
-          "value": 41.25976134090398,
+          "value": 41.25976134090397,
           "units": null,
           "method": "||A||_2 over finite pairs",
           "source_dtype": "BF16",
@@ -1804,6 +1816,7 @@
           "numerical_warnings": []
         }
       },
+      "withheld_metrics": [],
       "caveat": "Class S: no lineage evidence; raw deltas may be meaningless (parameter permutation/alignment)."
     },
     {
@@ -1835,7 +1848,7 @@
       "metrics": {
         "delta_l2": {
           "name": "l2",
-          "value": 3.7379642057223164,
+          "value": 3.737964205722317,
           "units": null,
           "method": "||B-A||_2 over finite pairs (power-of-two scaled sum of squares)",
           "source_dtype": "BF16",
@@ -1851,7 +1864,7 @@
         },
         "delta_rms": {
           "name": "rms",
-          "value": 0.001790541331339864,
+          "value": 0.0017905413313398643,
           "units": null,
           "method": "sqrt(sum((B-A)^2)/finite_pairs)",
           "source_dtype": "BF16",
@@ -1883,7 +1896,7 @@
         },
         "cosine": {
           "name": "cosine",
-          "value": 0.995920298746187,
+          "value": 0.9959202987461874,
           "units": null,
           "method": "dot(A,B)/(||A|| ||B||) over finite pairs",
           "source_dtype": "BF16",
@@ -1915,7 +1928,7 @@
         },
         "norm_a": {
           "name": "l2",
-          "value": 41.066381016693484,
+          "value": 41.06638101669348,
           "units": null,
           "method": "||A||_2 over finite pairs",
           "source_dtype": "BF16",
@@ -1946,6 +1959,7 @@
           "numerical_warnings": []
         }
       },
+      "withheld_metrics": [],
       "caveat": "Class S: no lineage evidence; raw deltas may be meaningless (parameter permutation/alignment)."
     },
     {
@@ -2088,6 +2102,7 @@
           "numerical_warnings": []
         }
       },
+      "withheld_metrics": [],
       "caveat": "Class S: no lineage evidence; raw deltas may be meaningless (parameter permutation/alignment)."
     },
     {
@@ -2135,7 +2150,7 @@
         },
         "delta_rms": {
           "name": "rms",
-          "value": 0.0016078206263434708,
+          "value": 0.0016078206263434706,
           "units": null,
           "method": "sqrt(sum((B-A)^2)/finite_pairs)",
           "source_dtype": "BF16",
@@ -2167,7 +2182,7 @@
         },
         "cosine": {
           "name": "cosine",
-          "value": 0.9962565314398396,
+          "value": 0.9962565314398397,
           "units": null,
           "method": "dot(A,B)/(||A|| ||B||) over finite pairs",
           "source_dtype": "BF16",
@@ -2199,7 +2214,7 @@
         },
         "norm_a": {
           "name": "l2",
-          "value": 16.071495283752213,
+          "value": 16.07149528375221,
           "units": null,
           "method": "||A||_2 over finite pairs",
           "source_dtype": "BF16",
@@ -2215,7 +2230,7 @@
         },
         "norm_b": {
           "name": "l2",
-          "value": 15.63035211192956,
+          "value": 15.630352111929557,
           "units": null,
           "method": "||B||_2 over finite pairs",
           "source_dtype": "BF16",
@@ -2230,6 +2245,7 @@
           "numerical_warnings": []
         }
       },
+      "withheld_metrics": [],
       "caveat": "Class S: no lineage evidence; raw deltas may be meaningless (parameter permutation/alignment)."
     },
     {
@@ -2309,7 +2325,7 @@
         },
         "cosine": {
           "name": "cosine",
-          "value": 0.9960733395285654,
+          "value": 0.9960733395285652,
           "units": null,
           "method": "dot(A,B)/(||A|| ||B||) over finite pairs",
           "source_dtype": "BF16",
@@ -2372,6 +2388,7 @@
           "numerical_warnings": []
         }
       },
+      "withheld_metrics": [],
       "caveat": "Class S: no lineage evidence; raw deltas may be meaningless (parameter permutation/alignment)."
     },
     {
@@ -2403,7 +2420,7 @@
       "metrics": {
         "delta_l2": {
           "name": "l2",
-          "value": 3.8103428108356057,
+          "value": 3.810342810835605,
           "units": null,
           "method": "||B-A||_2 over finite pairs (power-of-two scaled sum of squares)",
           "source_dtype": "BF16",
@@ -2419,7 +2436,7 @@
         },
         "delta_rms": {
           "name": "rms",
-          "value": 0.0018252117767554932,
+          "value": 0.001825211776755493,
           "units": null,
           "method": "sqrt(sum((B-A)^2)/finite_pairs)",
           "source_dtype": "BF16",
@@ -2451,7 +2468,7 @@
         },
         "cosine": {
           "name": "cosine",
-          "value": 0.9960694108534978,
+          "value": 0.996069410853498,
           "units": null,
           "method": "dot(A,B)/(||A|| ||B||) over finite pairs",
           "source_dtype": "BF16",
@@ -2514,6 +2531,7 @@
           "numerical_warnings": []
         }
       },
+      "withheld_metrics": [],
       "caveat": "Class S: no lineage evidence; raw deltas may be meaningless (parameter permutation/alignment)."
     },
     {
@@ -2561,7 +2579,7 @@
         },
         "delta_rms": {
           "name": "rms",
-          "value": 0.0018597745662321825,
+          "value": 0.0018597745662321827,
           "units": null,
           "method": "sqrt(sum((B-A)^2)/finite_pairs)",
           "source_dtype": "BF16",
@@ -2593,7 +2611,7 @@
         },
         "cosine": {
           "name": "cosine",
-          "value": 0.9960830642779552,
+          "value": 0.9960830642779551,
           "units": null,
           "method": "dot(A,B)/(||A|| ||B||) over finite pairs",
           "source_dtype": "BF16",
@@ -2625,7 +2643,7 @@
         },
         "norm_a": {
           "name": "l2",
-          "value": 43.512463752929875,
+          "value": 43.51246375292988,
           "units": null,
           "method": "||A||_2 over finite pairs",
           "source_dtype": "BF16",
@@ -2656,6 +2674,7 @@
           "numerical_warnings": []
         }
       },
+      "withheld_metrics": [],
       "caveat": "Class S: no lineage evidence; raw deltas may be meaningless (parameter permutation/alignment)."
     },
     {
@@ -2798,6 +2817,7 @@
           "numerical_warnings": []
         }
       },
+      "withheld_metrics": [],
       "caveat": "Class S: no lineage evidence; raw deltas may be meaningless (parameter permutation/alignment)."
     },
     {
@@ -2829,7 +2849,7 @@
       "metrics": {
         "delta_l2": {
           "name": "l2",
-          "value": 3.7386199271436693,
+          "value": 3.738619927143669,
           "units": null,
           "method": "||B-A||_2 over finite pairs (power-of-two scaled sum of squares)",
           "source_dtype": "BF16",
@@ -2845,7 +2865,7 @@
         },
         "delta_rms": {
           "name": "rms",
-          "value": 0.0017908554318079692,
+          "value": 0.0017908554318079688,
           "units": null,
           "method": "sqrt(sum((B-A)^2)/finite_pairs)",
           "source_dtype": "BF16",
@@ -2861,7 +2881,7 @@
         },
         "relative_l2": {
           "name": "relative_l2",
-          "value": 0.08803803622360255,
+          "value": 0.08803803622360253,
           "units": null,
           "method": "||B-A||_2 / max(||A||_2, epsilon_norm) over finite pairs",
           "source_dtype": "BF16",
@@ -2877,7 +2897,7 @@
         },
         "cosine": {
           "name": "cosine",
-          "value": 0.9961769543860394,
+          "value": 0.9961769543860391,
           "units": null,
           "method": "dot(A,B)/(||A|| ||B||) over finite pairs",
           "source_dtype": "BF16",
@@ -2909,7 +2929,7 @@
         },
         "norm_a": {
           "name": "l2",
-          "value": 42.465962298933746,
+          "value": 42.46596229893375,
           "units": null,
           "method": "||A||_2 over finite pairs",
           "source_dtype": "BF16",
@@ -2940,6 +2960,7 @@
           "numerical_warnings": []
         }
       },
+      "withheld_metrics": [],
       "caveat": "Class S: no lineage evidence; raw deltas may be meaningless (parameter permutation/alignment)."
     },
     {
@@ -2971,7 +2992,7 @@
       "metrics": {
         "delta_l2": {
           "name": "l2",
-          "value": 1.7232371036615173,
+          "value": 1.723237103661517,
           "units": null,
           "method": "||B-A||_2 over finite pairs (power-of-two scaled sum of squares)",
           "source_dtype": "BF16",
@@ -2987,7 +3008,7 @@
         },
         "delta_rms": {
           "name": "rms",
-          "value": 0.0019232556960508006,
+          "value": 0.0019232556960508003,
           "units": null,
           "method": "sqrt(sum((B-A)^2)/finite_pairs)",
           "source_dtype": "BF16",
@@ -3003,7 +3024,7 @@
         },
         "relative_l2": {
           "name": "relative_l2",
-          "value": 0.0880270841875093,
+          "value": 0.08802708418750929,
           "units": null,
           "method": "||B-A||_2 / max(||A||_2, epsilon_norm) over finite pairs",
           "source_dtype": "BF16",
@@ -3082,6 +3103,7 @@
           "numerical_warnings": []
         }
       },
+      "withheld_metrics": [],
       "caveat": "Class S: no lineage evidence; raw deltas may be meaningless (parameter permutation/alignment)."
     },
     {
@@ -3224,6 +3246,7 @@
           "numerical_warnings": []
         }
       },
+      "withheld_metrics": [],
       "caveat": "Class S: no lineage evidence; raw deltas may be meaningless (parameter permutation/alignment)."
     },
     {
@@ -3303,7 +3326,7 @@
         },
         "cosine": {
           "name": "cosine",
-          "value": 0.9963222527529214,
+          "value": 0.9963222527529216,
           "units": null,
           "method": "dot(A,B)/(||A|| ||B||) over finite pairs",
           "source_dtype": "BF16",
@@ -3351,7 +3374,7 @@
         },
         "norm_b": {
           "name": "l2",
-          "value": 38.67037883396733,
+          "value": 38.67037883396732,
           "units": null,
           "method": "||B||_2 over finite pairs",
           "source_dtype": "BF16",
@@ -3366,6 +3389,7 @@
           "numerical_warnings": []
         }
       },
+      "withheld_metrics": [],
       "caveat": "Class S: no lineage evidence; raw deltas may be meaningless (parameter permutation/alignment)."
     },
     {
@@ -3445,7 +3469,7 @@
         },
         "cosine": {
           "name": "cosine",
-          "value": 0.9962857411256865,
+          "value": 0.9962857411256862,
           "units": null,
           "method": "dot(A,B)/(||A|| ||B||) over finite pairs",
           "source_dtype": "BF16",
@@ -3493,7 +3517,7 @@
         },
         "norm_b": {
           "name": "l2",
-          "value": 20.265221958920755,
+          "value": 20.26522195892076,
           "units": null,
           "method": "||B||_2 over finite pairs",
           "source_dtype": "BF16",
@@ -3508,6 +3532,7 @@
           "numerical_warnings": []
         }
       },
+      "withheld_metrics": [],
       "caveat": "Class S: no lineage evidence; raw deltas may be meaningless (parameter permutation/alignment)."
     },
     {
@@ -3587,7 +3612,7 @@
         },
         "cosine": {
           "name": "cosine",
-          "value": 0.9962716296171871,
+          "value": 0.9962716296171873,
           "units": null,
           "method": "dot(A,B)/(||A|| ||B||) over finite pairs",
           "source_dtype": "BF16",
@@ -3650,6 +3675,7 @@
           "numerical_warnings": []
         }
       },
+      "withheld_metrics": [],
       "caveat": "Class S: no lineage evidence; raw deltas may be meaningless (parameter permutation/alignment)."
     },
     {
@@ -3713,7 +3739,7 @@
         },
         "relative_l2": {
           "name": "relative_l2",
-          "value": 0.08668687851758963,
+          "value": 0.08668687851758965,
           "units": null,
           "method": "||B-A||_2 / max(||A||_2, epsilon_norm) over finite pairs",
           "source_dtype": "BF16",
@@ -3792,6 +3818,7 @@
           "numerical_warnings": []
         }
       },
+      "withheld_metrics": [],
       "caveat": "Class S: no lineage evidence; raw deltas may be meaningless (parameter permutation/alignment)."
     },
     {
@@ -3871,7 +3898,7 @@
         },
         "cosine": {
           "name": "cosine",
-          "value": 0.9963678402094747,
+          "value": 0.9963678402094746,
           "units": null,
           "method": "dot(A,B)/(||A|| ||B||) over finite pairs",
           "source_dtype": "BF16",
@@ -3903,7 +3930,7 @@
         },
         "norm_a": {
           "name": "l2",
-          "value": 19.99155118103041,
+          "value": 19.991551181030413,
           "units": null,
           "method": "||A||_2 over finite pairs",
           "source_dtype": "BF16",
@@ -3919,7 +3946,7 @@
         },
         "norm_b": {
           "name": "l2",
-          "value": 19.693182299934453,
+          "value": 19.693182299934456,
           "units": null,
           "method": "||B||_2 over finite pairs",
           "source_dtype": "BF16",
@@ -3934,6 +3961,7 @@
           "numerical_warnings": []
         }
       },
+      "withheld_metrics": [],
       "caveat": "Class S: no lineage evidence; raw deltas may be meaningless (parameter permutation/alignment)."
     },
     {
@@ -3965,7 +3993,7 @@
       "metrics": {
         "delta_l2": {
           "name": "l2",
-          "value": 1.6746425259215953,
+          "value": 1.6746425259215956,
           "units": null,
           "method": "||B-A||_2 over finite pairs (power-of-two scaled sum of squares)",
           "source_dtype": "BF16",
@@ -3997,7 +4025,7 @@
         },
         "relative_l2": {
           "name": "relative_l2",
-          "value": 0.0857976381042418,
+          "value": 0.08579763810424182,
           "units": null,
           "method": "||B-A||_2 / max(||A||_2, epsilon_norm) over finite pairs",
           "source_dtype": "BF16",
@@ -4076,6 +4104,7 @@
           "numerical_warnings": []
         }
       },
+      "withheld_metrics": [],
       "caveat": "Class S: no lineage evidence; raw deltas may be meaningless (parameter permutation/alignment)."
     },
     {
@@ -4139,7 +4168,7 @@
         },
         "relative_l2": {
           "name": "relative_l2",
-          "value": 0.0857952695634312,
+          "value": 0.08579526956343118,
           "units": null,
           "method": "||B-A||_2 / max(||A||_2, epsilon_norm) over finite pairs",
           "source_dtype": "BF16",
@@ -4155,7 +4184,7 @@
         },
         "cosine": {
           "name": "cosine",
-          "value": 0.9964331945502741,
+          "value": 0.996433194550274,
           "units": null,
           "method": "dot(A,B)/(||A|| ||B||) over finite pairs",
           "source_dtype": "BF16",
@@ -4218,6 +4247,7 @@
           "numerical_warnings": []
         }
       },
+      "withheld_metrics": [],
       "caveat": "Class S: no lineage evidence; raw deltas may be meaningless (parameter permutation/alignment)."
     },
     {
@@ -4297,7 +4327,7 @@
         },
         "cosine": {
           "name": "cosine",
-          "value": 0.9964579520386275,
+          "value": 0.9964579520386271,
           "units": null,
           "method": "dot(A,B)/(||A|| ||B||) over finite pairs",
           "source_dtype": "BF16",
@@ -4360,6 +4390,7 @@
           "numerical_warnings": []
         }
       },
+      "withheld_metrics": [],
       "caveat": "Class S: no lineage evidence; raw deltas may be meaningless (parameter permutation/alignment)."
     },
     {
@@ -4407,7 +4438,7 @@
         },
         "delta_rms": {
           "name": "rms",
-          "value": 0.001681022752817877,
+          "value": 0.0016810227528178767,
           "units": null,
           "method": "sqrt(sum((B-A)^2)/finite_pairs)",
           "source_dtype": "BF16",
@@ -4502,6 +4533,7 @@
           "numerical_warnings": []
         }
       },
+      "withheld_metrics": [],
       "caveat": "Class S: no lineage evidence; raw deltas may be meaningless (parameter permutation/alignment)."
     },
     {
@@ -4644,6 +4676,7 @@
           "numerical_warnings": []
         }
       },
+      "withheld_metrics": [],
       "caveat": "Class S: no lineage evidence; raw deltas may be meaningless (parameter permutation/alignment)."
     },
     {
@@ -4675,7 +4708,7 @@
       "metrics": {
         "delta_l2": {
           "name": "l2",
-          "value": 3.3469896311742158,
+          "value": 3.3469896311742153,
           "units": null,
           "method": "||B-A||_2 over finite pairs (power-of-two scaled sum of squares)",
           "source_dtype": "BF16",
@@ -4723,7 +4756,7 @@
         },
         "cosine": {
           "name": "cosine",
-          "value": 0.99656343862137,
+          "value": 0.9965634386213704,
           "units": null,
           "method": "dot(A,B)/(||A|| ||B||) over finite pairs",
           "source_dtype": "BF16",
@@ -4786,6 +4819,7 @@
           "numerical_warnings": []
         }
       },
+      "withheld_metrics": [],
       "caveat": "Class S: no lineage evidence; raw deltas may be meaningless (parameter permutation/alignment)."
     },
     {
@@ -4817,7 +4851,7 @@
       "metrics": {
         "delta_l2": {
           "name": "l2",
-          "value": 3.8852461611215863,
+          "value": 3.8852461611215867,
           "units": null,
           "method": "||B-A||_2 over finite pairs (power-of-two scaled sum of squares)",
           "source_dtype": "BF16",
@@ -4865,7 +4899,7 @@
         },
         "cosine": {
           "name": "cosine",
-          "value": 0.9965098494405226,
+          "value": 0.9965098494405223,
           "units": null,
           "method": "dot(A,B)/(||A|| ||B||) over finite pairs",
           "source_dtype": "BF16",
@@ -4928,6 +4962,7 @@
           "numerical_warnings": []
         }
       },
+      "withheld_metrics": [],
       "caveat": "Class S: no lineage evidence; raw deltas may be meaningless (parameter permutation/alignment)."
     },
     {
@@ -4959,7 +4994,7 @@
       "metrics": {
         "delta_l2": {
           "name": "l2",
-          "value": 1.6856592197774996,
+          "value": 1.6856592197774993,
           "units": null,
           "method": "||B-A||_2 over finite pairs (power-of-two scaled sum of squares)",
           "source_dtype": "BF16",
@@ -5007,7 +5042,7 @@
         },
         "cosine": {
           "name": "cosine",
-          "value": 0.9965386445379238,
+          "value": 0.9965386445379242,
           "units": null,
           "method": "dot(A,B)/(||A|| ||B||) over finite pairs",
           "source_dtype": "BF16",
@@ -5070,6 +5105,7 @@
           "numerical_warnings": []
         }
       },
+      "withheld_metrics": [],
       "caveat": "Class S: no lineage evidence; raw deltas may be meaningless (parameter permutation/alignment)."
     },
     {
@@ -5133,7 +5169,7 @@
         },
         "relative_l2": {
           "name": "relative_l2",
-          "value": 0.08367632027188344,
+          "value": 0.08367632027188346,
           "units": null,
           "method": "||B-A||_2 / max(||A||_2, epsilon_norm) over finite pairs",
           "source_dtype": "BF16",
@@ -5149,7 +5185,7 @@
         },
         "cosine": {
           "name": "cosine",
-          "value": 0.9966158013251321,
+          "value": 0.996615801325132,
           "units": null,
           "method": "dot(A,B)/(||A|| ||B||) over finite pairs",
           "source_dtype": "BF16",
@@ -5212,6 +5248,7 @@
           "numerical_warnings": []
         }
       },
+      "withheld_metrics": [],
       "caveat": "Class S: no lineage evidence; raw deltas may be meaningless (parameter permutation/alignment)."
     },
     {
@@ -5243,7 +5280,7 @@
       "metrics": {
         "delta_l2": {
           "name": "l2",
-          "value": 3.3336359273080234,
+          "value": 3.333635927308024,
           "units": null,
           "method": "||B-A||_2 over finite pairs (power-of-two scaled sum of squares)",
           "source_dtype": "BF16",
@@ -5275,7 +5312,7 @@
         },
         "relative_l2": {
           "name": "relative_l2",
-          "value": 0.0836489672016501,
+          "value": 0.08364896720165012,
           "units": null,
           "method": "||B-A||_2 / max(||A||_2, epsilon_norm) over finite pairs",
           "source_dtype": "BF16",
@@ -5291,7 +5328,7 @@
         },
         "cosine": {
           "name": "cosine",
-          "value": 0.9966257917901725,
+          "value": 0.9966257917901727,
           "units": null,
           "method": "dot(A,B)/(||A|| ||B||) over finite pairs",
           "source_dtype": "BF16",
@@ -5323,7 +5360,7 @@
         },
         "norm_a": {
           "name": "l2",
-          "value": 39.852684842739606,
+          "value": 39.8526848427396,
           "units": null,
           "method": "||A||_2 over finite pairs",
           "source_dtype": "BF16",
@@ -5354,6 +5391,7 @@
           "numerical_warnings": []
         }
       },
+      "withheld_metrics": [],
       "caveat": "Class S: no lineage evidence; raw deltas may be meaningless (parameter permutation/alignment)."
     },
     {
@@ -5401,7 +5439,7 @@
         },
         "delta_rms": {
           "name": "rms",
-          "value": 0.0016546281971221522,
+          "value": 0.001654628197122152,
           "units": null,
           "method": "sqrt(sum((B-A)^2)/finite_pairs)",
           "source_dtype": "BF16",
@@ -5465,7 +5503,7 @@
         },
         "norm_a": {
           "name": "l2",
-          "value": 41.43466613929207,
+          "value": 41.43466613929206,
           "units": null,
           "method": "||A||_2 over finite pairs",
           "source_dtype": "BF16",
@@ -5496,6 +5534,7 @@
           "numerical_warnings": []
         }
       },
+      "withheld_metrics": [],
       "caveat": "Class S: no lineage evidence; raw deltas may be meaningless (parameter permutation/alignment)."
     },
     {
@@ -5527,7 +5566,7 @@
       "metrics": {
         "delta_l2": {
           "name": "l2",
-          "value": 3.1585275141920257,
+          "value": 3.158527514192026,
           "units": null,
           "method": "||B-A||_2 over finite pairs (power-of-two scaled sum of squares)",
           "source_dtype": "BF16",
@@ -5543,7 +5582,7 @@
         },
         "delta_rms": {
           "name": "rms",
-          "value": 0.0015129824014037418,
+          "value": 0.0015129824014037422,
           "units": null,
           "method": "sqrt(sum((B-A)^2)/finite_pairs)",
           "source_dtype": "BF16",
@@ -5559,7 +5598,7 @@
         },
         "relative_l2": {
           "name": "relative_l2",
-          "value": 0.08288065558129241,
+          "value": 0.08288065558129243,
           "units": null,
           "method": "||B-A||_2 / max(||A||_2, epsilon_norm) over finite pairs",
           "source_dtype": "BF16",
@@ -5575,7 +5614,7 @@
         },
         "cosine": {
           "name": "cosine",
-          "value": 0.9966787015155032,
+          "value": 0.9966787015155031,
           "units": null,
           "method": "dot(A,B)/(||A|| ||B||) over finite pairs",
           "source_dtype": "BF16",
@@ -5623,7 +5662,7 @@
         },
         "norm_b": {
           "name": "l2",
-          "value": 37.39529871933721,
+          "value": 37.39529871933722,
           "units": null,
           "method": "||B||_2 over finite pairs",
           "source_dtype": "BF16",
@@ -5638,6 +5677,7 @@
           "numerical_warnings": []
         }
       },
+      "withheld_metrics": [],
       "caveat": "Class S: no lineage evidence; raw deltas may be meaningless (parameter permutation/alignment)."
     },
     {
@@ -5780,6 +5820,7 @@
           "numerical_warnings": []
         }
       },
+      "withheld_metrics": [],
       "caveat": "Class S: no lineage evidence; raw deltas may be meaningless (parameter permutation/alignment)."
     },
     {
@@ -5859,7 +5900,7 @@
         },
         "cosine": {
           "name": "cosine",
-          "value": 0.9967227877140854,
+          "value": 0.9967227877140855,
           "units": null,
           "method": "dot(A,B)/(||A|| ||B||) over finite pairs",
           "source_dtype": "BF16",
@@ -5907,7 +5948,7 @@
         },
         "norm_b": {
           "name": "l2",
-          "value": 38.0406090623609,
+          "value": 38.04060906236089,
           "units": null,
           "method": "||B||_2 over finite pairs",
           "source_dtype": "BF16",
@@ -5922,6 +5963,7 @@
           "numerical_warnings": []
         }
       },
+      "withheld_metrics": [],
       "caveat": "Class S: no lineage evidence; raw deltas may be meaningless (parameter permutation/alignment)."
     },
     {
@@ -6064,6 +6106,7 @@
           "numerical_warnings": []
         }
       },
+      "withheld_metrics": [],
       "caveat": "Class S: no lineage evidence; raw deltas may be meaningless (parameter permutation/alignment)."
     },
     {
@@ -6095,7 +6138,7 @@
       "metrics": {
         "delta_l2": {
           "name": "l2",
-          "value": 3.0642017339287553,
+          "value": 3.0642017339287557,
           "units": null,
           "method": "||B-A||_2 over finite pairs (power-of-two scaled sum of squares)",
           "source_dtype": "BF16",
@@ -6111,7 +6154,7 @@
         },
         "delta_rms": {
           "name": "rms",
-          "value": 0.001467798927492003,
+          "value": 0.0014677989274920033,
           "units": null,
           "method": "sqrt(sum((B-A)^2)/finite_pairs)",
           "source_dtype": "BF16",
@@ -6143,7 +6186,7 @@
         },
         "cosine": {
           "name": "cosine",
-          "value": 0.9967580898098302,
+          "value": 0.9967580898098299,
           "units": null,
           "method": "dot(A,B)/(||A|| ||B||) over finite pairs",
           "source_dtype": "BF16",
@@ -6175,7 +6218,7 @@
         },
         "norm_a": {
           "name": "l2",
-          "value": 37.39207327073015,
+          "value": 37.392073270730144,
           "units": null,
           "method": "||A||_2 over finite pairs",
           "source_dtype": "BF16",
@@ -6206,6 +6249,7 @@
           "numerical_warnings": []
         }
       },
+      "withheld_metrics": [],
       "caveat": "Class S: no lineage evidence; raw deltas may be meaningless (parameter permutation/alignment)."
     },
     {
@@ -6237,7 +6281,7 @@
       "metrics": {
         "delta_l2": {
           "name": "l2",
-          "value": 3.4702348387965287,
+          "value": 3.4702348387965283,
           "units": null,
           "method": "||B-A||_2 over finite pairs (power-of-two scaled sum of squares)",
           "source_dtype": "BF16",
@@ -6253,7 +6297,7 @@
         },
         "delta_rms": {
           "name": "rms",
-          "value": 0.0016622949194667347,
+          "value": 0.0016622949194667344,
           "units": null,
           "method": "sqrt(sum((B-A)^2)/finite_pairs)",
           "source_dtype": "BF16",
@@ -6317,7 +6361,7 @@
         },
         "norm_a": {
           "name": "l2",
-          "value": 42.45429634350254,
+          "value": 42.454296343502534,
           "units": null,
           "method": "||A||_2 over finite pairs",
           "source_dtype": "BF16",
@@ -6348,6 +6392,7 @@
           "numerical_warnings": []
         }
       },
+      "withheld_metrics": [],
       "caveat": "Class S: no lineage evidence; raw deltas may be meaningless (parameter permutation/alignment)."
     },
     {
@@ -6379,7 +6424,7 @@
       "metrics": {
         "delta_l2": {
           "name": "l2",
-          "value": 1.7071288443737702,
+          "value": 1.70712884437377,
           "units": null,
           "method": "||B-A||_2 over finite pairs (power-of-two scaled sum of squares)",
           "source_dtype": "BF16",
@@ -6395,7 +6440,7 @@
         },
         "delta_rms": {
           "name": "rms",
-          "value": 0.0019052777280957256,
+          "value": 0.0019052777280957253,
           "units": null,
           "method": "sqrt(sum((B-A)^2)/finite_pairs)",
           "source_dtype": "BF16",
@@ -6490,6 +6535,7 @@
           "numerical_warnings": []
         }
       },
+      "withheld_metrics": [],
       "caveat": "Class S: no lineage evidence; raw deltas may be meaningless (parameter permutation/alignment)."
     },
     {
@@ -6521,7 +6567,7 @@
       "metrics": {
         "delta_l2": {
           "name": "l2",
-          "value": 3.2774867010910094,
+          "value": 3.27748670109101,
           "units": null,
           "method": "||B-A||_2 over finite pairs (power-of-two scaled sum of squares)",
           "source_dtype": "BF16",
@@ -6537,7 +6583,7 @@
         },
         "delta_rms": {
           "name": "rms",
-          "value": 0.001569965649279454,
+          "value": 0.0015699656492794542,
           "units": null,
           "method": "sqrt(sum((B-A)^2)/finite_pairs)",
           "source_dtype": "BF16",
@@ -6569,7 +6615,7 @@
         },
         "cosine": {
           "name": "cosine",
-          "value": 0.996793657764948,
+          "value": 0.9967936577649478,
           "units": null,
           "method": "dot(A,B)/(||A|| ||B||) over finite pairs",
           "source_dtype": "BF16",
@@ -6632,6 +6678,7 @@
           "numerical_warnings": []
         }
       },
+      "withheld_metrics": [],
       "caveat": "Class S: no lineage evidence; raw deltas may be meaningless (parameter permutation/alignment)."
     },
     {
@@ -6663,7 +6710,7 @@
       "metrics": {
         "delta_l2": {
           "name": "l2",
-          "value": 1.7026110035117221,
+          "value": 1.702611003511722,
           "units": null,
           "method": "||B-A||_2 over finite pairs (power-of-two scaled sum of squares)",
           "source_dtype": "BF16",
@@ -6774,6 +6821,7 @@
           "numerical_warnings": []
         }
       },
+      "withheld_metrics": [],
       "caveat": "Class S: no lineage evidence; raw deltas may be meaningless (parameter permutation/alignment)."
     },
     {
@@ -6853,7 +6901,7 @@
         },
         "cosine": {
           "name": "cosine",
-          "value": 0.9967253901206404,
+          "value": 0.9967253901206405,
           "units": null,
           "method": "dot(A,B)/(||A|| ||B||) over finite pairs",
           "source_dtype": "BF16",
@@ -6916,6 +6964,7 @@
           "numerical_warnings": []
         }
       },
+      "withheld_metrics": [],
       "caveat": "Class S: no lineage evidence; raw deltas may be meaningless (parameter permutation/alignment)."
     },
     {
@@ -7027,7 +7076,7 @@
         },
         "norm_a": {
           "name": "l2",
-          "value": 23.4125133940484,
+          "value": 23.412513394048396,
           "units": null,
           "method": "||A||_2 over finite pairs",
           "source_dtype": "BF16",
@@ -7058,6 +7107,7 @@
           "numerical_warnings": []
         }
       },
+      "withheld_metrics": [],
       "caveat": "Class S: no lineage evidence; raw deltas may be meaningless (parameter permutation/alignment)."
     },
     {
@@ -7105,7 +7155,7 @@
         },
         "delta_rms": {
           "name": "rms",
-          "value": 0.0014806742938315574,
+          "value": 0.0014806742938315576,
           "units": null,
           "method": "sqrt(sum((B-A)^2)/finite_pairs)",
           "source_dtype": "BF16",
@@ -7137,7 +7187,7 @@
         },
         "cosine": {
           "name": "cosine",
-          "value": 0.9968610235995206,
+          "value": 0.99686102359952,
           "units": null,
           "method": "dot(A,B)/(||A|| ||B||) over finite pairs",
           "source_dtype": "BF16",
@@ -7185,7 +7235,7 @@
         },
         "norm_b": {
           "name": "l2",
-          "value": 37.52240340782604,
+          "value": 37.52240340782605,
           "units": null,
           "method": "||B||_2 over finite pairs",
           "source_dtype": "BF16",
@@ -7200,6 +7250,7 @@
           "numerical_warnings": []
         }
       },
+      "withheld_metrics": [],
       "caveat": "Class S: no lineage evidence; raw deltas may be meaningless (parameter permutation/alignment)."
     },
     {
@@ -7279,7 +7330,7 @@
         },
         "cosine": {
           "name": "cosine",
-          "value": 0.996872522887012,
+          "value": 0.9968725228870117,
           "units": null,
           "method": "dot(A,B)/(||A|| ||B||) over finite pairs",
           "source_dtype": "BF16",
@@ -7342,6 +7393,7 @@
           "numerical_warnings": []
         }
       },
+      "withheld_metrics": [],
       "caveat": "Class S: no lineage evidence; raw deltas may be meaningless (parameter permutation/alignment)."
     },
     {
@@ -7484,6 +7536,7 @@
           "numerical_warnings": []
         }
       },
+      "withheld_metrics": [],
       "caveat": "Class S: no lineage evidence; raw deltas may be meaningless (parameter permutation/alignment)."
     },
     {
@@ -7611,7 +7664,7 @@
         },
         "norm_b": {
           "name": "l2",
-          "value": 38.69067951174791,
+          "value": 38.690679511747916,
           "units": null,
           "method": "||B||_2 over finite pairs",
           "source_dtype": "BF16",
@@ -7626,6 +7679,7 @@
           "numerical_warnings": []
         }
       },
+      "withheld_metrics": [],
       "caveat": "Class S: no lineage evidence; raw deltas may be meaningless (parameter permutation/alignment)."
     },
     {
@@ -7689,7 +7743,7 @@
         },
         "relative_l2": {
           "name": "relative_l2",
-          "value": 0.07932245126275561,
+          "value": 0.07932245126275562,
           "units": null,
           "method": "||B-A||_2 / max(||A||_2, epsilon_norm) over finite pairs",
           "source_dtype": "BF16",
@@ -7768,6 +7822,7 @@
           "numerical_warnings": []
         }
       },
+      "withheld_metrics": [],
       "caveat": "Class S: no lineage evidence; raw deltas may be meaningless (parameter permutation/alignment)."
     },
     {
@@ -7910,6 +7965,7 @@
           "numerical_warnings": []
         }
       },
+      "withheld_metrics": [],
       "caveat": "Class S: no lineage evidence; raw deltas may be meaningless (parameter permutation/alignment)."
     },
     {
@@ -7989,7 +8045,7 @@
         },
         "cosine": {
           "name": "cosine",
-          "value": 0.9970229842904997,
+          "value": 0.9970229842904994,
           "units": null,
           "method": "dot(A,B)/(||A|| ||B||) over finite pairs",
           "source_dtype": "BF16",
@@ -8021,7 +8077,7 @@
         },
         "norm_a": {
           "name": "l2",
-          "value": 42.35612996921472,
+          "value": 42.35612996921473,
           "units": null,
           "method": "||A||_2 over finite pairs",
           "source_dtype": "BF16",
@@ -8037,7 +8093,7 @@
         },
         "norm_b": {
           "name": "l2",
-          "value": 41.54685826794199,
+          "value": 41.546858267942,
           "units": null,
           "method": "||B||_2 over finite pairs",
           "source_dtype": "BF16",
@@ -8052,6 +8108,7 @@
           "numerical_warnings": []
         }
       },
+      "withheld_metrics": [],
       "caveat": "Class S: no lineage evidence; raw deltas may be meaningless (parameter permutation/alignment)."
     },
     {
@@ -8083,7 +8140,7 @@
       "metrics": {
         "delta_l2": {
           "name": "l2",
-          "value": 3.695368425792666,
+          "value": 3.6953684257926662,
           "units": null,
           "method": "||B-A||_2 over finite pairs (power-of-two scaled sum of squares)",
           "source_dtype": "BF16",
@@ -8163,7 +8220,7 @@
         },
         "norm_a": {
           "name": "l2",
-          "value": 47.043652784276766,
+          "value": 47.04365278427677,
           "units": null,
           "method": "||A||_2 over finite pairs",
           "source_dtype": "BF16",
@@ -8179,7 +8236,7 @@
         },
         "norm_b": {
           "name": "l2",
-          "value": 46.35652438002425,
+          "value": 46.356524380024254,
           "units": null,
           "method": "||B||_2 over finite pairs",
           "source_dtype": "BF16",
@@ -8194,6 +8251,7 @@
           "numerical_warnings": []
         }
       },
+      "withheld_metrics": [],
       "caveat": "Class S: no lineage evidence; raw deltas may be meaningless (parameter permutation/alignment)."
     },
     {
@@ -8336,6 +8394,7 @@
           "numerical_warnings": []
         }
       },
+      "withheld_metrics": [],
       "caveat": "Class S: no lineage evidence; raw deltas may be meaningless (parameter permutation/alignment)."
     },
     {
@@ -8367,7 +8426,7 @@
       "metrics": {
         "delta_l2": {
           "name": "l2",
-          "value": 3.334647715459428,
+          "value": 3.3346477154594276,
           "units": null,
           "method": "||B-A||_2 over finite pairs (power-of-two scaled sum of squares)",
           "source_dtype": "BF16",
@@ -8415,7 +8474,7 @@
         },
         "cosine": {
           "name": "cosine",
-          "value": 0.9969829215536241,
+          "value": 0.9969829215536243,
           "units": null,
           "method": "dot(A,B)/(||A|| ||B||) over finite pairs",
           "source_dtype": "BF16",
@@ -8447,7 +8506,7 @@
         },
         "norm_a": {
           "name": "l2",
-          "value": 42.4823422613756,
+          "value": 42.48234226137559,
           "units": null,
           "method": "||A||_2 over finite pairs",
           "source_dtype": "BF16",
@@ -8478,6 +8537,7 @@
           "numerical_warnings": []
         }
       },
+      "withheld_metrics": [],
       "caveat": "Class S: no lineage evidence; raw deltas may be meaningless (parameter permutation/alignment)."
     },
     {
@@ -8541,7 +8601,7 @@
         },
         "relative_l2": {
           "name": "relative_l2",
-          "value": 0.07827859494828229,
+          "value": 0.0782785949482823,
           "units": null,
           "method": "||B-A||_2 / max(||A||_2, epsilon_norm) over finite pairs",
           "source_dtype": "BF16",
@@ -8557,7 +8617,7 @@
         },
         "cosine": {
           "name": "cosine",
-          "value": 0.9970645699257635,
+          "value": 0.9970645699257639,
           "units": null,
           "method": "dot(A,B)/(||A|| ||B||) over finite pairs",
           "source_dtype": "BF16",
@@ -8589,7 +8649,7 @@
         },
         "norm_a": {
           "name": "l2",
-          "value": 38.51667266341918,
+          "value": 38.51667266341917,
           "units": null,
           "method": "||A||_2 over finite pairs",
           "source_dtype": "BF16",
@@ -8620,6 +8680,7 @@
           "numerical_warnings": []
         }
       },
+      "withheld_metrics": [],
       "caveat": "Class S: no lineage evidence; raw deltas may be meaningless (parameter permutation/alignment)."
     },
     {
@@ -8683,7 +8744,7 @@
         },
         "relative_l2": {
           "name": "relative_l2",
-          "value": 0.0782657142665969,
+          "value": 0.07826571426659688,
           "units": null,
           "method": "||B-A||_2 / max(||A||_2, epsilon_norm) over finite pairs",
           "source_dtype": "BF16",
@@ -8731,7 +8792,7 @@
         },
         "norm_a": {
           "name": "l2",
-          "value": 44.86221840528783,
+          "value": 44.862218405287834,
           "units": null,
           "method": "||A||_2 over finite pairs",
           "source_dtype": "BF16",
@@ -8747,7 +8808,7 @@
         },
         "norm_b": {
           "name": "l2",
-          "value": 44.177858558226035,
+          "value": 44.17785855822603,
           "units": null,
           "method": "||B||_2 over finite pairs",
           "source_dtype": "BF16",
@@ -8762,6 +8823,7 @@
           "numerical_warnings": []
         }
       },
+      "withheld_metrics": [],
       "caveat": "Class S: no lineage evidence; raw deltas may be meaningless (parameter permutation/alignment)."
     },
     {
@@ -8841,7 +8903,7 @@
         },
         "cosine": {
           "name": "cosine",
-          "value": 0.9970009924249653,
+          "value": 0.9970009924249654,
           "units": null,
           "method": "dot(A,B)/(||A|| ||B||) over finite pairs",
           "source_dtype": "BF16",
@@ -8904,6 +8966,7 @@
           "numerical_warnings": []
         }
       },
+      "withheld_metrics": [],
       "caveat": "Class S: no lineage evidence; raw deltas may be meaningless (parameter permutation/alignment)."
     },
     {
@@ -8935,7 +8998,7 @@
       "metrics": {
         "delta_l2": {
           "name": "l2",
-          "value": 2.848291174341116,
+          "value": 2.8482911743411155,
           "units": null,
           "method": "||B-A||_2 over finite pairs (power-of-two scaled sum of squares)",
           "source_dtype": "BF16",
@@ -8983,7 +9046,7 @@
         },
         "cosine": {
           "name": "cosine",
-          "value": 0.9971074836854479,
+          "value": 0.9971074836854477,
           "units": null,
           "method": "dot(A,B)/(||A|| ||B||) over finite pairs",
           "source_dtype": "BF16",
@@ -9015,7 +9078,7 @@
         },
         "norm_a": {
           "name": "l2",
-          "value": 36.54038491307997,
+          "value": 36.54038491307996,
           "units": null,
           "method": "||A||_2 over finite pairs",
           "source_dtype": "BF16",
@@ -9046,6 +9109,7 @@
           "numerical_warnings": []
         }
       },
+      "withheld_metrics": [],
       "caveat": "Class S: no lineage evidence; raw deltas may be meaningless (parameter permutation/alignment)."
     },
     {
@@ -9125,7 +9189,7 @@
         },
         "cosine": {
           "name": "cosine",
-          "value": 0.9970968494138498,
+          "value": 0.9970968494138499,
           "units": null,
           "method": "dot(A,B)/(||A|| ||B||) over finite pairs",
           "source_dtype": "BF16",
@@ -9188,6 +9252,7 @@
           "numerical_warnings": []
         }
       },
+      "withheld_metrics": [],
       "caveat": "Class S: no lineage evidence; raw deltas may be meaningless (parameter permutation/alignment)."
     },
     {
@@ -9267,7 +9332,7 @@
         },
         "cosine": {
           "name": "cosine",
-          "value": 0.9971027361826973,
+          "value": 0.9971027361826974,
           "units": null,
           "method": "dot(A,B)/(||A|| ||B||) over finite pairs",
           "source_dtype": "BF16",
@@ -9330,6 +9395,7 @@
           "numerical_warnings": []
         }
       },
+      "withheld_metrics": [],
       "caveat": "Class S: no lineage evidence; raw deltas may be meaningless (parameter permutation/alignment)."
     },
     {
@@ -9361,7 +9427,7 @@
       "metrics": {
         "delta_l2": {
           "name": "l2",
-          "value": 3.421838290621986,
+          "value": 3.4218382906219866,
           "units": null,
           "method": "||B-A||_2 over finite pairs (power-of-two scaled sum of squares)",
           "source_dtype": "BF16",
@@ -9377,7 +9443,7 @@
         },
         "delta_rms": {
           "name": "rms",
-          "value": 0.0016391122416690071,
+          "value": 0.0016391122416690074,
           "units": null,
           "method": "sqrt(sum((B-A)^2)/finite_pairs)",
           "source_dtype": "BF16",
@@ -9393,7 +9459,7 @@
         },
         "relative_l2": {
           "name": "relative_l2",
-          "value": 0.07714466966216976,
+          "value": 0.07714466966216978,
           "units": null,
           "method": "||B-A||_2 / max(||A||_2, epsilon_norm) over finite pairs",
           "source_dtype": "BF16",
@@ -9409,7 +9475,7 @@
         },
         "cosine": {
           "name": "cosine",
-          "value": 0.9971479275109235,
+          "value": 0.9971479275109236,
           "units": null,
           "method": "dot(A,B)/(||A|| ||B||) over finite pairs",
           "source_dtype": "BF16",
@@ -9472,6 +9538,7 @@
           "numerical_warnings": []
         }
       },
+      "withheld_metrics": [],
       "caveat": "Class S: no lineage evidence; raw deltas may be meaningless (parameter permutation/alignment)."
     },
     {
@@ -9535,7 +9602,7 @@
         },
         "relative_l2": {
           "name": "relative_l2",
-          "value": 0.0768885525042407,
+          "value": 0.07688855250424072,
           "units": null,
           "method": "||B-A||_2 / max(||A||_2, epsilon_norm) over finite pairs",
           "source_dtype": "BF16",
@@ -9583,7 +9650,7 @@
         },
         "norm_a": {
           "name": "l2",
-          "value": 39.71705063046226,
+          "value": 39.71705063046225,
           "units": null,
           "method": "||A||_2 over finite pairs",
           "source_dtype": "BF16",
@@ -9599,7 +9666,7 @@
         },
         "norm_b": {
           "name": "l2",
-          "value": 38.95127726343178,
+          "value": 38.951277263431784,
           "units": null,
           "method": "||B||_2 over finite pairs",
           "source_dtype": "BF16",
@@ -9614,6 +9681,7 @@
           "numerical_warnings": []
         }
       },
+      "withheld_metrics": [],
       "caveat": "Class S: no lineage evidence; raw deltas may be meaningless (parameter permutation/alignment)."
     },
     {
@@ -9645,7 +9713,7 @@
       "metrics": {
         "delta_l2": {
           "name": "l2",
-          "value": 2.8519127478466,
+          "value": 2.8519127478465998,
           "units": null,
           "method": "||B-A||_2 over finite pairs (power-of-two scaled sum of squares)",
           "source_dtype": "BF16",
@@ -9661,7 +9729,7 @@
         },
         "delta_rms": {
           "name": "rms",
-          "value": 0.0013661092956901704,
+          "value": 0.0013661092956901702,
           "units": null,
           "method": "sqrt(sum((B-A)^2)/finite_pairs)",
           "source_dtype": "BF16",
@@ -9677,7 +9745,7 @@
         },
         "relative_l2": {
           "name": "relative_l2",
-          "value": 0.07678382597224326,
+          "value": 0.07678382597224324,
           "units": null,
           "method": "||B-A||_2 / max(||A||_2, epsilon_norm) over finite pairs",
           "source_dtype": "BF16",
@@ -9693,7 +9761,7 @@
         },
         "cosine": {
           "name": "cosine",
-          "value": 0.9971959211364537,
+          "value": 0.9971959211364536,
           "units": null,
           "method": "dot(A,B)/(||A|| ||B||) over finite pairs",
           "source_dtype": "BF16",
@@ -9756,6 +9824,7 @@
           "numerical_warnings": []
         }
       },
+      "withheld_metrics": [],
       "caveat": "Class S: no lineage evidence; raw deltas may be meaningless (parameter permutation/alignment)."
     },
     {
@@ -9819,7 +9888,7 @@
         },
         "relative_l2": {
           "name": "relative_l2",
-          "value": 0.0766189951584614,
+          "value": 0.07661899515846142,
           "units": null,
           "method": "||B-A||_2 / max(||A||_2, epsilon_norm) over finite pairs",
           "source_dtype": "BF16",
@@ -9835,7 +9904,7 @@
         },
         "cosine": {
           "name": "cosine",
-          "value": 0.9971349239019847,
+          "value": 0.9971349239019845,
           "units": null,
           "method": "dot(A,B)/(||A|| ||B||) over finite pairs",
           "source_dtype": "BF16",
@@ -9883,7 +9952,7 @@
         },
         "norm_b": {
           "name": "l2",
-          "value": 43.16011697831526,
+          "value": 43.160116978315266,
           "units": null,
           "method": "||B||_2 over finite pairs",
           "source_dtype": "BF16",
@@ -9898,6 +9967,7 @@
           "numerical_warnings": []
         }
       },
+      "withheld_metrics": [],
       "caveat": "Class S: no lineage evidence; raw deltas may be meaningless (parameter permutation/alignment)."
     },
     {
@@ -9929,7 +9999,7 @@
       "metrics": {
         "delta_l2": {
           "name": "l2",
-          "value": 2.908590482714066,
+          "value": 2.9085904827140654,
           "units": null,
           "method": "||B-A||_2 over finite pairs (power-of-two scaled sum of squares)",
           "source_dtype": "BF16",
@@ -9945,7 +10015,7 @@
         },
         "delta_rms": {
           "name": "rms",
-          "value": 0.0013932587870340313,
+          "value": 0.0013932587870340311,
           "units": null,
           "method": "sqrt(sum((B-A)^2)/finite_pairs)",
           "source_dtype": "BF16",
@@ -9977,7 +10047,7 @@
         },
         "cosine": {
           "name": "cosine",
-          "value": 0.9972212766153981,
+          "value": 0.9972212766153983,
           "units": null,
           "method": "dot(A,B)/(||A|| ||B||) over finite pairs",
           "source_dtype": "BF16",
@@ -10025,7 +10095,7 @@
         },
         "norm_b": {
           "name": "l2",
-          "value": 37.36329462041156,
+          "value": 37.363294620411565,
           "units": null,
           "method": "||B||_2 over finite pairs",
           "source_dtype": "BF16",
@@ -10040,6 +10110,7 @@
           "numerical_warnings": []
         }
       },
+      "withheld_metrics": [],
       "caveat": "Class S: no lineage evidence; raw deltas may be meaningless (parameter permutation/alignment)."
     },
     {
@@ -10182,6 +10253,7 @@
           "numerical_warnings": []
         }
       },
+      "withheld_metrics": [],
       "caveat": "Class S: no lineage evidence; raw deltas may be meaningless (parameter permutation/alignment)."
     },
     {
@@ -10261,7 +10333,7 @@
         },
         "cosine": {
           "name": "cosine",
-          "value": 0.9972439572822236,
+          "value": 0.9972439572822237,
           "units": null,
           "method": "dot(A,B)/(||A|| ||B||) over finite pairs",
           "source_dtype": "BF16",
@@ -10324,6 +10396,7 @@
           "numerical_warnings": []
         }
       },
+      "withheld_metrics": [],
       "caveat": "Class S: no lineage evidence; raw deltas may be meaningless (parameter permutation/alignment)."
     },
     {
@@ -10355,7 +10428,7 @@
       "metrics": {
         "delta_l2": {
           "name": "l2",
-          "value": 1.7637139728111497,
+          "value": 1.76371397281115,
           "units": null,
           "method": "||B-A||_2 over finite pairs (power-of-two scaled sum of squares)",
           "source_dtype": "BF16",
@@ -10435,7 +10508,7 @@
         },
         "norm_a": {
           "name": "l2",
-          "value": 23.301517425608225,
+          "value": 23.30151742560822,
           "units": null,
           "method": "||A||_2 over finite pairs",
           "source_dtype": "BF16",
@@ -10466,6 +10539,7 @@
           "numerical_warnings": []
         }
       },
+      "withheld_metrics": [],
       "caveat": "Class S: no lineage evidence; raw deltas may be meaningless (parameter permutation/alignment)."
     },
     {
@@ -10497,7 +10571,7 @@
       "metrics": {
         "delta_l2": {
           "name": "l2",
-          "value": 3.047036580623659,
+          "value": 3.0470365806236583,
           "units": null,
           "method": "||B-A||_2 over finite pairs (power-of-two scaled sum of squares)",
           "source_dtype": "BF16",
@@ -10529,7 +10603,7 @@
         },
         "relative_l2": {
           "name": "relative_l2",
-          "value": 0.07558893051751366,
+          "value": 0.07558893051751364,
           "units": null,
           "method": "||B-A||_2 / max(||A||_2, epsilon_norm) over finite pairs",
           "source_dtype": "BF16",
@@ -10577,7 +10651,7 @@
         },
         "norm_a": {
           "name": "l2",
-          "value": 40.31061902533033,
+          "value": 40.31061902533034,
           "units": null,
           "method": "||A||_2 over finite pairs",
           "source_dtype": "BF16",
@@ -10608,6 +10682,7 @@
           "numerical_warnings": []
         }
       },
+      "withheld_metrics": [],
       "caveat": "Class S: no lineage evidence; raw deltas may be meaningless (parameter permutation/alignment)."
     },
     {
@@ -10750,6 +10825,7 @@
           "numerical_warnings": []
         }
       },
+      "withheld_metrics": [],
       "caveat": "Class S: no lineage evidence; raw deltas may be meaningless (parameter permutation/alignment)."
     },
     {
@@ -10813,7 +10889,7 @@
         },
         "relative_l2": {
           "name": "relative_l2",
-          "value": 0.0753013636223229,
+          "value": 0.07530136362232291,
           "units": null,
           "method": "||B-A||_2 / max(||A||_2, epsilon_norm) over finite pairs",
           "source_dtype": "BF16",
@@ -10829,7 +10905,7 @@
         },
         "cosine": {
           "name": "cosine",
-          "value": 0.9972862707195234,
+          "value": 0.9972862707195236,
           "units": null,
           "method": "dot(A,B)/(||A|| ||B||) over finite pairs",
           "source_dtype": "BF16",
@@ -10861,7 +10937,7 @@
         },
         "norm_a": {
           "name": "l2",
-          "value": 38.702932457697806,
+          "value": 38.7029324576978,
           "units": null,
           "method": "||A||_2 over finite pairs",
           "source_dtype": "BF16",
@@ -10877,7 +10953,7 @@
         },
         "norm_b": {
           "name": "l2",
-          "value": 37.9857099720094,
+          "value": 37.98570997200941,
           "units": null,
           "method": "||B||_2 over finite pairs",
           "source_dtype": "BF16",
@@ -10892,6 +10968,7 @@
           "numerical_warnings": []
         }
       },
+      "withheld_metrics": [],
       "caveat": "Class S: no lineage evidence; raw deltas may be meaningless (parameter permutation/alignment)."
     },
     {
@@ -10971,7 +11048,7 @@
         },
         "cosine": {
           "name": "cosine",
-          "value": 0.9973340748691704,
+          "value": 0.9973340748691703,
           "units": null,
           "method": "dot(A,B)/(||A|| ||B||) over finite pairs",
           "source_dtype": "BF16",
@@ -11034,6 +11111,7 @@
           "numerical_warnings": []
         }
       },
+      "withheld_metrics": [],
       "caveat": "Class S: no lineage evidence; raw deltas may be meaningless (parameter permutation/alignment)."
     },
     {
@@ -11176,6 +11254,7 @@
           "numerical_warnings": []
         }
       },
+      "withheld_metrics": [],
       "caveat": "Class S: no lineage evidence; raw deltas may be meaningless (parameter permutation/alignment)."
     },
     {
@@ -11255,7 +11334,7 @@
         },
         "cosine": {
           "name": "cosine",
-          "value": 0.9973312757684036,
+          "value": 0.9973312757684037,
           "units": null,
           "method": "dot(A,B)/(||A|| ||B||) over finite pairs",
           "source_dtype": "BF16",
@@ -11318,6 +11397,7 @@
           "numerical_warnings": []
         }
       },
+      "withheld_metrics": [],
       "caveat": "Class S: no lineage evidence; raw deltas may be meaningless (parameter permutation/alignment)."
     },
     {
@@ -11397,7 +11477,7 @@
         },
         "cosine": {
           "name": "cosine",
-          "value": 0.9972581022387168,
+          "value": 0.9972581022387169,
           "units": null,
           "method": "dot(A,B)/(||A|| ||B||) over finite pairs",
           "source_dtype": "BF16",
@@ -11460,6 +11540,7 @@
           "numerical_warnings": []
         }
       },
+      "withheld_metrics": [],
       "caveat": "Class S: no lineage evidence; raw deltas may be meaningless (parameter permutation/alignment)."
     },
     {
@@ -11523,7 +11604,7 @@
         },
         "relative_l2": {
           "name": "relative_l2",
-          "value": 0.07479085699460811,
+          "value": 0.07479085699460812,
           "units": null,
           "method": "||B-A||_2 / max(||A||_2, epsilon_norm) over finite pairs",
           "source_dtype": "BF16",
@@ -11571,7 +11652,7 @@
         },
         "norm_a": {
           "name": "l2",
-          "value": 47.772294829457486,
+          "value": 47.77229482945748,
           "units": null,
           "method": "||A||_2 over finite pairs",
           "source_dtype": "BF16",
@@ -11602,6 +11683,7 @@
           "numerical_warnings": []
         }
       },
+      "withheld_metrics": [],
       "caveat": "Class S: no lineage evidence; raw deltas may be meaningless (parameter permutation/alignment)."
     },
     {
@@ -11649,7 +11731,7 @@
         },
         "delta_rms": {
           "name": "rms",
-          "value": 0.001314723351118973,
+          "value": 0.0013147233511189732,
           "units": null,
           "method": "sqrt(sum((B-A)^2)/finite_pairs)",
           "source_dtype": "BF16",
@@ -11665,7 +11747,7 @@
         },
         "relative_l2": {
           "name": "relative_l2",
-          "value": 0.07447979705780879,
+          "value": 0.0744797970578088,
           "units": null,
           "method": "||B-A||_2 / max(||A||_2, epsilon_norm) over finite pairs",
           "source_dtype": "BF16",
@@ -11681,7 +11763,7 @@
         },
         "cosine": {
           "name": "cosine",
-          "value": 0.9973762303273437,
+          "value": 0.9973762303273442,
           "units": null,
           "method": "dot(A,B)/(||A|| ||B||) over finite pairs",
           "source_dtype": "BF16",
@@ -11744,6 +11826,7 @@
           "numerical_warnings": []
         }
       },
+      "withheld_metrics": [],
       "caveat": "Class S: no lineage evidence; raw deltas may be meaningless (parameter permutation/alignment)."
     },
     {
@@ -11886,6 +11969,7 @@
           "numerical_warnings": []
         }
       },
+      "withheld_metrics": [],
       "caveat": "Class S: no lineage evidence; raw deltas may be meaningless (parameter permutation/alignment)."
     },
     {
@@ -11965,7 +12049,7 @@
         },
         "cosine": {
           "name": "cosine",
-          "value": 0.9974563841834378,
+          "value": 0.9974563841834376,
           "units": null,
           "method": "dot(A,B)/(||A|| ||B||) over finite pairs",
           "source_dtype": "BF16",
@@ -12013,7 +12097,7 @@
         },
         "norm_b": {
           "name": "l2",
-          "value": 15.056356702208333,
+          "value": 15.056356702208335,
           "units": null,
           "method": "||B||_2 over finite pairs",
           "source_dtype": "BF16",
@@ -12028,6 +12112,7 @@
           "numerical_warnings": []
         }
       },
+      "withheld_metrics": [],
       "caveat": "Class S: no lineage evidence; raw deltas may be meaningless (parameter permutation/alignment)."
     },
     {
@@ -12059,7 +12144,7 @@
       "metrics": {
         "delta_l2": {
           "name": "l2",
-          "value": 3.1993972206703334,
+          "value": 3.199397220670333,
           "units": null,
           "method": "||B-A||_2 over finite pairs (power-of-two scaled sum of squares)",
           "source_dtype": "BF16",
@@ -12075,7 +12160,7 @@
         },
         "delta_rms": {
           "name": "rms",
-          "value": 0.0015325596083061279,
+          "value": 0.0015325596083061274,
           "units": null,
           "method": "sqrt(sum((B-A)^2)/finite_pairs)",
           "source_dtype": "BF16",
@@ -12091,7 +12176,7 @@
         },
         "relative_l2": {
           "name": "relative_l2",
-          "value": 0.07383444924781957,
+          "value": 0.07383444924781955,
           "units": null,
           "method": "||B-A||_2 / max(||A||_2, epsilon_norm) over finite pairs",
           "source_dtype": "BF16",
@@ -12155,7 +12240,7 @@
         },
         "norm_b": {
           "name": "l2",
-          "value": 42.585978656846095,
+          "value": 42.5859786568461,
           "units": null,
           "method": "||B||_2 over finite pairs",
           "source_dtype": "BF16",
@@ -12170,6 +12255,7 @@
           "numerical_warnings": []
         }
       },
+      "withheld_metrics": [],
       "caveat": "Class S: no lineage evidence; raw deltas may be meaningless (parameter permutation/alignment)."
     },
     {
@@ -12201,7 +12287,7 @@
       "metrics": {
         "delta_l2": {
           "name": "l2",
-          "value": 3.7737758699770994,
+          "value": 3.773775869977099,
           "units": null,
           "method": "||B-A||_2 over finite pairs (power-of-two scaled sum of squares)",
           "source_dtype": "BF16",
@@ -12217,7 +12303,7 @@
         },
         "delta_rms": {
           "name": "rms",
-          "value": 0.00180769565959536,
+          "value": 0.0018076956595953599,
           "units": null,
           "method": "sqrt(sum((B-A)^2)/finite_pairs)",
           "source_dtype": "BF16",
@@ -12233,7 +12319,7 @@
         },
         "relative_l2": {
           "name": "relative_l2",
-          "value": 0.07322536299699862,
+          "value": 0.07322536299699861,
           "units": null,
           "method": "||B-A||_2 / max(||A||_2, epsilon_norm) over finite pairs",
           "source_dtype": "BF16",
@@ -12281,7 +12367,7 @@
         },
         "norm_a": {
           "name": "l2",
-          "value": 51.53645834615773,
+          "value": 51.53645834615774,
           "units": null,
           "method": "||A||_2 over finite pairs",
           "source_dtype": "BF16",
@@ -12297,7 +12383,7 @@
         },
         "norm_b": {
           "name": "l2",
-          "value": 50.819351117958675,
+          "value": 50.81935111795868,
           "units": null,
           "method": "||B||_2 over finite pairs",
           "source_dtype": "BF16",
@@ -12312,6 +12398,7 @@
           "numerical_warnings": []
         }
       },
+      "withheld_metrics": [],
       "caveat": "Class S: no lineage evidence; raw deltas may be meaningless (parameter permutation/alignment)."
     },
     {
@@ -12359,7 +12446,7 @@
         },
         "delta_rms": {
           "name": "rms",
-          "value": 0.0013398260480969083,
+          "value": 0.001339826048096908,
           "units": null,
           "method": "sqrt(sum((B-A)^2)/finite_pairs)",
           "source_dtype": "BF16",
@@ -12391,7 +12478,7 @@
         },
         "cosine": {
           "name": "cosine",
-          "value": 0.9974648113875706,
+          "value": 0.9974648113875704,
           "units": null,
           "method": "dot(A,B)/(||A|| ||B||) over finite pairs",
           "source_dtype": "BF16",
@@ -12423,7 +12510,7 @@
         },
         "norm_a": {
           "name": "l2",
-          "value": 38.2165827925266,
+          "value": 38.216582792526594,
           "units": null,
           "method": "||A||_2 over finite pairs",
           "source_dtype": "BF16",
@@ -12454,6 +12541,7 @@
           "numerical_warnings": []
         }
       },
+      "withheld_metrics": [],
       "caveat": "Class S: no lineage evidence; raw deltas may be meaningless (parameter permutation/alignment)."
     },
     {
@@ -12533,7 +12621,7 @@
         },
         "cosine": {
           "name": "cosine",
-          "value": 0.997468052447346,
+          "value": 0.9974680524473463,
           "units": null,
           "method": "dot(A,B)/(||A|| ||B||) over finite pairs",
           "source_dtype": "BF16",
@@ -12581,7 +12669,7 @@
         },
         "norm_b": {
           "name": "l2",
-          "value": 34.80062519015376,
+          "value": 34.80062519015375,
           "units": null,
           "method": "||B||_2 over finite pairs",
           "source_dtype": "BF16",
@@ -12596,6 +12684,7 @@
           "numerical_warnings": []
         }
       },
+      "withheld_metrics": [],
       "caveat": "Class S: no lineage evidence; raw deltas may be meaningless (parameter permutation/alignment)."
     },
     {
@@ -12627,7 +12716,7 @@
       "metrics": {
         "delta_l2": {
           "name": "l2",
-          "value": 3.403571933198609,
+          "value": 3.4035719331986085,
           "units": null,
           "method": "||B-A||_2 over finite pairs (power-of-two scaled sum of squares)",
           "source_dtype": "BF16",
@@ -12643,7 +12732,7 @@
         },
         "delta_rms": {
           "name": "rms",
-          "value": 0.001630362380477315,
+          "value": 0.0016303623804773148,
           "units": null,
           "method": "sqrt(sum((B-A)^2)/finite_pairs)",
           "source_dtype": "BF16",
@@ -12707,7 +12796,7 @@
         },
         "norm_a": {
           "name": "l2",
-          "value": 46.55382536825731,
+          "value": 46.553825368257314,
           "units": null,
           "method": "||A||_2 over finite pairs",
           "source_dtype": "BF16",
@@ -12723,7 +12812,7 @@
         },
         "norm_b": {
           "name": "l2",
-          "value": 45.87250934779091,
+          "value": 45.8725093477909,
           "units": null,
           "method": "||B||_2 over finite pairs",
           "source_dtype": "BF16",
@@ -12738,6 +12827,7 @@
           "numerical_warnings": []
         }
       },
+      "withheld_metrics": [],
       "caveat": "Class S: no lineage evidence; raw deltas may be meaningless (parameter permutation/alignment)."
     },
     {
@@ -12769,7 +12859,7 @@
       "metrics": {
         "delta_l2": {
           "name": "l2",
-          "value": 2.7352295100797073,
+          "value": 2.7352295100797077,
           "units": null,
           "method": "||B-A||_2 over finite pairs (power-of-two scaled sum of squares)",
           "source_dtype": "BF16",
@@ -12801,7 +12891,7 @@
         },
         "relative_l2": {
           "name": "relative_l2",
-          "value": 0.07292531409509498,
+          "value": 0.07292531409509499,
           "units": null,
           "method": "||B-A||_2 / max(||A||_2, epsilon_norm) over finite pairs",
           "source_dtype": "BF16",
@@ -12817,7 +12907,7 @@
         },
         "cosine": {
           "name": "cosine",
-          "value": 0.9974826364847661,
+          "value": 0.9974826364847659,
           "units": null,
           "method": "dot(A,B)/(||A|| ||B||) over finite pairs",
           "source_dtype": "BF16",
@@ -12849,7 +12939,7 @@
         },
         "norm_a": {
           "name": "l2",
-          "value": 37.50727088419467,
+          "value": 37.507270884194675,
           "units": null,
           "method": "||A||_2 over finite pairs",
           "source_dtype": "BF16",
@@ -12880,6 +12970,7 @@
           "numerical_warnings": []
         }
       },
+      "withheld_metrics": [],
       "caveat": "Class S: no lineage evidence; raw deltas may be meaningless (parameter permutation/alignment)."
     },
     {
@@ -12959,7 +13050,7 @@
         },
         "cosine": {
           "name": "cosine",
-          "value": 0.9975145914401395,
+          "value": 0.9975145914401398,
           "units": null,
           "method": "dot(A,B)/(||A|| ||B||) over finite pairs",
           "source_dtype": "BF16",
@@ -12991,7 +13082,7 @@
         },
         "norm_a": {
           "name": "l2",
-          "value": 36.17471727067539,
+          "value": 36.17471727067538,
           "units": null,
           "method": "||A||_2 over finite pairs",
           "source_dtype": "BF16",
@@ -13022,6 +13113,7 @@
           "numerical_warnings": []
         }
       },
+      "withheld_metrics": [],
       "caveat": "Class S: no lineage evidence; raw deltas may be meaningless (parameter permutation/alignment)."
     },
     {
@@ -13164,6 +13256,7 @@
           "numerical_warnings": []
         }
       },
+      "withheld_metrics": [],
       "caveat": "Class S: no lineage evidence; raw deltas may be meaningless (parameter permutation/alignment)."
     },
     {
@@ -13275,7 +13368,7 @@
         },
         "norm_a": {
           "name": "l2",
-          "value": 40.74669179864838,
+          "value": 40.74669179864837,
           "units": null,
           "method": "||A||_2 over finite pairs",
           "source_dtype": "BF16",
@@ -13306,6 +13399,7 @@
           "numerical_warnings": []
         }
       },
+      "withheld_metrics": [],
       "caveat": "Class S: no lineage evidence; raw deltas may be meaningless (parameter permutation/alignment)."
     },
     {
@@ -13385,7 +13479,7 @@
         },
         "cosine": {
           "name": "cosine",
-          "value": 0.9975079735737311,
+          "value": 0.9975079735737312,
           "units": null,
           "method": "dot(A,B)/(||A|| ||B||) over finite pairs",
           "source_dtype": "BF16",
@@ -13448,6 +13542,7 @@
           "numerical_warnings": []
         }
       },
+      "withheld_metrics": [],
       "caveat": "Class S: no lineage evidence; raw deltas may be meaningless (parameter permutation/alignment)."
     },
     {
@@ -13527,7 +13622,7 @@
         },
         "cosine": {
           "name": "cosine",
-          "value": 0.9975916215987163,
+          "value": 0.9975916215987166,
           "units": null,
           "method": "dot(A,B)/(||A|| ||B||) over finite pairs",
           "source_dtype": "BF16",
@@ -13559,7 +13654,7 @@
         },
         "norm_a": {
           "name": "l2",
-          "value": 17.380045544235387,
+          "value": 17.380045544235383,
           "units": null,
           "method": "||A||_2 over finite pairs",
           "source_dtype": "BF16",
@@ -13590,6 +13685,7 @@
           "numerical_warnings": []
         }
       },
+      "withheld_metrics": [],
       "caveat": "Class S: no lineage evidence; raw deltas may be meaningless (parameter permutation/alignment)."
     },
     {
@@ -13717,7 +13813,7 @@
         },
         "norm_b": {
           "name": "l2",
-          "value": 59.79955552389837,
+          "value": 59.79955552389838,
           "units": null,
           "method": "||B||_2 over finite pairs",
           "source_dtype": "BF16",
@@ -13732,6 +13828,7 @@
           "numerical_warnings": []
         }
       },
+      "withheld_metrics": [],
       "caveat": "Class S: no lineage evidence; raw deltas may be meaningless (parameter permutation/alignment)."
     },
     {
@@ -13811,7 +13908,7 @@
         },
         "cosine": {
           "name": "cosine",
-          "value": 0.9976008544652574,
+          "value": 0.9976008544652577,
           "units": null,
           "method": "dot(A,B)/(||A|| ||B||) over finite pairs",
           "source_dtype": "BF16",
@@ -13874,6 +13971,7 @@
           "numerical_warnings": []
         }
       },
+      "withheld_metrics": [],
       "caveat": "Class S: no lineage evidence; raw deltas may be meaningless (parameter permutation/alignment)."
     },
     {
@@ -13953,7 +14051,7 @@
         },
         "cosine": {
           "name": "cosine",
-          "value": 0.9976583464092312,
+          "value": 0.9976583464092313,
           "units": null,
           "method": "dot(A,B)/(||A|| ||B||) over finite pairs",
           "source_dtype": "BF16",
@@ -13985,7 +14083,7 @@
         },
         "norm_a": {
           "name": "l2",
-          "value": 13.631085441647405,
+          "value": 13.631085441647407,
           "units": null,
           "method": "||A||_2 over finite pairs",
           "source_dtype": "BF16",
@@ -14001,7 +14099,7 @@
         },
         "norm_b": {
           "name": "l2",
-          "value": 13.320737455353289,
+          "value": 13.32073745535329,
           "units": null,
           "method": "||B||_2 over finite pairs",
           "source_dtype": "BF16",
@@ -14016,6 +14114,7 @@
           "numerical_warnings": []
         }
       },
+      "withheld_metrics": [],
       "caveat": "Class S: no lineage evidence; raw deltas may be meaningless (parameter permutation/alignment)."
     },
     {
@@ -14063,7 +14162,7 @@
         },
         "delta_rms": {
           "name": "rms",
-          "value": 0.0014855884181147257,
+          "value": 0.0014855884181147255,
           "units": null,
           "method": "sqrt(sum((B-A)^2)/finite_pairs)",
           "source_dtype": "BF16",
@@ -14079,7 +14178,7 @@
         },
         "relative_l2": {
           "name": "relative_l2",
-          "value": 0.07125459462770692,
+          "value": 0.0712545946277069,
           "units": null,
           "method": "||B-A||_2 / max(||A||_2, epsilon_norm) over finite pairs",
           "source_dtype": "BF16",
@@ -14127,7 +14226,7 @@
         },
         "norm_a": {
           "name": "l2",
-          "value": 43.524763420951516,
+          "value": 43.52476342095152,
           "units": null,
           "method": "||A||_2 over finite pairs",
           "source_dtype": "BF16",
@@ -14158,6 +14257,7 @@
           "numerical_warnings": []
         }
       },
+      "withheld_metrics": [],
       "caveat": "Class S: no lineage evidence; raw deltas may be meaningless (parameter permutation/alignment)."
     },
     {
@@ -14300,6 +14400,7 @@
           "numerical_warnings": []
         }
       },
+      "withheld_metrics": [],
       "caveat": "Class S: no lineage evidence; raw deltas may be meaningless (parameter permutation/alignment)."
     },
     {
@@ -14347,7 +14448,7 @@
         },
         "delta_rms": {
           "name": "rms",
-          "value": 0.0010959175176858864,
+          "value": 0.0010959175176858866,
           "units": null,
           "method": "sqrt(sum((B-A)^2)/finite_pairs)",
           "source_dtype": "BF16",
@@ -14379,7 +14480,7 @@
         },
         "cosine": {
           "name": "cosine",
-          "value": 0.9976522392540274,
+          "value": 0.9976522392540272,
           "units": null,
           "method": "dot(A,B)/(||A|| ||B||) over finite pairs",
           "source_dtype": "BF16",
@@ -14427,7 +14528,7 @@
         },
         "norm_b": {
           "name": "l2",
-          "value": 13.538478124407746,
+          "value": 13.538478124407748,
           "units": null,
           "method": "||B||_2 over finite pairs",
           "source_dtype": "BF16",
@@ -14442,6 +14543,7 @@
           "numerical_warnings": []
         }
       },
+      "withheld_metrics": [],
       "caveat": "Class S: no lineage evidence; raw deltas may be meaningless (parameter permutation/alignment)."
     },
     {
@@ -14521,7 +14623,7 @@
         },
         "cosine": {
           "name": "cosine",
-          "value": 0.9975804919101129,
+          "value": 0.9975804919101133,
           "units": null,
           "method": "dot(A,B)/(||A|| ||B||) over finite pairs",
           "source_dtype": "BF16",
@@ -14584,6 +14686,7 @@
           "numerical_warnings": []
         }
       },
+      "withheld_metrics": [],
       "caveat": "Class S: no lineage evidence; raw deltas may be meaningless (parameter permutation/alignment)."
     },
     {
@@ -14615,7 +14718,7 @@
       "metrics": {
         "delta_l2": {
           "name": "l2",
-          "value": 2.9486024266994613,
+          "value": 2.9486024266994617,
           "units": null,
           "method": "||B-A||_2 over finite pairs (power-of-two scaled sum of squares)",
           "source_dtype": "BF16",
@@ -14631,7 +14734,7 @@
         },
         "delta_rms": {
           "name": "rms",
-          "value": 0.0014124251127424024,
+          "value": 0.0014124251127424026,
           "units": null,
           "method": "sqrt(sum((B-A)^2)/finite_pairs)",
           "source_dtype": "BF16",
@@ -14663,7 +14766,7 @@
         },
         "cosine": {
           "name": "cosine",
-          "value": 0.9976901179398661,
+          "value": 0.9976901179398662,
           "units": null,
           "method": "dot(A,B)/(||A|| ||B||) over finite pairs",
           "source_dtype": "BF16",
@@ -14726,6 +14829,7 @@
           "numerical_warnings": []
         }
       },
+      "withheld_metrics": [],
       "caveat": "Class S: no lineage evidence; raw deltas may be meaningless (parameter permutation/alignment)."
     },
     {
@@ -14757,7 +14861,7 @@
       "metrics": {
         "delta_l2": {
           "name": "l2",
-          "value": 2.8761914454561324,
+          "value": 2.876191445456132,
           "units": null,
           "method": "||B-A||_2 over finite pairs (power-of-two scaled sum of squares)",
           "source_dtype": "BF16",
@@ -14789,7 +14893,7 @@
         },
         "relative_l2": {
           "name": "relative_l2",
-          "value": 0.06932551961982168,
+          "value": 0.06932551961982167,
           "units": null,
           "method": "||B-A||_2 / max(||A||_2, epsilon_norm) over finite pairs",
           "source_dtype": "BF16",
@@ -14805,7 +14909,7 @@
         },
         "cosine": {
           "name": "cosine",
-          "value": 0.997731081275823,
+          "value": 0.9977310812758228,
           "units": null,
           "method": "dot(A,B)/(||A|| ||B||) over finite pairs",
           "source_dtype": "BF16",
@@ -14837,7 +14941,7 @@
         },
         "norm_a": {
           "name": "l2",
-          "value": 41.48820609249016,
+          "value": 41.48820609249017,
           "units": null,
           "method": "||A||_2 over finite pairs",
           "source_dtype": "BF16",
@@ -14868,6 +14972,7 @@
           "numerical_warnings": []
         }
       },
+      "withheld_metrics": [],
       "caveat": "Class S: no lineage evidence; raw deltas may be meaningless (parameter permutation/alignment)."
     },
     {
@@ -15010,6 +15115,7 @@
           "numerical_warnings": []
         }
       },
+      "withheld_metrics": [],
       "caveat": "Class S: no lineage evidence; raw deltas may be meaningless (parameter permutation/alignment)."
     },
     {
@@ -15137,7 +15243,7 @@
         },
         "norm_b": {
           "name": "l2",
-          "value": 16.237520918763224,
+          "value": 16.237520918763227,
           "units": null,
           "method": "||B||_2 over finite pairs",
           "source_dtype": "BF16",
@@ -15152,6 +15258,7 @@
           "numerical_warnings": []
         }
       },
+      "withheld_metrics": [],
       "caveat": "Class S: no lineage evidence; raw deltas may be meaningless (parameter permutation/alignment)."
     },
     {
@@ -15294,6 +15401,7 @@
           "numerical_warnings": []
         }
       },
+      "withheld_metrics": [],
       "caveat": "Class S: no lineage evidence; raw deltas may be meaningless (parameter permutation/alignment)."
     },
     {
@@ -15436,6 +15544,7 @@
           "numerical_warnings": []
         }
       },
+      "withheld_metrics": [],
       "caveat": "Class S: no lineage evidence; raw deltas may be meaningless (parameter permutation/alignment)."
     },
     {
@@ -15578,6 +15687,7 @@
           "numerical_warnings": []
         }
       },
+      "withheld_metrics": [],
       "caveat": "Class S: no lineage evidence; raw deltas may be meaningless (parameter permutation/alignment)."
     },
     {
@@ -15720,6 +15830,7 @@
           "numerical_warnings": []
         }
       },
+      "withheld_metrics": [],
       "caveat": "Class S: no lineage evidence; raw deltas may be meaningless (parameter permutation/alignment)."
     },
     {
@@ -15799,7 +15910,7 @@
         },
         "cosine": {
           "name": "cosine",
-          "value": 0.9979939034167734,
+          "value": 0.9979939034167733,
           "units": null,
           "method": "dot(A,B)/(||A|| ||B||) over finite pairs",
           "source_dtype": "BF16",
@@ -15847,7 +15958,7 @@
         },
         "norm_b": {
           "name": "l2",
-          "value": 15.652052268928616,
+          "value": 15.652052268928617,
           "units": null,
           "method": "||B||_2 over finite pairs",
           "source_dtype": "BF16",
@@ -15862,6 +15973,7 @@
           "numerical_warnings": []
         }
       },
+      "withheld_metrics": [],
       "caveat": "Class S: no lineage evidence; raw deltas may be meaningless (parameter permutation/alignment)."
     },
     {
@@ -15989,7 +16101,7 @@
         },
         "norm_b": {
           "name": "l2",
-          "value": 15.991271433270958,
+          "value": 15.99127143327096,
           "units": null,
           "method": "||B||_2 over finite pairs",
           "source_dtype": "BF16",
@@ -16004,6 +16116,7 @@
           "numerical_warnings": []
         }
       },
+      "withheld_metrics": [],
       "caveat": "Class S: no lineage evidence; raw deltas may be meaningless (parameter permutation/alignment)."
     },
     {
@@ -16146,6 +16259,7 @@
           "numerical_warnings": []
         }
       },
+      "withheld_metrics": [],
       "caveat": "Class S: no lineage evidence; raw deltas may be meaningless (parameter permutation/alignment)."
     },
     {
@@ -16177,7 +16291,7 @@
       "metrics": {
         "delta_l2": {
           "name": "l2",
-          "value": 2.4738982365652173,
+          "value": 2.473898236565217,
           "units": null,
           "method": "||B-A||_2 over finite pairs (power-of-two scaled sum of squares)",
           "source_dtype": "BF16",
@@ -16209,7 +16323,7 @@
         },
         "relative_l2": {
           "name": "relative_l2",
-          "value": 0.06366568426882327,
+          "value": 0.06366568426882326,
           "units": null,
           "method": "||B-A||_2 / max(||A||_2, epsilon_norm) over finite pairs",
           "source_dtype": "BF16",
@@ -16257,7 +16371,7 @@
         },
         "norm_a": {
           "name": "l2",
-          "value": 38.85763995120793,
+          "value": 38.857639951207936,
           "units": null,
           "method": "||A||_2 over finite pairs",
           "source_dtype": "BF16",
@@ -16288,6 +16402,7 @@
           "numerical_warnings": []
         }
       },
+      "withheld_metrics": [],
       "caveat": "Class S: no lineage evidence; raw deltas may be meaningless (parameter permutation/alignment)."
     },
     {
@@ -16430,6 +16545,7 @@
           "numerical_warnings": []
         }
       },
+      "withheld_metrics": [],
       "caveat": "Class S: no lineage evidence; raw deltas may be meaningless (parameter permutation/alignment)."
     },
     {
@@ -16461,7 +16577,7 @@
       "metrics": {
         "delta_l2": {
           "name": "l2",
-          "value": 1.1143512384231966,
+          "value": 1.1143512384231964,
           "units": null,
           "method": "||B-A||_2 over finite pairs (power-of-two scaled sum of squares)",
           "source_dtype": "BF16",
@@ -16493,7 +16609,7 @@
         },
         "relative_l2": {
           "name": "relative_l2",
-          "value": 0.06275832658522133,
+          "value": 0.06275832658522132,
           "units": null,
           "method": "||B-A||_2 / max(||A||_2, epsilon_norm) over finite pairs",
           "source_dtype": "BF16",
@@ -16557,7 +16673,7 @@
         },
         "norm_b": {
           "name": "l2",
-          "value": 17.390733410109842,
+          "value": 17.390733410109846,
           "units": null,
           "method": "||B||_2 over finite pairs",
           "source_dtype": "BF16",
@@ -16572,6 +16688,7 @@
           "numerical_warnings": []
         }
       },
+      "withheld_metrics": [],
       "caveat": "Class S: no lineage evidence; raw deltas may be meaningless (parameter permutation/alignment)."
     },
     {
@@ -16635,7 +16752,7 @@
         },
         "relative_l2": {
           "name": "relative_l2",
-          "value": 0.062333340185420236,
+          "value": 0.06233334018542023,
           "units": null,
           "method": "||B-A||_2 / max(||A||_2, epsilon_norm) over finite pairs",
           "source_dtype": "BF16",
@@ -16651,7 +16768,7 @@
         },
         "cosine": {
           "name": "cosine",
-          "value": 0.9982271228803425,
+          "value": 0.9982271228803424,
           "units": null,
           "method": "dot(A,B)/(||A|| ||B||) over finite pairs",
           "source_dtype": "BF16",
@@ -16683,7 +16800,7 @@
         },
         "norm_a": {
           "name": "l2",
-          "value": 19.310973052506228,
+          "value": 19.31097305250623,
           "units": null,
           "method": "||A||_2 over finite pairs",
           "source_dtype": "BF16",
@@ -16714,6 +16831,7 @@
           "numerical_warnings": []
         }
       },
+      "withheld_metrics": [],
       "caveat": "Class S: no lineage evidence; raw deltas may be meaningless (parameter permutation/alignment)."
     },
     {
@@ -16856,6 +16974,7 @@
           "numerical_warnings": []
         }
       },
+      "withheld_metrics": [],
       "caveat": "Class S: no lineage evidence; raw deltas may be meaningless (parameter permutation/alignment)."
     },
     {
@@ -16887,7 +17006,7 @@
       "metrics": {
         "delta_l2": {
           "name": "l2",
-          "value": 3.037231647744067,
+          "value": 3.0372316477440666,
           "units": null,
           "method": "||B-A||_2 over finite pairs (power-of-two scaled sum of squares)",
           "source_dtype": "BF16",
@@ -16919,7 +17038,7 @@
         },
         "relative_l2": {
           "name": "relative_l2",
-          "value": 0.06212573142939631,
+          "value": 0.0621257314293963,
           "units": null,
           "method": "||B-A||_2 / max(||A||_2, epsilon_norm) over finite pairs",
           "source_dtype": "BF16",
@@ -16998,6 +17117,7 @@
           "numerical_warnings": []
         }
       },
+      "withheld_metrics": [],
       "caveat": "Class S: no lineage evidence; raw deltas may be meaningless (parameter permutation/alignment)."
     },
     {
@@ -17139,6 +17259,7 @@
           "numerical_warnings": []
         }
       },
+      "withheld_metrics": [],
       "caveat": "Class S: no lineage evidence; raw deltas may be meaningless (parameter permutation/alignment)."
     },
     {
@@ -17281,6 +17402,7 @@
           "numerical_warnings": []
         }
       },
+      "withheld_metrics": [],
       "caveat": "Class S: no lineage evidence; raw deltas may be meaningless (parameter permutation/alignment)."
     },
     {
@@ -17328,7 +17450,7 @@
         },
         "delta_rms": {
           "name": "rms",
-          "value": 0.0010899536996128603,
+          "value": 0.0010899536996128605,
           "units": null,
           "method": "sqrt(sum((B-A)^2)/finite_pairs)",
           "source_dtype": "BF16",
@@ -17344,7 +17466,7 @@
         },
         "relative_l2": {
           "name": "relative_l2",
-          "value": 0.06134468600457152,
+          "value": 0.061344686004571526,
           "units": null,
           "method": "||B-A||_2 / max(||A||_2, epsilon_norm) over finite pairs",
           "source_dtype": "BF16",
@@ -17360,7 +17482,7 @@
         },
         "cosine": {
           "name": "cosine",
-          "value": 0.9982925829608857,
+          "value": 0.9982925829608856,
           "units": null,
           "method": "dot(A,B)/(||A|| ||B||) over finite pairs",
           "source_dtype": "BF16",
@@ -17423,6 +17545,7 @@
           "numerical_warnings": []
         }
       },
+      "withheld_metrics": [],
       "caveat": "Class S: no lineage evidence; raw deltas may be meaningless (parameter permutation/alignment)."
     },
     {
@@ -17454,7 +17577,7 @@
       "metrics": {
         "delta_l2": {
           "name": "l2",
-          "value": 0.9998409292988896,
+          "value": 0.9998409292988897,
           "units": null,
           "method": "||B-A||_2 over finite pairs (power-of-two scaled sum of squares)",
           "source_dtype": "BF16",
@@ -17470,7 +17593,7 @@
         },
         "delta_rms": {
           "name": "rms",
-          "value": 0.0011158938943067963,
+          "value": 0.0011158938943067965,
           "units": null,
           "method": "sqrt(sum((B-A)^2)/finite_pairs)",
           "source_dtype": "BF16",
@@ -17486,7 +17609,7 @@
         },
         "relative_l2": {
           "name": "relative_l2",
-          "value": 0.0606436299025937,
+          "value": 0.060643629902593706,
           "units": null,
           "method": "||B-A||_2 / max(||A||_2, epsilon_norm) over finite pairs",
           "source_dtype": "BF16",
@@ -17502,7 +17625,7 @@
         },
         "cosine": {
           "name": "cosine",
-          "value": 0.9983301805118381,
+          "value": 0.9983301805118379,
           "units": null,
           "method": "dot(A,B)/(||A|| ||B||) over finite pairs",
           "source_dtype": "BF16",
@@ -17534,7 +17657,7 @@
         },
         "norm_a": {
           "name": "l2",
-          "value": 16.487155054947113,
+          "value": 16.48715505494711,
           "units": null,
           "method": "||A||_2 over finite pairs",
           "source_dtype": "BF16",
@@ -17565,6 +17688,7 @@
           "numerical_warnings": []
         }
       },
+      "withheld_metrics": [],
       "caveat": "Class S: no lineage evidence; raw deltas may be meaningless (parameter permutation/alignment)."
     },
     {
@@ -17707,6 +17831,7 @@
           "numerical_warnings": []
         }
       },
+      "withheld_metrics": [],
       "caveat": "Class S: no lineage evidence; raw deltas may be meaningless (parameter permutation/alignment)."
     },
     {
@@ -17849,6 +17974,7 @@
           "numerical_warnings": []
         }
       },
+      "withheld_metrics": [],
       "caveat": "Class S: no lineage evidence; raw deltas may be meaningless (parameter permutation/alignment)."
     },
     {
@@ -17991,6 +18117,7 @@
           "numerical_warnings": []
         }
       },
+      "withheld_metrics": [],
       "caveat": "Class S: no lineage evidence; raw deltas may be meaningless (parameter permutation/alignment)."
     },
     {
@@ -18133,6 +18260,7 @@
           "numerical_warnings": []
         }
       },
+      "withheld_metrics": [],
       "caveat": "Class S: no lineage evidence; raw deltas may be meaningless (parameter permutation/alignment)."
     },
     {
@@ -18244,7 +18372,7 @@
         },
         "norm_a": {
           "name": "l2",
-          "value": 15.727797508718776,
+          "value": 15.727797508718778,
           "units": null,
           "method": "||A||_2 over finite pairs",
           "source_dtype": "BF16",
@@ -18275,6 +18403,7 @@
           "numerical_warnings": []
         }
       },
+      "withheld_metrics": [],
       "caveat": "Class S: no lineage evidence; raw deltas may be meaningless (parameter permutation/alignment)."
     },
     {
@@ -18306,7 +18435,7 @@
       "metrics": {
         "delta_l2": {
           "name": "l2",
-          "value": 1.1675841096223478,
+          "value": 1.167584109622348,
           "units": null,
           "method": "||B-A||_2 over finite pairs (power-of-two scaled sum of squares)",
           "source_dtype": "BF16",
@@ -18386,7 +18515,7 @@
         },
         "norm_a": {
           "name": "l2",
-          "value": 19.74742256635079,
+          "value": 19.747422566350792,
           "units": null,
           "method": "||A||_2 over finite pairs",
           "source_dtype": "BF16",
@@ -18402,7 +18531,7 @@
         },
         "norm_b": {
           "name": "l2",
-          "value": 19.336636677659463,
+          "value": 19.336636677659467,
           "units": null,
           "method": "||B||_2 over finite pairs",
           "source_dtype": "BF16",
@@ -18417,6 +18546,7 @@
           "numerical_warnings": []
         }
       },
+      "withheld_metrics": [],
       "caveat": "Class S: no lineage evidence; raw deltas may be meaningless (parameter permutation/alignment)."
     },
     {
@@ -18448,7 +18578,7 @@
       "metrics": {
         "delta_l2": {
           "name": "l2",
-          "value": 0.9651791389626502,
+          "value": 0.9651791389626501,
           "units": null,
           "method": "||B-A||_2 over finite pairs (power-of-two scaled sum of squares)",
           "source_dtype": "BF16",
@@ -18480,7 +18610,7 @@
         },
         "relative_l2": {
           "name": "relative_l2",
-          "value": 0.05898808912836215,
+          "value": 0.05898808912836214,
           "units": null,
           "method": "||B-A||_2 / max(||A||_2, epsilon_norm) over finite pairs",
           "source_dtype": "BF16",
@@ -18496,7 +18626,7 @@
         },
         "cosine": {
           "name": "cosine",
-          "value": 0.9984572389599192,
+          "value": 0.9984572389599194,
           "units": null,
           "method": "dot(A,B)/(||A|| ||B||) over finite pairs",
           "source_dtype": "BF16",
@@ -18559,6 +18689,7 @@
           "numerical_warnings": []
         }
       },
+      "withheld_metrics": [],
       "caveat": "Class S: no lineage evidence; raw deltas may be meaningless (parameter permutation/alignment)."
     },
     {
@@ -18701,6 +18832,7 @@
           "numerical_warnings": []
         }
       },
+      "withheld_metrics": [],
       "caveat": "Class S: no lineage evidence; raw deltas may be meaningless (parameter permutation/alignment)."
     },
     {
@@ -18843,6 +18975,7 @@
           "numerical_warnings": []
         }
       },
+      "withheld_metrics": [],
       "caveat": "Class S: no lineage evidence; raw deltas may be meaningless (parameter permutation/alignment)."
     },
     {
@@ -18985,6 +19118,7 @@
           "numerical_warnings": []
         }
       },
+      "withheld_metrics": [],
       "caveat": "Class S: no lineage evidence; raw deltas may be meaningless (parameter permutation/alignment)."
     },
     {
@@ -19127,6 +19261,7 @@
           "numerical_warnings": []
         }
       },
+      "withheld_metrics": [],
       "caveat": "Class S: no lineage evidence; raw deltas may be meaningless (parameter permutation/alignment)."
     },
     {
@@ -19269,6 +19404,7 @@
           "numerical_warnings": []
         }
       },
+      "withheld_metrics": [],
       "caveat": "Class S: no lineage evidence; raw deltas may be meaningless (parameter permutation/alignment)."
     },
     {
@@ -19411,6 +19547,7 @@
           "numerical_warnings": []
         }
       },
+      "withheld_metrics": [],
       "caveat": "Class S: no lineage evidence; raw deltas may be meaningless (parameter permutation/alignment)."
     },
     {
@@ -19553,6 +19690,7 @@
           "numerical_warnings": []
         }
       },
+      "withheld_metrics": [],
       "caveat": "Class S: no lineage evidence; raw deltas may be meaningless (parameter permutation/alignment)."
     },
     {
@@ -19584,7 +19722,7 @@
       "metrics": {
         "delta_l2": {
           "name": "l2",
-          "value": 1.1471354825458384,
+          "value": 1.1471354825458386,
           "units": null,
           "method": "||B-A||_2 over finite pairs (power-of-two scaled sum of squares)",
           "source_dtype": "BF16",
@@ -19600,7 +19738,7 @@
         },
         "delta_rms": {
           "name": "rms",
-          "value": 0.001280285136769909,
+          "value": 0.0012802851367699091,
           "units": null,
           "method": "sqrt(sum((B-A)^2)/finite_pairs)",
           "source_dtype": "BF16",
@@ -19616,7 +19754,7 @@
         },
         "relative_l2": {
           "name": "relative_l2",
-          "value": 0.05709604831554253,
+          "value": 0.05709604831554254,
           "units": null,
           "method": "||B-A||_2 / max(||A||_2, epsilon_norm) over finite pairs",
           "source_dtype": "BF16",
@@ -19632,7 +19770,7 @@
         },
         "cosine": {
           "name": "cosine",
-          "value": 0.9985373753102518,
+          "value": 0.9985373753102519,
           "units": null,
           "method": "dot(A,B)/(||A|| ||B||) over finite pairs",
           "source_dtype": "BF16",
@@ -19695,6 +19833,7 @@
           "numerical_warnings": []
         }
       },
+      "withheld_metrics": [],
       "caveat": "Class S: no lineage evidence; raw deltas may be meaningless (parameter permutation/alignment)."
     },
     {
@@ -19758,7 +19897,7 @@
         },
         "relative_l2": {
           "name": "relative_l2",
-          "value": 0.0568287243891527,
+          "value": 0.05682872438915271,
           "units": null,
           "method": "||B-A||_2 / max(||A||_2, epsilon_norm) over finite pairs",
           "source_dtype": "BF16",
@@ -19774,7 +19913,7 @@
         },
         "cosine": {
           "name": "cosine",
-          "value": 0.9985841001614821,
+          "value": 0.9985841001614824,
           "units": null,
           "method": "dot(A,B)/(||A|| ||B||) over finite pairs",
           "source_dtype": "BF16",
@@ -19806,7 +19945,7 @@
         },
         "norm_a": {
           "name": "l2",
-          "value": 16.648567546983685,
+          "value": 16.64856754698368,
           "units": null,
           "method": "||A||_2 over finite pairs",
           "source_dtype": "BF16",
@@ -19837,6 +19976,7 @@
           "numerical_warnings": []
         }
       },
+      "withheld_metrics": [],
       "caveat": "Class S: no lineage evidence; raw deltas may be meaningless (parameter permutation/alignment)."
     },
     {
@@ -19979,6 +20119,7 @@
           "numerical_warnings": []
         }
       },
+      "withheld_metrics": [],
       "caveat": "Class S: no lineage evidence; raw deltas may be meaningless (parameter permutation/alignment)."
     },
     {
@@ -20121,6 +20262,7 @@
           "numerical_warnings": []
         }
       },
+      "withheld_metrics": [],
       "caveat": "Class S: no lineage evidence; raw deltas may be meaningless (parameter permutation/alignment)."
     },
     {
@@ -20263,6 +20405,7 @@
           "numerical_warnings": []
         }
       },
+      "withheld_metrics": [],
       "caveat": "Class S: no lineage evidence; raw deltas may be meaningless (parameter permutation/alignment)."
     },
     {
@@ -20405,6 +20548,7 @@
           "numerical_warnings": []
         }
       },
+      "withheld_metrics": [],
       "caveat": "Class S: no lineage evidence; raw deltas may be meaningless (parameter permutation/alignment)."
     },
     {
@@ -20547,6 +20691,7 @@
           "numerical_warnings": []
         }
       },
+      "withheld_metrics": [],
       "caveat": "Class S: no lineage evidence; raw deltas may be meaningless (parameter permutation/alignment)."
     },
     {
@@ -20658,7 +20803,7 @@
         },
         "norm_a": {
           "name": "l2",
-          "value": 18.64016711412075,
+          "value": 18.640167114120747,
           "units": null,
           "method": "||A||_2 over finite pairs",
           "source_dtype": "BF16",
@@ -20689,6 +20834,7 @@
           "numerical_warnings": []
         }
       },
+      "withheld_metrics": [],
       "caveat": "Class S: no lineage evidence; raw deltas may be meaningless (parameter permutation/alignment)."
     },
     {
@@ -20831,6 +20977,7 @@
           "numerical_warnings": []
         }
       },
+      "withheld_metrics": [],
       "caveat": "Class S: no lineage evidence; raw deltas may be meaningless (parameter permutation/alignment)."
     },
     {
@@ -20973,6 +21120,7 @@
           "numerical_warnings": []
         }
       },
+      "withheld_metrics": [],
       "caveat": "Class S: no lineage evidence; raw deltas may be meaningless (parameter permutation/alignment)."
     },
     {
@@ -21115,6 +21263,7 @@
           "numerical_warnings": []
         }
       },
+      "withheld_metrics": [],
       "caveat": "Class S: no lineage evidence; raw deltas may be meaningless (parameter permutation/alignment)."
     },
     {
@@ -21257,6 +21406,7 @@
           "numerical_warnings": []
         }
       },
+      "withheld_metrics": [],
       "caveat": "Class S: no lineage evidence; raw deltas may be meaningless (parameter permutation/alignment)."
     },
     {
@@ -21336,7 +21486,7 @@
         },
         "cosine": {
           "name": "cosine",
-          "value": 0.9988817682356295,
+          "value": 0.9988817682356292,
           "units": null,
           "method": "dot(A,B)/(||A|| ||B||) over finite pairs",
           "source_dtype": "BF16",
@@ -21384,7 +21534,7 @@
         },
         "norm_b": {
           "name": "l2",
-          "value": 16.417045298699996,
+          "value": 16.4170452987,
           "units": null,
           "method": "||B||_2 over finite pairs",
           "source_dtype": "BF16",
@@ -21399,6 +21549,7 @@
           "numerical_warnings": []
         }
       },
+      "withheld_metrics": [],
       "caveat": "Class S: no lineage evidence; raw deltas may be meaningless (parameter permutation/alignment)."
     },
     {
@@ -21541,6 +21692,7 @@
           "numerical_warnings": []
         }
       },
+      "withheld_metrics": [],
       "caveat": "Class S: no lineage evidence; raw deltas may be meaningless (parameter permutation/alignment)."
     },
     {
@@ -21683,6 +21835,7 @@
           "numerical_warnings": []
         }
       },
+      "withheld_metrics": [],
       "caveat": "Class S: no lineage evidence; raw deltas may be meaningless (parameter permutation/alignment)."
     },
     {
@@ -21825,6 +21978,7 @@
           "numerical_warnings": []
         }
       },
+      "withheld_metrics": [],
       "caveat": "Class S: no lineage evidence; raw deltas may be meaningless (parameter permutation/alignment)."
     },
     {
@@ -21967,6 +22121,7 @@
           "numerical_warnings": []
         }
       },
+      "withheld_metrics": [],
       "caveat": "Class S: no lineage evidence; raw deltas may be meaningless (parameter permutation/alignment)."
     },
     {
@@ -22109,6 +22264,7 @@
           "numerical_warnings": []
         }
       },
+      "withheld_metrics": [],
       "caveat": "Class S: no lineage evidence; raw deltas may be meaningless (parameter permutation/alignment)."
     },
     {
@@ -22251,6 +22407,7 @@
           "numerical_warnings": []
         }
       },
+      "withheld_metrics": [],
       "caveat": "Class S: no lineage evidence; raw deltas may be meaningless (parameter permutation/alignment)."
     },
     {
@@ -22393,6 +22550,7 @@
           "numerical_warnings": []
         }
       },
+      "withheld_metrics": [],
       "caveat": "Class S: no lineage evidence; raw deltas may be meaningless (parameter permutation/alignment)."
     },
     {
@@ -22535,6 +22693,7 @@
           "numerical_warnings": []
         }
       },
+      "withheld_metrics": [],
       "caveat": "Class S: no lineage evidence; raw deltas may be meaningless (parameter permutation/alignment)."
     },
     {
@@ -22677,6 +22836,7 @@
           "numerical_warnings": []
         }
       },
+      "withheld_metrics": [],
       "caveat": "Class S: no lineage evidence; raw deltas may be meaningless (parameter permutation/alignment)."
     },
     {
@@ -22819,6 +22979,7 @@
           "numerical_warnings": []
         }
       },
+      "withheld_metrics": [],
       "caveat": "Class S: no lineage evidence; raw deltas may be meaningless (parameter permutation/alignment)."
     },
     {
@@ -22961,6 +23122,7 @@
           "numerical_warnings": []
         }
       },
+      "withheld_metrics": [],
       "caveat": "Class S: no lineage evidence; raw deltas may be meaningless (parameter permutation/alignment)."
     },
     {
@@ -23103,6 +23265,7 @@
           "numerical_warnings": []
         }
       },
+      "withheld_metrics": [],
       "caveat": "Class S: no lineage evidence; raw deltas may be meaningless (parameter permutation/alignment)."
     },
     {
@@ -23245,6 +23408,7 @@
           "numerical_warnings": []
         }
       },
+      "withheld_metrics": [],
       "caveat": "Class S: no lineage evidence; raw deltas may be meaningless (parameter permutation/alignment)."
     },
     {
@@ -23387,6 +23551,7 @@
           "numerical_warnings": []
         }
       },
+      "withheld_metrics": [],
       "caveat": "Class S: no lineage evidence; raw deltas may be meaningless (parameter permutation/alignment)."
     },
     {
@@ -23529,6 +23694,7 @@
           "numerical_warnings": []
         }
       },
+      "withheld_metrics": [],
       "caveat": "Class S: no lineage evidence; raw deltas may be meaningless (parameter permutation/alignment)."
     },
     {
@@ -23671,6 +23837,7 @@
           "numerical_warnings": []
         }
       },
+      "withheld_metrics": [],
       "caveat": "Class S: no lineage evidence; raw deltas may be meaningless (parameter permutation/alignment)."
     },
     {
@@ -23813,6 +23980,7 @@
           "numerical_warnings": []
         }
       },
+      "withheld_metrics": [],
       "caveat": "Class S: no lineage evidence; raw deltas may be meaningless (parameter permutation/alignment)."
     },
     {
@@ -23955,6 +24123,7 @@
           "numerical_warnings": []
         }
       },
+      "withheld_metrics": [],
       "caveat": "Class S: no lineage evidence; raw deltas may be meaningless (parameter permutation/alignment)."
     },
     {
@@ -24097,6 +24266,7 @@
           "numerical_warnings": []
         }
       },
+      "withheld_metrics": [],
       "caveat": "Class S: no lineage evidence; raw deltas may be meaningless (parameter permutation/alignment)."
     },
     {
@@ -24239,6 +24409,7 @@
           "numerical_warnings": []
         }
       },
+      "withheld_metrics": [],
       "caveat": "Class S: no lineage evidence; raw deltas may be meaningless (parameter permutation/alignment)."
     },
     {
@@ -24380,6 +24551,7 @@
           "numerical_warnings": []
         }
       },
+      "withheld_metrics": [],
       "caveat": "Class S: no lineage evidence; raw deltas may be meaningless (parameter permutation/alignment)."
     },
     {
@@ -24521,6 +24693,7 @@
           "numerical_warnings": []
         }
       },
+      "withheld_metrics": [],
       "caveat": "Class S: no lineage evidence; raw deltas may be meaningless (parameter permutation/alignment)."
     },
     {
@@ -24662,6 +24835,7 @@
           "numerical_warnings": []
         }
       },
+      "withheld_metrics": [],
       "caveat": "Class S: no lineage evidence; raw deltas may be meaningless (parameter permutation/alignment)."
     },
     {
@@ -24803,6 +24977,7 @@
           "numerical_warnings": []
         }
       },
+      "withheld_metrics": [],
       "caveat": "Class S: no lineage evidence; raw deltas may be meaningless (parameter permutation/alignment)."
     },
     {
@@ -24944,6 +25119,7 @@
           "numerical_warnings": []
         }
       },
+      "withheld_metrics": [],
       "caveat": "Class S: no lineage evidence; raw deltas may be meaningless (parameter permutation/alignment)."
     },
     {
@@ -25085,6 +25261,7 @@
           "numerical_warnings": []
         }
       },
+      "withheld_metrics": [],
       "caveat": "Class S: no lineage evidence; raw deltas may be meaningless (parameter permutation/alignment)."
     },
     {
@@ -25226,6 +25403,7 @@
           "numerical_warnings": []
         }
       },
+      "withheld_metrics": [],
       "caveat": "Class S: no lineage evidence; raw deltas may be meaningless (parameter permutation/alignment)."
     },
     {
@@ -25367,6 +25545,7 @@
           "numerical_warnings": []
         }
       },
+      "withheld_metrics": [],
       "caveat": "Class S: no lineage evidence; raw deltas may be meaningless (parameter permutation/alignment)."
     },
     {
@@ -25508,6 +25687,7 @@
           "numerical_warnings": []
         }
       },
+      "withheld_metrics": [],
       "caveat": "Class S: no lineage evidence; raw deltas may be meaningless (parameter permutation/alignment)."
     },
     {
@@ -25649,6 +25829,7 @@
           "numerical_warnings": []
         }
       },
+      "withheld_metrics": [],
       "caveat": "Class S: no lineage evidence; raw deltas may be meaningless (parameter permutation/alignment)."
     },
     {
@@ -25790,6 +25971,7 @@
           "numerical_warnings": []
         }
       },
+      "withheld_metrics": [],
       "caveat": "Class S: no lineage evidence; raw deltas may be meaningless (parameter permutation/alignment)."
     },
     {
@@ -25931,6 +26113,7 @@
           "numerical_warnings": []
         }
       },
+      "withheld_metrics": [],
       "caveat": "Class S: no lineage evidence; raw deltas may be meaningless (parameter permutation/alignment)."
     },
     {
@@ -26072,6 +26255,7 @@
           "numerical_warnings": []
         }
       },
+      "withheld_metrics": [],
       "caveat": "Class S: no lineage evidence; raw deltas may be meaningless (parameter permutation/alignment)."
     },
     {
@@ -26213,6 +26397,7 @@
           "numerical_warnings": []
         }
       },
+      "withheld_metrics": [],
       "caveat": "Class S: no lineage evidence; raw deltas may be meaningless (parameter permutation/alignment)."
     },
     {
@@ -26354,6 +26539,7 @@
           "numerical_warnings": []
         }
       },
+      "withheld_metrics": [],
       "caveat": "Class S: no lineage evidence; raw deltas may be meaningless (parameter permutation/alignment)."
     },
     {
@@ -26495,6 +26681,7 @@
           "numerical_warnings": []
         }
       },
+      "withheld_metrics": [],
       "caveat": "Class S: no lineage evidence; raw deltas may be meaningless (parameter permutation/alignment)."
     },
     {
@@ -26636,6 +26823,7 @@
           "numerical_warnings": []
         }
       },
+      "withheld_metrics": [],
       "caveat": "Class S: no lineage evidence; raw deltas may be meaningless (parameter permutation/alignment)."
     },
     {
@@ -26777,6 +26965,7 @@
           "numerical_warnings": []
         }
       },
+      "withheld_metrics": [],
       "caveat": "Class S: no lineage evidence; raw deltas may be meaningless (parameter permutation/alignment)."
     },
     {
@@ -26918,6 +27107,7 @@
           "numerical_warnings": []
         }
       },
+      "withheld_metrics": [],
       "caveat": "Class S: no lineage evidence; raw deltas may be meaningless (parameter permutation/alignment)."
     },
     {
@@ -27059,6 +27249,7 @@
           "numerical_warnings": []
         }
       },
+      "withheld_metrics": [],
       "caveat": "Class S: no lineage evidence; raw deltas may be meaningless (parameter permutation/alignment)."
     },
     {
@@ -27200,6 +27391,7 @@
           "numerical_warnings": []
         }
       },
+      "withheld_metrics": [],
       "caveat": "Class S: no lineage evidence; raw deltas may be meaningless (parameter permutation/alignment)."
     },
     {
@@ -27341,6 +27533,7 @@
           "numerical_warnings": []
         }
       },
+      "withheld_metrics": [],
       "caveat": "Class S: no lineage evidence; raw deltas may be meaningless (parameter permutation/alignment)."
     },
     {
@@ -27482,6 +27675,7 @@
           "numerical_warnings": []
         }
       },
+      "withheld_metrics": [],
       "caveat": "Class S: no lineage evidence; raw deltas may be meaningless (parameter permutation/alignment)."
     },
     {
@@ -27623,6 +27817,7 @@
           "numerical_warnings": []
         }
       },
+      "withheld_metrics": [],
       "caveat": "Class S: no lineage evidence; raw deltas may be meaningless (parameter permutation/alignment)."
     },
     {
@@ -27764,6 +27959,7 @@
           "numerical_warnings": []
         }
       },
+      "withheld_metrics": [],
       "caveat": "Class S: no lineage evidence; raw deltas may be meaningless (parameter permutation/alignment)."
     },
     {
@@ -27905,6 +28101,7 @@
           "numerical_warnings": []
         }
       },
+      "withheld_metrics": [],
       "caveat": "Class S: no lineage evidence; raw deltas may be meaningless (parameter permutation/alignment)."
     },
     {
@@ -28046,6 +28243,7 @@
           "numerical_warnings": []
         }
       },
+      "withheld_metrics": [],
       "caveat": "Class S: no lineage evidence; raw deltas may be meaningless (parameter permutation/alignment)."
     },
     {
@@ -28187,6 +28385,7 @@
           "numerical_warnings": []
         }
       },
+      "withheld_metrics": [],
       "caveat": "Class S: no lineage evidence; raw deltas may be meaningless (parameter permutation/alignment)."
     },
     {
@@ -28328,6 +28527,7 @@
           "numerical_warnings": []
         }
       },
+      "withheld_metrics": [],
       "caveat": "Class S: no lineage evidence; raw deltas may be meaningless (parameter permutation/alignment)."
     },
     {
@@ -28469,6 +28669,7 @@
           "numerical_warnings": []
         }
       },
+      "withheld_metrics": [],
       "caveat": "Class S: no lineage evidence; raw deltas may be meaningless (parameter permutation/alignment)."
     },
     {
@@ -28610,6 +28811,7 @@
           "numerical_warnings": []
         }
       },
+      "withheld_metrics": [],
       "caveat": "Class S: no lineage evidence; raw deltas may be meaningless (parameter permutation/alignment)."
     },
     {
@@ -28751,6 +28953,7 @@
           "numerical_warnings": []
         }
       },
+      "withheld_metrics": [],
       "caveat": "Class S: no lineage evidence; raw deltas may be meaningless (parameter permutation/alignment)."
     },
     {
@@ -28892,6 +29095,7 @@
           "numerical_warnings": []
         }
       },
+      "withheld_metrics": [],
       "caveat": "Class S: no lineage evidence; raw deltas may be meaningless (parameter permutation/alignment)."
     },
     {
@@ -29033,6 +29237,7 @@
           "numerical_warnings": []
         }
       },
+      "withheld_metrics": [],
       "caveat": "Class S: no lineage evidence; raw deltas may be meaningless (parameter permutation/alignment)."
     },
     {
@@ -29174,6 +29379,7 @@
           "numerical_warnings": []
         }
       },
+      "withheld_metrics": [],
       "caveat": "Class S: no lineage evidence; raw deltas may be meaningless (parameter permutation/alignment)."
     },
     {
@@ -29315,6 +29521,7 @@
           "numerical_warnings": []
         }
       },
+      "withheld_metrics": [],
       "caveat": "Class S: no lineage evidence; raw deltas may be meaningless (parameter permutation/alignment)."
     },
     {
@@ -29456,6 +29663,7 @@
           "numerical_warnings": []
         }
       },
+      "withheld_metrics": [],
       "caveat": "Class S: no lineage evidence; raw deltas may be meaningless (parameter permutation/alignment)."
     },
     {
@@ -29597,6 +29805,7 @@
           "numerical_warnings": []
         }
       },
+      "withheld_metrics": [],
       "caveat": "Class S: no lineage evidence; raw deltas may be meaningless (parameter permutation/alignment)."
     },
     {
@@ -29738,6 +29947,7 @@
           "numerical_warnings": []
         }
       },
+      "withheld_metrics": [],
       "caveat": "Class S: no lineage evidence; raw deltas may be meaningless (parameter permutation/alignment)."
     },
     {
@@ -29879,6 +30089,7 @@
           "numerical_warnings": []
         }
       },
+      "withheld_metrics": [],
       "caveat": "Class S: no lineage evidence; raw deltas may be meaningless (parameter permutation/alignment)."
     },
     {
@@ -30020,6 +30231,7 @@
           "numerical_warnings": []
         }
       },
+      "withheld_metrics": [],
       "caveat": "Class S: no lineage evidence; raw deltas may be meaningless (parameter permutation/alignment)."
     },
     {
@@ -30161,6 +30373,7 @@
           "numerical_warnings": []
         }
       },
+      "withheld_metrics": [],
       "caveat": "Class S: no lineage evidence; raw deltas may be meaningless (parameter permutation/alignment)."
     },
     {
@@ -30302,6 +30515,7 @@
           "numerical_warnings": []
         }
       },
+      "withheld_metrics": [],
       "caveat": "Class S: no lineage evidence; raw deltas may be meaningless (parameter permutation/alignment)."
     },
     {
@@ -30443,6 +30657,7 @@
           "numerical_warnings": []
         }
       },
+      "withheld_metrics": [],
       "caveat": "Class S: no lineage evidence; raw deltas may be meaningless (parameter permutation/alignment)."
     },
     {
@@ -30584,6 +30799,7 @@
           "numerical_warnings": []
         }
       },
+      "withheld_metrics": [],
       "caveat": "Class S: no lineage evidence; raw deltas may be meaningless (parameter permutation/alignment)."
     },
     {
@@ -30725,6 +30941,7 @@
           "numerical_warnings": []
         }
       },
+      "withheld_metrics": [],
       "caveat": "Class S: no lineage evidence; raw deltas may be meaningless (parameter permutation/alignment)."
     },
     {
@@ -30866,6 +31083,7 @@
           "numerical_warnings": []
         }
       },
+      "withheld_metrics": [],
       "caveat": "Class S: no lineage evidence; raw deltas may be meaningless (parameter permutation/alignment)."
     },
     {
@@ -31007,6 +31225,7 @@
           "numerical_warnings": []
         }
       },
+      "withheld_metrics": [],
       "caveat": "Class S: no lineage evidence; raw deltas may be meaningless (parameter permutation/alignment)."
     },
     {
@@ -31148,6 +31367,7 @@
           "numerical_warnings": []
         }
       },
+      "withheld_metrics": [],
       "caveat": "Class S: no lineage evidence; raw deltas may be meaningless (parameter permutation/alignment)."
     },
     {
@@ -31289,6 +31509,7 @@
           "numerical_warnings": []
         }
       },
+      "withheld_metrics": [],
       "caveat": "Class S: no lineage evidence; raw deltas may be meaningless (parameter permutation/alignment)."
     },
     {
@@ -31430,6 +31651,7 @@
           "numerical_warnings": []
         }
       },
+      "withheld_metrics": [],
       "caveat": "Class S: no lineage evidence; raw deltas may be meaningless (parameter permutation/alignment)."
     },
     {
@@ -31571,6 +31793,7 @@
           "numerical_warnings": []
         }
       },
+      "withheld_metrics": [],
       "caveat": "Class S: no lineage evidence; raw deltas may be meaningless (parameter permutation/alignment)."
     },
     {
@@ -31712,6 +31935,7 @@
           "numerical_warnings": []
         }
       },
+      "withheld_metrics": [],
       "caveat": "Class S: no lineage evidence; raw deltas may be meaningless (parameter permutation/alignment)."
     },
     {
@@ -31853,6 +32077,7 @@
           "numerical_warnings": []
         }
       },
+      "withheld_metrics": [],
       "caveat": "Class S: no lineage evidence; raw deltas may be meaningless (parameter permutation/alignment)."
     },
     {
@@ -31994,6 +32219,7 @@
           "numerical_warnings": []
         }
       },
+      "withheld_metrics": [],
       "caveat": "Class S: no lineage evidence; raw deltas may be meaningless (parameter permutation/alignment)."
     },
     {
@@ -32135,6 +32361,7 @@
           "numerical_warnings": []
         }
       },
+      "withheld_metrics": [],
       "caveat": "Class S: no lineage evidence; raw deltas may be meaningless (parameter permutation/alignment)."
     },
     {
@@ -32276,6 +32503,7 @@
           "numerical_warnings": []
         }
       },
+      "withheld_metrics": [],
       "caveat": "Class S: no lineage evidence; raw deltas may be meaningless (parameter permutation/alignment)."
     },
     {
@@ -32417,6 +32645,7 @@
           "numerical_warnings": []
         }
       },
+      "withheld_metrics": [],
       "caveat": "Class S: no lineage evidence; raw deltas may be meaningless (parameter permutation/alignment)."
     },
     {
@@ -32558,6 +32787,7 @@
           "numerical_warnings": []
         }
       },
+      "withheld_metrics": [],
       "caveat": "Class S: no lineage evidence; raw deltas may be meaningless (parameter permutation/alignment)."
     },
     {
@@ -32699,6 +32929,7 @@
           "numerical_warnings": []
         }
       },
+      "withheld_metrics": [],
       "caveat": "Class S: no lineage evidence; raw deltas may be meaningless (parameter permutation/alignment)."
     },
     {
@@ -32840,6 +33071,7 @@
           "numerical_warnings": []
         }
       },
+      "withheld_metrics": [],
       "caveat": "Class S: no lineage evidence; raw deltas may be meaningless (parameter permutation/alignment)."
     },
     {
@@ -32981,6 +33213,7 @@
           "numerical_warnings": []
         }
       },
+      "withheld_metrics": [],
       "caveat": "Class S: no lineage evidence; raw deltas may be meaningless (parameter permutation/alignment)."
     },
     {
@@ -33122,6 +33355,7 @@
           "numerical_warnings": []
         }
       },
+      "withheld_metrics": [],
       "caveat": "Class S: no lineage evidence; raw deltas may be meaningless (parameter permutation/alignment)."
     },
     {
@@ -33263,6 +33497,7 @@
           "numerical_warnings": []
         }
       },
+      "withheld_metrics": [],
       "caveat": "Class S: no lineage evidence; raw deltas may be meaningless (parameter permutation/alignment)."
     },
     {
@@ -33404,6 +33639,7 @@
           "numerical_warnings": []
         }
       },
+      "withheld_metrics": [],
       "caveat": "Class S: no lineage evidence; raw deltas may be meaningless (parameter permutation/alignment)."
     },
     {
@@ -33545,6 +33781,7 @@
           "numerical_warnings": []
         }
       },
+      "withheld_metrics": [],
       "caveat": "Class S: no lineage evidence; raw deltas may be meaningless (parameter permutation/alignment)."
     },
     {
@@ -33686,6 +33923,7 @@
           "numerical_warnings": []
         }
       },
+      "withheld_metrics": [],
       "caveat": "Class S: no lineage evidence; raw deltas may be meaningless (parameter permutation/alignment)."
     },
     {
@@ -33827,6 +34065,7 @@
           "numerical_warnings": []
         }
       },
+      "withheld_metrics": [],
       "caveat": "Class S: no lineage evidence; raw deltas may be meaningless (parameter permutation/alignment)."
     },
     {
@@ -33968,6 +34207,7 @@
           "numerical_warnings": []
         }
       },
+      "withheld_metrics": [],
       "caveat": "Class S: no lineage evidence; raw deltas may be meaningless (parameter permutation/alignment)."
     },
     {
@@ -34109,6 +34349,7 @@
           "numerical_warnings": []
         }
       },
+      "withheld_metrics": [],
       "caveat": "Class S: no lineage evidence; raw deltas may be meaningless (parameter permutation/alignment)."
     },
     {
@@ -34250,6 +34491,7 @@
           "numerical_warnings": []
         }
       },
+      "withheld_metrics": [],
       "caveat": "Class S: no lineage evidence; raw deltas may be meaningless (parameter permutation/alignment)."
     },
     {
@@ -34391,6 +34633,7 @@
           "numerical_warnings": []
         }
       },
+      "withheld_metrics": [],
       "caveat": "Class S: no lineage evidence; raw deltas may be meaningless (parameter permutation/alignment)."
     },
     {
@@ -34532,6 +34775,7 @@
           "numerical_warnings": []
         }
       },
+      "withheld_metrics": [],
       "caveat": "Class S: no lineage evidence; raw deltas may be meaningless (parameter permutation/alignment)."
     },
     {
@@ -34673,6 +34917,7 @@
           "numerical_warnings": []
         }
       },
+      "withheld_metrics": [],
       "caveat": "Class S: no lineage evidence; raw deltas may be meaningless (parameter permutation/alignment)."
     },
     {
@@ -34814,6 +35059,7 @@
           "numerical_warnings": []
         }
       },
+      "withheld_metrics": [],
       "caveat": "Class S: no lineage evidence; raw deltas may be meaningless (parameter permutation/alignment)."
     },
     {
@@ -34955,6 +35201,7 @@
           "numerical_warnings": []
         }
       },
+      "withheld_metrics": [],
       "caveat": "Class S: no lineage evidence; raw deltas may be meaningless (parameter permutation/alignment)."
     },
     {
@@ -35096,6 +35343,7 @@
           "numerical_warnings": []
         }
       },
+      "withheld_metrics": [],
       "caveat": "Class S: no lineage evidence; raw deltas may be meaningless (parameter permutation/alignment)."
     },
     {
@@ -35237,6 +35485,7 @@
           "numerical_warnings": []
         }
       },
+      "withheld_metrics": [],
       "caveat": "Class S: no lineage evidence; raw deltas may be meaningless (parameter permutation/alignment)."
     },
     {
@@ -35378,6 +35627,7 @@
           "numerical_warnings": []
         }
       },
+      "withheld_metrics": [],
       "caveat": "Class S: no lineage evidence; raw deltas may be meaningless (parameter permutation/alignment)."
     },
     {
@@ -35519,6 +35769,7 @@
           "numerical_warnings": []
         }
       },
+      "withheld_metrics": [],
       "caveat": "Class S: no lineage evidence; raw deltas may be meaningless (parameter permutation/alignment)."
     },
     {
@@ -35660,6 +35911,7 @@
           "numerical_warnings": []
         }
       },
+      "withheld_metrics": [],
       "caveat": "Class S: no lineage evidence; raw deltas may be meaningless (parameter permutation/alignment)."
     },
     {
@@ -35801,6 +36053,7 @@
           "numerical_warnings": []
         }
       },
+      "withheld_metrics": [],
       "caveat": "Class S: no lineage evidence; raw deltas may be meaningless (parameter permutation/alignment)."
     },
     {
@@ -35942,6 +36195,7 @@
           "numerical_warnings": []
         }
       },
+      "withheld_metrics": [],
       "caveat": "Class S: no lineage evidence; raw deltas may be meaningless (parameter permutation/alignment)."
     },
     {
@@ -36083,6 +36337,7 @@
           "numerical_warnings": []
         }
       },
+      "withheld_metrics": [],
       "caveat": "Class S: no lineage evidence; raw deltas may be meaningless (parameter permutation/alignment)."
     },
     {
@@ -36224,6 +36479,7 @@
           "numerical_warnings": []
         }
       },
+      "withheld_metrics": [],
       "caveat": "Class S: no lineage evidence; raw deltas may be meaningless (parameter permutation/alignment)."
     },
     {
@@ -36365,6 +36621,7 @@
           "numerical_warnings": []
         }
       },
+      "withheld_metrics": [],
       "caveat": "Class S: no lineage evidence; raw deltas may be meaningless (parameter permutation/alignment)."
     },
     {
@@ -36506,6 +36763,7 @@
           "numerical_warnings": []
         }
       },
+      "withheld_metrics": [],
       "caveat": "Class S: no lineage evidence; raw deltas may be meaningless (parameter permutation/alignment)."
     },
     {
@@ -36647,6 +36905,7 @@
           "numerical_warnings": []
         }
       },
+      "withheld_metrics": [],
       "caveat": "Class S: no lineage evidence; raw deltas may be meaningless (parameter permutation/alignment)."
     },
     {
@@ -36788,6 +37047,7 @@
           "numerical_warnings": []
         }
       },
+      "withheld_metrics": [],
       "caveat": "Class S: no lineage evidence; raw deltas may be meaningless (parameter permutation/alignment)."
     },
     {
@@ -36929,6 +37189,7 @@
           "numerical_warnings": []
         }
       },
+      "withheld_metrics": [],
       "caveat": "Class S: no lineage evidence; raw deltas may be meaningless (parameter permutation/alignment)."
     },
     {
@@ -37070,6 +37331,7 @@
           "numerical_warnings": []
         }
       },
+      "withheld_metrics": [],
       "caveat": "Class S: no lineage evidence; raw deltas may be meaningless (parameter permutation/alignment)."
     },
     {
@@ -37211,6 +37473,7 @@
           "numerical_warnings": []
         }
       },
+      "withheld_metrics": [],
       "caveat": "Class S: no lineage evidence; raw deltas may be meaningless (parameter permutation/alignment)."
     },
     {
@@ -37352,6 +37615,7 @@
           "numerical_warnings": []
         }
       },
+      "withheld_metrics": [],
       "caveat": "Class S: no lineage evidence; raw deltas may be meaningless (parameter permutation/alignment)."
     },
     {
@@ -37493,6 +37757,7 @@
           "numerical_warnings": []
         }
       },
+      "withheld_metrics": [],
       "caveat": "Class S: no lineage evidence; raw deltas may be meaningless (parameter permutation/alignment)."
     },
     {
@@ -37634,6 +37899,7 @@
           "numerical_warnings": []
         }
       },
+      "withheld_metrics": [],
       "caveat": "Class S: no lineage evidence; raw deltas may be meaningless (parameter permutation/alignment)."
     },
     {
@@ -37775,6 +38041,7 @@
           "numerical_warnings": []
         }
       },
+      "withheld_metrics": [],
       "caveat": "Class S: no lineage evidence; raw deltas may be meaningless (parameter permutation/alignment)."
     },
     {
@@ -37916,6 +38183,7 @@
           "numerical_warnings": []
         }
       },
+      "withheld_metrics": [],
       "caveat": "Class S: no lineage evidence; raw deltas may be meaningless (parameter permutation/alignment)."
     },
     {
@@ -38057,6 +38325,7 @@
           "numerical_warnings": []
         }
       },
+      "withheld_metrics": [],
       "caveat": "Class S: no lineage evidence; raw deltas may be meaningless (parameter permutation/alignment)."
     },
     {
@@ -38198,6 +38467,7 @@
           "numerical_warnings": []
         }
       },
+      "withheld_metrics": [],
       "caveat": "Class S: no lineage evidence; raw deltas may be meaningless (parameter permutation/alignment)."
     },
     {
@@ -38339,6 +38609,7 @@
           "numerical_warnings": []
         }
       },
+      "withheld_metrics": [],
       "caveat": "Class S: no lineage evidence; raw deltas may be meaningless (parameter permutation/alignment)."
     },
     {
@@ -38480,6 +38751,7 @@
           "numerical_warnings": []
         }
       },
+      "withheld_metrics": [],
       "caveat": "Class S: no lineage evidence; raw deltas may be meaningless (parameter permutation/alignment)."
     },
     {
@@ -38621,6 +38893,7 @@
           "numerical_warnings": []
         }
       },
+      "withheld_metrics": [],
       "caveat": "Class S: no lineage evidence; raw deltas may be meaningless (parameter permutation/alignment)."
     },
     {
@@ -38762,6 +39035,7 @@
           "numerical_warnings": []
         }
       },
+      "withheld_metrics": [],
       "caveat": "Class S: no lineage evidence; raw deltas may be meaningless (parameter permutation/alignment)."
     },
     {
@@ -38903,6 +39177,7 @@
           "numerical_warnings": []
         }
       },
+      "withheld_metrics": [],
       "caveat": "Class S: no lineage evidence; raw deltas may be meaningless (parameter permutation/alignment)."
     },
     {
@@ -39044,6 +39319,7 @@
           "numerical_warnings": []
         }
       },
+      "withheld_metrics": [],
       "caveat": "Class S: no lineage evidence; raw deltas may be meaningless (parameter permutation/alignment)."
     },
     {
@@ -39185,6 +39461,7 @@
           "numerical_warnings": []
         }
       },
+      "withheld_metrics": [],
       "caveat": "Class S: no lineage evidence; raw deltas may be meaningless (parameter permutation/alignment)."
     },
     {
@@ -39326,6 +39603,7 @@
           "numerical_warnings": []
         }
       },
+      "withheld_metrics": [],
       "caveat": "Class S: no lineage evidence; raw deltas may be meaningless (parameter permutation/alignment)."
     },
     {
@@ -39467,6 +39745,7 @@
           "numerical_warnings": []
         }
       },
+      "withheld_metrics": [],
       "caveat": "Class S: no lineage evidence; raw deltas may be meaningless (parameter permutation/alignment)."
     },
     {
@@ -39608,6 +39887,7 @@
           "numerical_warnings": []
         }
       },
+      "withheld_metrics": [],
       "caveat": "Class S: no lineage evidence; raw deltas may be meaningless (parameter permutation/alignment)."
     },
     {
@@ -39749,6 +40029,7 @@
           "numerical_warnings": []
         }
       },
+      "withheld_metrics": [],
       "caveat": "Class S: no lineage evidence; raw deltas may be meaningless (parameter permutation/alignment)."
     },
     {
@@ -39890,6 +40171,7 @@
           "numerical_warnings": []
         }
       },
+      "withheld_metrics": [],
       "caveat": "Class S: no lineage evidence; raw deltas may be meaningless (parameter permutation/alignment)."
     },
     {
@@ -40031,6 +40313,7 @@
           "numerical_warnings": []
         }
       },
+      "withheld_metrics": [],
       "caveat": "Class S: no lineage evidence; raw deltas may be meaningless (parameter permutation/alignment)."
     },
     {
@@ -40172,6 +40455,7 @@
           "numerical_warnings": []
         }
       },
+      "withheld_metrics": [],
       "caveat": "Class S: no lineage evidence; raw deltas may be meaningless (parameter permutation/alignment)."
     },
     {
@@ -40313,6 +40597,7 @@
           "numerical_warnings": []
         }
       },
+      "withheld_metrics": [],
       "caveat": "Class S: no lineage evidence; raw deltas may be meaningless (parameter permutation/alignment)."
     },
     {
@@ -40454,6 +40739,7 @@
           "numerical_warnings": []
         }
       },
+      "withheld_metrics": [],
       "caveat": "Class S: no lineage evidence; raw deltas may be meaningless (parameter permutation/alignment)."
     },
     {
@@ -40595,6 +40881,7 @@
           "numerical_warnings": []
         }
       },
+      "withheld_metrics": [],
       "caveat": "Class S: no lineage evidence; raw deltas may be meaningless (parameter permutation/alignment)."
     },
     {
@@ -40736,6 +41023,7 @@
           "numerical_warnings": []
         }
       },
+      "withheld_metrics": [],
       "caveat": "Class S: no lineage evidence; raw deltas may be meaningless (parameter permutation/alignment)."
     },
     {
@@ -40877,6 +41165,7 @@
           "numerical_warnings": []
         }
       },
+      "withheld_metrics": [],
       "caveat": "Class S: no lineage evidence; raw deltas may be meaningless (parameter permutation/alignment)."
     },
     {
@@ -41018,6 +41307,7 @@
           "numerical_warnings": []
         }
       },
+      "withheld_metrics": [],
       "caveat": "Class S: no lineage evidence; raw deltas may be meaningless (parameter permutation/alignment)."
     },
     {
@@ -41159,6 +41449,7 @@
           "numerical_warnings": []
         }
       },
+      "withheld_metrics": [],
       "caveat": "Class S: no lineage evidence; raw deltas may be meaningless (parameter permutation/alignment)."
     }
   ],
@@ -41173,8 +41464,9 @@
       "delta_l2": 6.704509232543031,
       "delta_rms": 0.0017361748226527695,
       "relative_l2": 0.014977865901610652,
+      "max_abs_delta": 0.25,
       "near_zero_reference": false,
-      "max_abs_delta": 0.25
+      "withheld_metrics": []
     },
     {
       "layer": 1,
@@ -41186,8 +41478,9 @@
       "delta_l2": 5.6154446267943126,
       "delta_rms": 0.0014541546951294306,
       "relative_l2": 0.024518484884114133,
+      "max_abs_delta": 0.5,
       "near_zero_reference": false,
-      "max_abs_delta": 0.5
+      "withheld_metrics": []
     },
     {
       "layer": 2,
@@ -41197,10 +41490,11 @@
       "invalid_pairs": 0,
       "withheld_tensors": 0,
       "delta_l2": 5.551002144441124,
-      "delta_rms": 0.0014374669091200116,
-      "relative_l2": 0.03361053376481219,
+      "delta_rms": 0.0014374669091200118,
+      "relative_l2": 0.0336105337648122,
+      "max_abs_delta": 0.25,
       "near_zero_reference": false,
-      "max_abs_delta": 0.25
+      "withheld_metrics": []
     },
     {
       "layer": 3,
@@ -41212,8 +41506,9 @@
       "delta_l2": 5.6380083476575145,
       "delta_rms": 0.001459997712524038,
       "relative_l2": 0.05197933280998756,
+      "max_abs_delta": 0.125,
       "near_zero_reference": false,
-      "max_abs_delta": 0.125
+      "withheld_metrics": []
     },
     {
       "layer": 4,
@@ -41225,8 +41520,9 @@
       "delta_l2": 5.831474799207942,
       "delta_rms": 0.0015100970666392414,
       "relative_l2": 0.0515535608723989,
+      "max_abs_delta": 0.1484375,
       "near_zero_reference": false,
-      "max_abs_delta": 0.1484375
+      "withheld_metrics": []
     },
     {
       "layer": 5,
@@ -41238,8 +41534,9 @@
       "delta_l2": 5.785358302174334,
       "delta_rms": 0.0014981549097592035,
       "relative_l2": 0.05084958873950201,
+      "max_abs_delta": 0.1171875,
       "near_zero_reference": false,
-      "max_abs_delta": 0.1171875
+      "withheld_metrics": []
     },
     {
       "layer": 6,
@@ -41251,8 +41548,9 @@
       "delta_l2": 5.703823977925082,
       "delta_rms": 0.0014770410838200207,
       "relative_l2": 0.05117831952100886,
+      "max_abs_delta": 0.078125,
       "near_zero_reference": false,
-      "max_abs_delta": 0.078125
+      "withheld_metrics": []
     },
     {
       "layer": 7,
@@ -41264,8 +41562,9 @@
       "delta_l2": 5.892384574325756,
       "delta_rms": 0.0015258700358969598,
       "relative_l2": 0.047464065029640644,
+      "max_abs_delta": 0.0625,
       "near_zero_reference": false,
-      "max_abs_delta": 0.0625
+      "withheld_metrics": []
     },
     {
       "layer": 8,
@@ -41277,8 +41576,9 @@
       "delta_l2": 6.322195696790112,
       "delta_rms": 0.0016371723286429563,
       "relative_l2": 0.02053933618119395,
+      "max_abs_delta": 0.25,
       "near_zero_reference": false,
-      "max_abs_delta": 0.25
+      "withheld_metrics": []
     },
     {
       "layer": 9,
@@ -41287,11 +41587,12 @@
       "finite_pairs": 14912384,
       "invalid_pairs": 0,
       "withheld_tensors": 0,
-      "delta_l2": 6.382609491206634,
-      "delta_rms": 0.0016528168605794277,
-      "relative_l2": 0.04895046038180952,
+      "delta_l2": 6.382609491206635,
+      "delta_rms": 0.001652816860579428,
+      "relative_l2": 0.04895046038180953,
+      "max_abs_delta": 0.109375,
       "near_zero_reference": false,
-      "max_abs_delta": 0.109375
+      "withheld_metrics": []
     },
     {
       "layer": 10,
@@ -41303,8 +41604,9 @@
       "delta_l2": 6.452538885721506,
       "delta_rms": 0.0016709255169939437,
       "relative_l2": 0.05329624670855291,
+      "max_abs_delta": 0.125,
       "near_zero_reference": false,
-      "max_abs_delta": 0.125
+      "withheld_metrics": []
     },
     {
       "layer": 11,
@@ -41313,11 +41615,12 @@
       "finite_pairs": 14912384,
       "invalid_pairs": 0,
       "withheld_tensors": 0,
-      "delta_l2": 6.418707232942879,
-      "delta_rms": 0.0016621645977788766,
+      "delta_l2": 6.41870723294288,
+      "delta_rms": 0.0016621645977788768,
       "relative_l2": 0.04934975045340867,
+      "max_abs_delta": 0.078125,
       "near_zero_reference": false,
-      "max_abs_delta": 0.078125
+      "withheld_metrics": []
     },
     {
       "layer": 12,
@@ -41328,9 +41631,10 @@
       "withheld_tensors": 0,
       "delta_l2": 6.480264834266068,
       "delta_rms": 0.0016781053257059048,
-      "relative_l2": 0.053653836497037775,
+      "relative_l2": 0.05365383649703776,
+      "max_abs_delta": 0.126953125,
       "near_zero_reference": false,
-      "max_abs_delta": 0.126953125
+      "withheld_metrics": []
     },
     {
       "layer": 13,
@@ -41340,10 +41644,11 @@
       "invalid_pairs": 0,
       "withheld_tensors": 0,
       "delta_l2": 6.33646226377211,
-      "delta_rms": 0.0016408667458688447,
-      "relative_l2": 0.052610678114031535,
+      "delta_rms": 0.001640866745868845,
+      "relative_l2": 0.05261067811403154,
+      "max_abs_delta": 0.16796875,
       "near_zero_reference": false,
-      "max_abs_delta": 0.16796875
+      "withheld_metrics": []
     },
     {
       "layer": 14,
@@ -41352,11 +41657,12 @@
       "finite_pairs": 14912384,
       "invalid_pairs": 0,
       "withheld_tensors": 0,
-      "delta_l2": 6.3478663385329215,
-      "delta_rms": 0.001643819902735162,
+      "delta_l2": 6.347866338532921,
+      "delta_rms": 0.0016438199027351617,
       "relative_l2": 0.05270635531437912,
+      "max_abs_delta": 0.23828125,
       "near_zero_reference": false,
-      "max_abs_delta": 0.23828125
+      "withheld_metrics": []
     },
     {
       "layer": 15,
@@ -41366,10 +41672,11 @@
       "invalid_pairs": 0,
       "withheld_tensors": 0,
       "delta_l2": 6.282701282804129,
-      "delta_rms": 0.0016269450018067042,
+      "delta_rms": 0.001626945001806704,
       "relative_l2": 0.05129216099192743,
+      "max_abs_delta": 0.1484375,
       "near_zero_reference": false,
-      "max_abs_delta": 0.1484375
+      "withheld_metrics": []
     },
     {
       "layer": 16,
@@ -41381,8 +41688,9 @@
       "delta_l2": 6.233781273811106,
       "delta_rms": 0.001614276857876739,
       "relative_l2": 0.052115361274746266,
+      "max_abs_delta": 0.1376953125,
       "near_zero_reference": false,
-      "max_abs_delta": 0.1376953125
+      "withheld_metrics": []
     },
     {
       "layer": 17,
@@ -41393,9 +41701,10 @@
       "withheld_tensors": 0,
       "delta_l2": 6.262666045962599,
       "delta_rms": 0.0016217567512482132,
-      "relative_l2": 0.0520182160761312,
+      "relative_l2": 0.052018216076131205,
+      "max_abs_delta": 0.109375,
       "near_zero_reference": false,
-      "max_abs_delta": 0.109375
+      "withheld_metrics": []
     },
     {
       "layer": 18,
@@ -41407,8 +41716,9 @@
       "delta_l2": 6.214563090802588,
       "delta_rms": 0.0016093001885458108,
       "relative_l2": 0.0493100145567132,
+      "max_abs_delta": 0.140625,
       "near_zero_reference": false,
-      "max_abs_delta": 0.140625
+      "withheld_metrics": []
     },
     {
       "layer": 19,
@@ -41419,9 +41729,10 @@
       "withheld_tensors": 0,
       "delta_l2": 6.030726884142359,
       "delta_rms": 0.00156169464689837,
-      "relative_l2": 0.047385571092198465,
+      "relative_l2": 0.04738557109219847,
+      "max_abs_delta": 0.125,
       "near_zero_reference": false,
-      "max_abs_delta": 0.125
+      "withheld_metrics": []
     },
     {
       "layer": 20,
@@ -41432,9 +41743,10 @@
       "withheld_tensors": 0,
       "delta_l2": 6.043625349647635,
       "delta_rms": 0.001565034785644457,
-      "relative_l2": 0.05009164037548855,
+      "relative_l2": 0.05009164037548854,
+      "max_abs_delta": 0.125,
       "near_zero_reference": false,
-      "max_abs_delta": 0.125
+      "withheld_metrics": []
     },
     {
       "layer": 21,
@@ -41446,8 +41758,9 @@
       "delta_l2": 6.0988400726757215,
       "delta_rms": 0.0015793329853539602,
       "relative_l2": 0.04622125607306009,
+      "max_abs_delta": 0.109375,
       "near_zero_reference": false,
-      "max_abs_delta": 0.109375
+      "withheld_metrics": []
     },
     {
       "layer": 22,
@@ -41459,8 +41772,9 @@
       "delta_l2": 6.189218829041071,
       "delta_rms": 0.0016027371326019864,
       "relative_l2": 0.049476883404423105,
+      "max_abs_delta": 0.0625,
       "near_zero_reference": false,
-      "max_abs_delta": 0.0625
+      "withheld_metrics": []
     },
     {
       "layer": 23,
@@ -41472,8 +41786,9 @@
       "delta_l2": 5.771511482441335,
       "delta_rms": 0.0014945691887227476,
       "relative_l2": 0.04122650133020762,
+      "max_abs_delta": 0.109375,
       "near_zero_reference": false,
-      "max_abs_delta": 0.109375
+      "withheld_metrics": []
     },
     {
       "layer": null,
@@ -41482,11 +41797,12 @@
       "finite_pairs": 136135552,
       "invalid_pairs": 0,
       "withheld_tensors": 0,
-      "delta_l2": 20.566642676561496,
-      "delta_rms": 0.0017626968337082847,
-      "relative_l2": 0.07334334499559247,
+      "delta_l2": 20.566642676561493,
+      "delta_rms": 0.0017626968337082845,
+      "relative_l2": 0.07334334499559245,
+      "max_abs_delta": 0.125,
       "near_zero_reference": false,
-      "max_abs_delta": 0.125
+      "withheld_metrics": []
     }
   ],
   "roles": [
@@ -41500,8 +41816,9 @@
       "delta_l2": 3.307175935712465,
       "delta_rms": 0.0019922804440228553,
       "relative_l2": 0.006206797605740647,
+      "max_abs_delta": 0.5,
       "near_zero_reference": false,
-      "max_abs_delta": 0.5
+      "withheld_metrics": []
     },
     {
       "role": "attention.o",
@@ -41513,8 +41830,9 @@
       "delta_l2": 5.371607606595208,
       "delta_rms": 0.001223744208948201,
       "relative_l2": 0.06603569395784785,
+      "max_abs_delta": 0.034423828125,
       "near_zero_reference": false,
-      "max_abs_delta": 0.034423828125
+      "withheld_metrics": []
     },
     {
       "role": "attention.q",
@@ -41526,8 +41844,9 @@
       "delta_l2": 9.739640708129805,
       "delta_rms": 0.00221761979210079,
       "relative_l2": 0.02517628386292587,
+      "max_abs_delta": 0.25,
       "near_zero_reference": false,
-      "max_abs_delta": 0.25
+      "withheld_metrics": []
     },
     {
       "role": "attention.v",
@@ -41539,8 +41858,9 @@
       "delta_l2": 1.6870193505134439,
       "delta_rms": 0.001016279667622826,
       "relative_l2": 0.03977998490676034,
+      "max_abs_delta": 0.009765625,
       "near_zero_reference": false,
-      "max_abs_delta": 0.009765625
+      "withheld_metrics": []
     },
     {
       "role": "embedding",
@@ -41549,11 +41869,12 @@
       "finite_pairs": 136134656,
       "invalid_pairs": 0,
       "withheld_tensors": 0,
-      "delta_l2": 20.321836155495067,
-      "delta_rms": 0.001741721033044826,
-      "relative_l2": 0.11155847765111031,
+      "delta_l2": 20.321836155495063,
+      "delta_rms": 0.0017417210330448259,
+      "relative_l2": 0.11155847765111025,
+      "max_abs_delta": 0.01904296875,
       "near_zero_reference": false,
-      "max_abs_delta": 0.01904296875
+      "withheld_metrics": []
     },
     {
       "role": "mlp.down",
@@ -41564,9 +41885,10 @@
       "withheld_tensors": 0,
       "delta_l2": 14.2304963558974,
       "delta_rms": 0.0013914372947954386,
-      "relative_l2": 0.074941259970838,
+      "relative_l2": 0.07494125997083802,
+      "max_abs_delta": 0.02197265625,
       "near_zero_reference": false,
-      "max_abs_delta": 0.02197265625
+      "withheld_metrics": []
     },
     {
       "role": "mlp.gate",
@@ -41578,8 +41900,9 @@
       "delta_l2": 17.515460649015377,
       "delta_rms": 0.001712636339101539,
       "relative_l2": 0.07873893524553563,
+      "max_abs_delta": 0.02734375,
       "near_zero_reference": false,
-      "max_abs_delta": 0.02734375
+      "withheld_metrics": []
     },
     {
       "role": "mlp.up",
@@ -41591,8 +41914,9 @@
       "delta_l2": 15.767186648319298,
       "delta_rms": 0.0015416926428838292,
       "relative_l2": 0.07972285106984864,
+      "max_abs_delta": 0.03515625,
       "near_zero_reference": false,
-      "max_abs_delta": 0.03515625
+      "withheld_metrics": []
     },
     {
       "role": "norm",
@@ -41604,8 +41928,9 @@
       "delta_l2": 3.5054878564955025,
       "delta_rms": 0.016730018536355546,
       "relative_l2": 0.008924949022637862,
+      "max_abs_delta": 0.125,
       "near_zero_reference": false,
-      "max_abs_delta": 0.125
+      "withheld_metrics": []
     }
   ],
   "totals": {
@@ -41618,8 +41943,9 @@
     "delta_l2": 36.34097204657068,
     "delta_rms": 0.001635003406431982,
     "relative_l2": 0.04184885316722345,
+    "max_abs_delta": 0.5,
     "near_zero_reference": false,
-    "max_abs_delta": 0.5
+    "withheld_metrics": []
   },
   "warnings": []
 }

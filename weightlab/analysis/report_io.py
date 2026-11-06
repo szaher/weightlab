@@ -3,7 +3,8 @@
 Tensor keys and metadata strings are untrusted data: Markdown cells are escaped and CSV cells that
 a spreadsheet would evaluate as a formula (leading = + - @ tab CR) are prefixed with a quote.
 The files of one run are published as a set (`write_report_set`): a cancelled or failed export
-leaves neither a partial file nor a mix of old and new files behind.
+rolls back to the previous state, so it leaves neither a partial file nor a mix of old and new
+files behind (not atomic for concurrent readers while the final renames run).
 """
 
 from __future__ import annotations
@@ -34,6 +35,7 @@ COUNT_COLUMNS = (
     "pos_inf_b",
     "neg_inf_b",
     "delta_overflow",
+    "b_overflow",
     "changed",
 )
 ROLLUP_COLUMNS = (
@@ -46,6 +48,8 @@ ROLLUP_COLUMNS = (
     "delta_rms",
     "relative_l2",
     "max_abs_delta",
+    "near_zero_reference",
+    "withheld_metrics",
 )
 
 
@@ -79,7 +83,7 @@ def tensors_csv(report: dict[str, Any]) -> str:
     adapter = report["mode"] == "adapter"
     head = ["rank", "key", "layer", "role", "status", "shape"] + ([] if adapter else ["dtype_a", "dtype_b"])
     head += (["lora_rank", "lora_scale", "gmac"] if adapter else []) + list(COUNT_COLUMNS) + list(METRIC_COLUMNS)
-    head += ["numeric_precision", "caveat"]
+    head += ["numeric_precision", "withheld_metrics", "caveat"]
     rows = []
     for t in report["tensors"]:
         c = t.get("counts") or {}
@@ -89,14 +93,18 @@ def tensors_csv(report: dict[str, Any]) -> str:
         row += [] if adapter else [t["dtype_a"], t["dtype_b"]]
         row += [t["lora"]["rank"], t["lora"]["scale"], t["lora"]["gmac"]] if adapter else []
         row += [c.get(k) for k in COUNT_COLUMNS] + [m[k]["value"] if k in m else None for k in METRIC_COLUMNS]
-        row += ["/".join(precisions), t["caveat"]]
+        row += ["/".join(precisions), "/".join(t.get("withheld_metrics") or []), t["caveat"]]
         rows.append(row)
     return _csv(head, rows)
 
 
 def rollup_csv(report: dict[str, Any], kind: str) -> str:
     label = "layer" if kind == "layers" else "role"
-    return _csv([label, *ROLLUP_COLUMNS], [[r[label], *(r[k] for k in ROLLUP_COLUMNS)] for r in report[kind]])
+
+    def cell(v: Any) -> Any:
+        return "/".join(v) if isinstance(v, list) else v
+
+    return _csv([label, *ROLLUP_COLUMNS], [[r[label], *(cell(r[k]) for k in ROLLUP_COLUMNS)] for r in report[kind]])
 
 
 def _md(v: Any) -> str:
@@ -276,36 +284,56 @@ def _sigint_deferred() -> Iterator[None]:
 
 
 def write_report_set(files: dict[Path, str], bundle_dir: Path | None = None) -> None:
-    """Publish several report files as one set: either every file is the new version or none is.
+    """Publish several report files as one set: on any failure, no new file stays published.
 
-    Phase 1 writes and fsyncs every file to a temporary name next to its target; any failure or
-    cancellation there removes the temporaries and publishes nothing. Phase 2 renames them into
-    place with Ctrl-C deferred; if a rename fails, files already replaced are restored from
-    backups. A `bundle_dir` (`--out`) that does not exist yet is staged as a temporary sibling
-    directory and appears with a single directory rename, so even a crash cannot expose half of it.
+    1. Stage: every file is written and fsynced under a temporary name next to its target (or in a
+       temporary sibling of a new `bundle_dir`). A failure or Ctrl-C here removes the temporaries
+       and publishes nothing.
+    2. Commit, with Ctrl-C deferred: a new `bundle_dir` (`--out`) appears with one directory rename;
+       every other target is renamed into place, previous versions kept as backups. If any step
+       fails, everything already published in this call is rolled back: replaced files are restored
+       from their backups, new files are removed and a newly published `bundle_dir` is removed.
+
+    Guarantee: a failed call leaves the previous state (best effort if the rollback itself fails,
+    e.g. a vanished disk). It is not atomic for concurrent readers: while the renames run, a reader
+    can see some targets new and others old. Only a new `bundle_dir` is published atomically.
     """
     files = {Path(os.path.abspath(p)): t for p, t in files.items()}
+    tmp_dir: Path | None = None
+    bundle: dict[Path, str] = {}
     if bundle_dir is not None:
         bundle_dir = Path(os.path.abspath(bundle_dir))
-        inside = {p: t for p, t in files.items() if p.parent == bundle_dir}
-        if inside and not bundle_dir.exists():
+        if not bundle_dir.exists():
+            bundle = {p: t for p, t in files.items() if p.parent == bundle_dir}
+    rest = {p: t for p, t in files.items() if p not in bundle}
+    staged: list[tuple[Path, Path]] = []
+    try:
+        if bundle:
+            assert bundle_dir is not None
             bundle_dir.parent.mkdir(parents=True, exist_ok=True)
             tmp_dir = Path(tempfile.mkdtemp(prefix=f".{bundle_dir.name}.", suffix=".tmp", dir=bundle_dir.parent))
+            for p, t in bundle.items():
+                os.replace(_stage(tmp_dir / p.name, t), tmp_dir / p.name)
+        staged = _stage_all(rest)
+        with _sigint_deferred():
+            published_dir = False
             try:
-                for p, t in inside.items():
-                    os.replace(_stage(tmp_dir / p.name, t), tmp_dir / p.name)
-                rest = {p: t for p, t in files.items() if p not in inside}
-                staged_rest = _stage_all(rest)
-                with _sigint_deferred():
-                    os.rename(tmp_dir, bundle_dir)  # fails if bundle_dir appeared meanwhile: nothing published
-                    _commit(staged_rest)
+                if tmp_dir is not None:
+                    assert bundle_dir is not None
+                    os.rename(tmp_dir, bundle_dir)  # fails if bundle_dir appeared meanwhile
+                    published_dir = True
+                _commit(staged)  # restores its own targets on failure
             except BaseException:
-                shutil.rmtree(tmp_dir, ignore_errors=True)
+                if published_dir:
+                    assert bundle_dir is not None
+                    shutil.rmtree(bundle_dir, ignore_errors=True)
                 raise
-            return
-    staged = _stage_all(files)
-    with _sigint_deferred():
-        _commit(staged)
+    except BaseException:
+        if tmp_dir is not None:
+            shutil.rmtree(tmp_dir, ignore_errors=True)
+        for _, tmp in staged:
+            tmp.unlink(missing_ok=True)
+        raise
 
 
 def _stage_all(files: dict[Path, str]) -> list[tuple[Path, Path]]:

@@ -58,7 +58,7 @@ def _parser() -> argparse.ArgumentParser:
         "--chunk-elements",
         type=int,
         default=DEFAULT_CHUNK_ELEMENTS,
-        help="elements per streamed chunk; bounds memory, never changes results beyond rounding (default 1048576)",
+        help="elements per streamed chunk; bounds memory, never changes results beyond rounding (default 262144)",
     )
     d.add_argument(
         "--consistency",

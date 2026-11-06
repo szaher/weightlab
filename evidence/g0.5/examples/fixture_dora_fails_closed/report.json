@@ -111,13 +111,14 @@
   "settings": {
     "sort": "relative_l2",
     "epsilon_norm": 1e-12,
-    "chunk_elements": 1048576,
+    "chunk_elements": 262144,
     "consistency": "best_effort"
   },
   "complete": false,
   "completeness": {
     "modules_analyzed": 0,
     "modules_withheld": 0,
+    "rollups_withheld": 0,
     "modules_norm_only": 0,
     "modules_unsupported": 1,
     "modules_skipped": 0,
@@ -147,7 +148,8 @@
       },
       "counts": null,
       "metrics": {},
-      "caveat": "use_dora=true (DoRA magnitude vectors are not supported)"
+      "caveat": "use_dora=true (DoRA magnitude vectors are not supported)",
+      "withheld_metrics": []
     }
   ],
   "layers": [],
@@ -162,8 +164,9 @@
     "delta_l2": 0.0,
     "delta_rms": null,
     "relative_l2": null,
+    "max_abs_delta": null,
     "near_zero_reference": true,
-    "max_abs_delta": null
+    "withheld_metrics": []
   },
   "warnings": []
 }

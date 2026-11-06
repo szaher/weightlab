@@ -198,12 +198,9 @@ def test_dora_adapter_fails_closed(fixtures_dir: Path) -> None:
 
 
 def _normalize(report: dict[str, Any]) -> Any:
-    """Golden comparison: floats to 12 significant digits (BLAS summation order may differ by an ulp
-    across platforms), file times dropped."""
+    """Golden form: file times dropped (they change on every fixture regeneration)."""
 
     def walk(v: Any) -> Any:
-        if isinstance(v, float):
-            return float(f"{v:.12g}")
         if isinstance(v, dict):
             return {k: walk(x) for k, x in v.items() if k != "mtime_ns"}
         if isinstance(v, list):
@@ -211,6 +208,28 @@ def _normalize(report: dict[str, Any]) -> Any:
         return v
 
     return walk(report)
+
+
+def assert_matches(got: Any, want: Any, path: str = "$") -> None:
+    """Structural equality; floats within 1e-9 relative. BLAS/SIMD summation order differs across
+    CPUs by a few ulps, so comparing rounded decimal text fails at rounding boundaries
+    (0.00596888485516|5 on one runner, ...517 on another)."""
+    if isinstance(want, float) or isinstance(got, float):
+        assert isinstance(got, (int, float)), path
+        assert isinstance(want, (int, float)), path
+        assert math.isclose(got, want, rel_tol=1e-9, abs_tol=1e-300), (path, got, want)
+    elif isinstance(want, dict):
+        assert isinstance(got, dict), path
+        assert got.keys() == want.keys(), (path, sorted(got.keys() ^ want.keys()))
+        for k in want:
+            assert_matches(got[k], want[k], f"{path}.{k}")
+    elif isinstance(want, list):
+        assert isinstance(got, list), path
+        assert len(got) == len(want), (path, len(got), len(want))
+        for i, (g, w) in enumerate(zip(got, want, strict=True)):
+            assert_matches(g, w, f"{path}[{i}]")
+    else:
+        assert got == want, (path, got, want)
 
 
 @pytest.mark.parametrize(
@@ -234,4 +253,4 @@ def test_golden_reports(fixtures_dir: Path, name: str, a: str, b: str | None, ad
     if os.environ.get("WEIGHTLAB_UPDATE_GOLDEN") == "1":
         golden.parent.mkdir(exist_ok=True)
         golden.write_text(json.dumps(got, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
-    assert got == json.loads(golden.read_text(encoding="utf-8"))
+    assert_matches(got, json.loads(golden.read_text(encoding="utf-8")))

@@ -14,7 +14,7 @@ Counts: modules 168, analyzed 168, over_budget_norm_only 0, unsupported 0, skipp
 
 ## Completeness
 
-modules_analyzed: 168, modules_withheld: 0, modules_norm_only: 0, modules_unsupported: 0, modules_skipped: 0, unsupported_adapter_keys: 0, base_tensors_without_adapter: 122
+modules_analyzed: 168, modules_withheld: 0, rollups_withheld: 0, modules_norm_only: 0, modules_unsupported: 0, modules_skipped: 0, unsupported_adapter_keys: 0, base_tensors_without_adapter: 122
 
 ## Caveats
 

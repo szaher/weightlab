@@ -4,15 +4,18 @@
   "python": "3.12.11",
   "machine": "arm64",
   "cpu_count": 12,
-  "created": "2026-11-06T16:42:55Z",
+  "created": "2026-11-06T18:41:51Z",
   "cases": [
     {
-      "rss_after_import": 33292288,
+      "memory_metric": "macos_phys_footprint_peak",
+      "mem_after_import": 20562328,
+      "resident_after_import": 33243136,
       "exit_code": 0,
-      "diff_seconds": 0.4144809579884168,
-      "rss_peak": 93896704,
+      "diff_seconds": 0.35316370899090543,
+      "mem_peak": 44564912,
+      "resident_peak": 57589760,
       "bytes_read": 536871104,
-      "total_seconds": 0.45839679197524674,
+      "total_seconds": 0.3977818340063095,
       "report_complete": true,
       "compatibility_class": "S",
       "transfer_eligibility": "T4",
@@ -20,6 +23,7 @@
       "completeness": {
         "tensors_analyzed": 1,
         "tensors_withheld": 0,
+        "rollups_withheld": 0,
         "entries_not_compared": 0,
         "tied_entries": 0
       },
@@ -27,8 +31,8 @@
       "case": "synthetic_sparse_bf16_0.25gib",
       "elements_per_side": 134217728,
       "pair_bytes": 536870912,
-      "throughput_mib_s_per_side": 617.6399544201842,
-      "rss_growth_bytes": 60604416,
+      "throughput_mib_s_per_side": 724.8762924465505,
+      "mem_growth_bytes": 24002584,
       "delta_l2": 2.29128784747792,
       "expected_delta_l2": 2.29128784747792,
       "max_abs_delta": 2.0,
@@ -36,12 +40,15 @@
       "metrics_correct": true
     },
     {
-      "rss_after_import": 33243136,
+      "memory_metric": "macos_phys_footprint_peak",
+      "mem_after_import": 20562328,
+      "resident_after_import": 33243136,
       "exit_code": 0,
-      "diff_seconds": 1.5490965420030989,
-      "rss_peak": 92782592,
+      "diff_seconds": 1.394075582997175,
+      "mem_peak": 38257072,
+      "resident_peak": 51281920,
       "bytes_read": 2147483840,
-      "total_seconds": 1.592156333004823,
+      "total_seconds": 1.4417046250018757,
       "report_complete": true,
       "compatibility_class": "S",
       "transfer_eligibility": "T4",
@@ -49,6 +56,7 @@
       "completeness": {
         "tensors_analyzed": 1,
         "tensors_withheld": 0,
+        "rollups_withheld": 0,
         "entries_not_compared": 0,
         "tied_entries": 0
       },
@@ -56,8 +64,8 @@
       "case": "synthetic_sparse_bf16_1.0gib",
       "elements_per_side": 536870912,
       "pair_bytes": 2147483648,
-      "throughput_mib_s_per_side": 661.0304601647942,
-      "rss_growth_bytes": 59539456,
+      "throughput_mib_s_per_side": 734.5369307727665,
+      "mem_growth_bytes": 17694744,
       "delta_l2": 2.29128784747792,
       "expected_delta_l2": 2.29128784747792,
       "max_abs_delta": 2.0,
@@ -65,12 +73,15 @@
       "metrics_correct": true
     },
     {
-      "rss_after_import": 33325056,
+      "memory_metric": "macos_phys_footprint_peak",
+      "mem_after_import": 20562328,
+      "resident_after_import": 33243136,
       "exit_code": 0,
-      "diff_seconds": 6.81769541700487,
-      "rss_peak": 94863360,
+      "diff_seconds": 5.800271165993763,
+      "mem_peak": 44548528,
+      "resident_peak": 56426496,
       "bytes_read": 8589934784,
-      "total_seconds": 6.86332579201553,
+      "total_seconds": 5.84541416700813,
       "report_complete": true,
       "compatibility_class": "S",
       "transfer_eligibility": "T4",
@@ -78,6 +89,7 @@
       "completeness": {
         "tensors_analyzed": 1,
         "tensors_withheld": 0,
+        "rollups_withheld": 0,
         "entries_not_compared": 0,
         "tied_entries": 0
       },
@@ -85,8 +97,8 @@
       "case": "synthetic_sparse_bf16_4.0gib",
       "elements_per_side": 2147483648,
       "pair_bytes": 8589934592,
-      "throughput_mib_s_per_side": 600.7895262941275,
-      "rss_growth_bytes": 61538304,
+      "throughput_mib_s_per_side": 706.173880975482,
+      "mem_growth_bytes": 23986200,
       "delta_l2": 2.29128784747792,
       "expected_delta_l2": 2.29128784747792,
       "max_abs_delta": 2.0,
@@ -94,12 +106,15 @@
       "metrics_correct": true
     },
     {
-      "rss_after_import": 33406976,
+      "memory_metric": "macos_phys_footprint_peak",
+      "mem_after_import": 20644248,
+      "resident_after_import": 33325056,
       "exit_code": 0,
-      "diff_seconds": 19.70496833298239,
-      "rss_peak": 93896704,
+      "diff_seconds": 18.347580834000837,
+      "mem_peak": 48923056,
+      "resident_peak": 59179008,
       "bytes_read": 25769803984,
-      "total_seconds": 19.775980834005168,
+      "total_seconds": 18.41537075000815,
       "report_complete": true,
       "compatibility_class": "S",
       "transfer_eligibility": "T4",
@@ -107,6 +122,7 @@
       "completeness": {
         "tensors_analyzed": 1,
         "tensors_withheld": 0,
+        "rollups_withheld": 0,
         "entries_not_compared": 0,
         "tied_entries": 0
       },
@@ -114,8 +130,8 @@
       "case": "synthetic_sparse_bf16_12.0gib",
       "elements_per_side": 6442450944,
       "pair_bytes": 25769803776,
-      "throughput_mib_s_per_side": 623.5990737134154,
-      "rss_growth_bytes": 60489728,
+      "throughput_mib_s_per_side": 669.7340707298306,
+      "mem_growth_bytes": 28278808,
       "delta_l2": 2.29128784747792,
       "expected_delta_l2": 2.29128784747792,
       "max_abs_delta": 2.0,
@@ -123,12 +139,15 @@
       "metrics_correct": true
     },
     {
-      "rss_after_import": 33193984,
+      "memory_metric": "macos_phys_footprint_peak",
+      "mem_after_import": 20726168,
+      "resident_after_import": 33406976,
       "exit_code": 0,
-      "diff_seconds": 2.2491884579940233,
-      "rss_peak": 103235584,
+      "diff_seconds": 2.171201707998989,
+      "mem_peak": 49512880,
+      "resident_peak": 62537728,
       "bytes_read": 1073742000,
-      "total_seconds": 2.3209919589862693,
+      "total_seconds": 2.2452369169914164,
       "report_complete": true,
       "compatibility_class": "S",
       "transfer_eligibility": "T4",
@@ -136,25 +155,29 @@
       "completeness": {
         "tensors_analyzed": 1,
         "tensors_withheld": 0,
+        "rollups_withheld": 0,
         "entries_not_compared": 0,
         "tied_entries": 0
       },
       "not_compared": 0,
       "case": "b05_dense_bf16_pair_1.0gib",
       "pair_bytes": 1073741824,
-      "delta_l2": 16.401522894689048,
+      "delta_l2": 16.40152289468903,
       "expected_delta_l2": 16.40152289468904,
       "metrics_correct": true,
-      "throughput_mib_s_per_side": 227.63766112184118,
-      "rss_growth_bytes": 70041600
+      "throughput_mib_s_per_side": 235.8141107358775,
+      "mem_growth_bytes": 28786712
     },
     {
-      "rss_after_import": 33226752,
+      "memory_metric": "macos_phys_footprint_peak",
+      "mem_after_import": 20693400,
+      "resident_after_import": 33374208,
       "exit_code": 0,
-      "diff_seconds": 0.8301268339855596,
-      "rss_peak": 53624832,
+      "diff_seconds": 0.7994933750014752,
+      "mem_peak": 40518064,
+      "resident_peak": 53723136,
       "bytes_read": 135266912,
-      "total_seconds": 0.877592792006908,
+      "total_seconds": 0.8618891250225715,
       "report_complete": true,
       "compatibility_class": "L",
       "transfer_eligibility": "T2",
@@ -162,6 +185,7 @@
       "completeness": {
         "modules_analyzed": 1,
         "modules_withheld": 0,
+        "rollups_withheld": 0,
         "modules_norm_only": 0,
         "modules_unsupported": 0,
         "modules_skipped": 0,
@@ -175,15 +199,18 @@
       "delta_l2": 4.610612406297757,
       "expected_delta_l2": 4.610612406297758,
       "metrics_correct": true,
-      "rss_growth_bytes": 20398080
+      "mem_growth_bytes": 19824664
     },
     {
-      "rss_after_import": 33275904,
+      "memory_metric": "macos_phys_footprint_peak",
+      "mem_after_import": 20545944,
+      "resident_after_import": 33226752,
       "exit_code": 0,
-      "diff_seconds": 0.8690358329913579,
-      "rss_peak": 60014592,
+      "diff_seconds": 0.8227314169926103,
+      "mem_peak": 48890288,
+      "resident_peak": 62095360,
       "bytes_read": 138412656,
-      "total_seconds": 0.9124171250150539,
+      "total_seconds": 0.8673699170176405,
       "report_complete": true,
       "compatibility_class": "L",
       "transfer_eligibility": "T2",
@@ -191,6 +218,7 @@
       "completeness": {
         "modules_analyzed": 1,
         "modules_withheld": 0,
+        "rollups_withheld": 0,
         "modules_norm_only": 0,
         "modules_unsupported": 0,
         "modules_skipped": 0,
@@ -204,15 +232,18 @@
       "delta_l2": 9.272604031079938,
       "expected_delta_l2": 9.272604031079938,
       "metrics_correct": true,
-      "rss_growth_bytes": 26738688
+      "mem_growth_bytes": 28344344
     },
     {
-      "rss_after_import": 33243136,
+      "memory_metric": "macos_phys_footprint_peak",
+      "mem_after_import": 20611480,
+      "resident_after_import": 33292288,
       "exit_code": 0,
-      "diff_seconds": 4.244958166993456,
-      "rss_peak": 117293056,
+      "diff_seconds": 3.9148088749789167,
+      "mem_peak": 49103280,
+      "resident_peak": 62111744,
       "bytes_read": 1976195648,
-      "total_seconds": 4.285953667014837,
+      "total_seconds": 3.9575332920067012,
       "report_complete": true,
       "compatibility_class": "S",
       "transfer_eligibility": "T4",
@@ -220,21 +251,25 @@
       "completeness": {
         "tensors_analyzed": 290,
         "tensors_withheld": 0,
+        "rollups_withheld": 0,
         "entries_not_compared": 0,
         "tied_entries": 0
       },
       "not_compared": 0,
       "case": "real_checkpoint_pair",
       "input_safetensors_bytes": 1976195648,
-      "rss_growth_bytes": 84049920
+      "mem_growth_bytes": 28491800
     },
     {
-      "rss_after_import": 33325056,
+      "memory_metric": "macos_phys_footprint_peak",
+      "mem_after_import": 20545944,
+      "resident_after_import": 33226752,
       "exit_code": 0,
-      "diff_seconds": 4.462157707981532,
-      "rss_peak": 72843264,
+      "diff_seconds": 4.412260959012201,
+      "mem_peak": 65536432,
+      "resident_peak": 78708736,
       "bytes_read": 786159616,
-      "total_seconds": 4.505329165986041,
+      "total_seconds": 4.456204250018345,
       "report_complete": true,
       "compatibility_class": "L",
       "transfer_eligibility": "T2",
@@ -242,6 +277,7 @@
       "completeness": {
         "modules_analyzed": 168,
         "modules_withheld": 0,
+        "rollups_withheld": 0,
         "modules_norm_only": 0,
         "modules_unsupported": 0,
         "modules_skipped": 0,
@@ -251,15 +287,15 @@
       "not_compared": 0,
       "case": "real_lora_adapter",
       "input_safetensors_bytes": 1023334928,
-      "rss_growth_bytes": 39518208
+      "mem_growth_bytes": 44990488
     }
   ],
   "summary": {
     "synthetic_all_correct": true,
     "dense_all_correct": true,
-    "synthetic_rss_growth_range_bytes": [
-      59539456,
-      61538304
+    "synthetic_mem_growth_range_bytes": [
+      17694744,
+      28278808
     ],
     "synthetic_size_ratio": 48.0
   }

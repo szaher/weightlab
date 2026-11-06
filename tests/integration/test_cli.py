@@ -118,8 +118,9 @@ def test_paths_hidden_unless_requested(fixtures_dir: Path, tmp_path: Path) -> No
     main([*args, "--out", str(tmp_path / "a")])
     main([*args, "--out", str(tmp_path / "b"), "--include-paths"])
     secret = str(fixtures_dir)
-    assert all(secret not in p.read_text() for p in (tmp_path / "a").iterdir())
-    assert secret in (tmp_path / "b" / "report.json").read_text()
+    escaped = json.dumps(secret)[1:-1]  # as it appears inside JSON (Windows backslashes are escaped)
+    assert all(secret not in p.read_text() and escaped not in p.read_text() for p in (tmp_path / "a").iterdir())
+    assert escaped in (tmp_path / "b" / "report.json").read_text()
 
 
 def test_verified_consistency_hashes_inputs(fixtures_dir: Path, tmp_path: Path) -> None:

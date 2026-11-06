@@ -204,14 +204,16 @@ class PairStats:
         if yd is not None:
             self.ssq_delta.add(float(np.dot(yd[0], yd[0])), 2 * yd[1])
 
-    def add_overflow(self, n_delta: int, n_b: int, n_pairs: int) -> None:
-        """Record `n_pairs` finite-input positions whose computed delta (`n_delta`) or computed B
-        (`n_b`) left float64 range; they withhold the affected metrics instead of being counted
-        as source non-finite values."""
-        self.elements += n_pairs
-        self.finite_pairs += n_pairs
+    def add_overflow(self, a: F64, n_delta: int, n_b: int) -> None:
+        """Record finite reference values `a` at positions whose computed delta (`n_delta` of them)
+        and/or computed B (`n_b`) left float64 range. They are not source NaN/Inf: they count as
+        finite pairs, still contribute to ||A|| (which stays exact), and withhold every metric
+        that needs the unrepresentable values (delta metrics; norm_b and cosine when B overflowed)."""
+        self.elements += int(a.size)
+        self.finite_pairs += int(a.size)
         self.delta_overflow += n_delta
         self.b_overflow += n_b
+        self.ssq_a.add_squares(a)
 
     # -- derived metrics (None = not defined or withheld) ---------------------------------
     @property

@@ -105,13 +105,14 @@
   "settings": {
     "sort": "relative_l2",
     "epsilon_norm": 1e-12,
-    "chunk_elements": 1048576,
+    "chunk_elements": 262144,
     "consistency": "best_effort"
   },
   "complete": true,
   "completeness": {
     "modules_analyzed": 2,
     "modules_withheld": 0,
+    "rollups_withheld": 0,
     "modules_norm_only": 0,
     "modules_unsupported": 0,
     "modules_skipped": 0,
@@ -267,7 +268,8 @@
           "numerical_warnings": []
         }
       },
-      "caveat": null
+      "caveat": null,
+      "withheld_metrics": []
     },
     {
       "rank": 2,
@@ -417,7 +419,8 @@
           "numerical_warnings": []
         }
       },
-      "caveat": null
+      "caveat": null,
+      "withheld_metrics": []
     }
   ],
   "layers": [
@@ -431,8 +434,9 @@
       "delta_l2": 12.971121772221643,
       "delta_rms": 1.146496020591799,
       "relative_l2": 1.3165309979189004,
+      "max_abs_delta": 8.0,
       "near_zero_reference": false,
-      "max_abs_delta": 8.0
+      "withheld_metrics": []
     }
   ],
   "roles": [
@@ -446,8 +450,9 @@
       "delta_l2": 11.224972160321824,
       "delta_rms": 1.403121520040228,
       "relative_l2": 2.4315076155889845,
+      "max_abs_delta": 8.0,
       "near_zero_reference": false,
-      "max_abs_delta": 8.0
+      "withheld_metrics": []
     },
     {
       "role": "mlp.up",
@@ -459,8 +464,9 @@
       "delta_l2": 6.500000002292486,
       "delta_rms": 0.8125000002865608,
       "relative_l2": 0.746781196238801,
+      "max_abs_delta": 2.0,
       "near_zero_reference": false,
-      "max_abs_delta": 2.0
+      "withheld_metrics": []
     }
   ],
   "totals": {
@@ -473,8 +479,9 @@
     "delta_l2": 12.971121772221643,
     "delta_rms": 1.146496020591799,
     "relative_l2": 1.3165309979189004,
+    "max_abs_delta": 8.0,
     "near_zero_reference": false,
-    "max_abs_delta": 8.0
+    "withheld_metrics": []
   },
   "warnings": []
 }

@@ -106,13 +106,14 @@
   "settings": {
     "sort": "relative_l2",
     "epsilon_norm": 1e-12,
-    "chunk_elements": 1048576,
+    "chunk_elements": 262144,
     "consistency": "best_effort"
   },
   "complete": true,
   "completeness": {
     "tensors_analyzed": 2,
     "tensors_withheld": 0,
+    "rollups_withheld": 0,
     "entries_not_compared": 1,
     "tied_entries": 1
   },
@@ -226,7 +227,7 @@
         },
         "norm_a": {
           "name": "l2",
-          "value": 6.62662486178,
+          "value": 6.626624861776606,
           "units": null,
           "method": "||A||_2 over finite pairs",
           "source_dtype": "F32",
@@ -242,7 +243,7 @@
         },
         "norm_b": {
           "name": "l2",
-          "value": 6.62662486178,
+          "value": 6.626624861776606,
           "units": null,
           "method": "||B||_2 over finite pairs",
           "source_dtype": "F32",
@@ -257,6 +258,7 @@
           "numerical_warnings": []
         }
       },
+      "withheld_metrics": [],
       "caveat": "Class S: no lineage evidence; raw deltas may be meaningless (parameter permutation/alignment)."
     },
     {
@@ -367,7 +369,7 @@
         },
         "norm_a": {
           "name": "l2",
-          "value": 2.82842712475,
+          "value": 2.8284271247461903,
           "units": null,
           "method": "||A||_2 over finite pairs",
           "source_dtype": "F32",
@@ -383,7 +385,7 @@
         },
         "norm_b": {
           "name": "l2",
-          "value": 2.82842712475,
+          "value": 2.8284271247461903,
           "units": null,
           "method": "||B||_2 over finite pairs",
           "source_dtype": "F32",
@@ -398,6 +400,7 @@
           "numerical_warnings": []
         }
       },
+      "withheld_metrics": [],
       "caveat": "Class S: no lineage evidence; raw deltas may be meaningless (parameter permutation/alignment)."
     }
   ],
@@ -412,8 +415,9 @@
       "delta_l2": 0.0,
       "delta_rms": 0.0,
       "relative_l2": 0.0,
+      "max_abs_delta": 0.0,
       "near_zero_reference": false,
-      "max_abs_delta": 0.0
+      "withheld_metrics": []
     }
   ],
   "roles": [
@@ -427,8 +431,9 @@
       "delta_l2": 0.0,
       "delta_rms": 0.0,
       "relative_l2": 0.0,
+      "max_abs_delta": 0.0,
       "near_zero_reference": false,
-      "max_abs_delta": 0.0
+      "withheld_metrics": []
     },
     {
       "role": "norm",
@@ -440,8 +445,9 @@
       "delta_l2": 0.0,
       "delta_rms": 0.0,
       "relative_l2": 0.0,
+      "max_abs_delta": 0.0,
       "near_zero_reference": false,
-      "max_abs_delta": 0.0
+      "withheld_metrics": []
     }
   ],
   "totals": {
@@ -454,8 +460,9 @@
     "delta_l2": 0.0,
     "delta_rms": 0.0,
     "relative_l2": 0.0,
+    "max_abs_delta": 0.0,
     "near_zero_reference": false,
-    "max_abs_delta": 0.0
+    "withheld_metrics": []
   },
   "warnings": []
 }

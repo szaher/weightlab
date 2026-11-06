@@ -28,29 +28,17 @@ CHILD = r"""
 import json, os, sys, time
 t0 = time.perf_counter()
 
-def peak_rss() -> int:
-    if sys.platform == "win32":
-        import ctypes
-        from ctypes import wintypes
-        class PMC(ctypes.Structure):
-            _fields_ = [("cb", wintypes.DWORD), ("PageFaultCount", wintypes.DWORD),
-                        ("PeakWorkingSetSize", ctypes.c_size_t), ("WorkingSetSize", ctypes.c_size_t),
-                        ("QuotaPeakPagedPoolUsage", ctypes.c_size_t), ("QuotaPagedPoolUsage", ctypes.c_size_t),
-                        ("QuotaPeakNonPagedPoolUsage", ctypes.c_size_t), ("QuotaNonPagedPoolUsage", ctypes.c_size_t),
-                        ("PagefileUsage", ctypes.c_size_t), ("PeakPagefileUsage", ctypes.c_size_t)]
-        c = PMC(); c.cb = ctypes.sizeof(PMC)
-        ctypes.windll.psapi.GetProcessMemoryInfo(ctypes.windll.kernel32.GetCurrentProcess(), ctypes.byref(c), c.cb)
-        return int(c.PeakWorkingSetSize)
-    import resource
-    r = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
-    return int(r if sys.platform == "darwin" else r * 1024)
+from weightlab.core.memory import peak_memory
+
+def peak_rss() -> int:  # name kept for the G0 report fields; see weightlab.core.memory for the counter
+    return peak_memory().peak
 
 import numpy as np
 from weightlab import open_checkpoint
 from weightlab.analysis.roi import encode_roi, ValueEncoding
 from weightlab.formats.selection import View
 path, key, prow, pcol, scan_bytes = sys.argv[1], sys.argv[2], int(sys.argv[3]), int(sys.argv[4]), int(sys.argv[5])
-out = {"rss_after_import": peak_rss()}
+out = {"memory_metric": peak_memory().metric, "rss_after_import": peak_rss()}
 t = time.perf_counter()
 ck = open_checkpoint(path)
 meta = ck.tensor(key)

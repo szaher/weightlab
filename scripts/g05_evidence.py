@@ -28,7 +28,7 @@ PHASE05 = {
     "tests/integration/test_lineage_and_lora.py": "Lineage evidence paths, LoRA scale/layout, fail-closed adapters",
     "tests/integration/test_cli.py": "CLI exports, exit codes, output safety, escaping, privacy, cancellation",
     "tests/integration/test_review_regressions.py": "PR #2 review regressions: epsilon rollups, limits, I64/U64, LoRA overflow/Gram/memory, export set",
-    "tests/perf/test_diff_bounded.py": "Diff peak RSS independent of pair size",
+    "tests/perf/test_diff_bounded.py": "Diff peak memory independent of pair size",
 }
 
 
@@ -113,20 +113,23 @@ def main() -> int:
         lines += [
             f"- Host: {bench['platform']}, {bench['cpu_count']} CPUs",
             "",
-            "| Case | Pair bytes read | Diff time | Throughput / side | Peak RSS | RSS growth after import | Class | Complete | Metrics exact |",
-            "|---|---|---|---|---|---|---|---|---|",
+            f"- Peak memory counter: `{bench['cases'][0]['memory_metric']}` (`weightlab.core.memory`); the resident "
+            "peak, which also counts freed allocations the OS has not reclaimed yet, is shown for reference.",
+            "",
+            "| Case | Pair bytes read | Diff time | Throughput / side | Peak memory | Growth after import | Resident peak | Class | Complete | Metrics exact |",
+            "|---|---|---|---|---|---|---|---|---|---|",
         ]  # fmt: skip
         for c in bench["cases"]:
             tp = c.get("throughput_mib_s_per_side")
             lines.append(
                 f"| {c['case']} | {c['bytes_read'] / 2**30:.2f} GiB | {c['diff_seconds']:.2f} s | "
-                f"{f'{tp:.0f} MiB/s' if tp else 'n/a'} | {mib(c['rss_peak'])} | {mib(c['rss_growth_bytes'])} | "
+                f"{f'{tp:.0f} MiB/s' if tp else 'n/a'} | {mib(c['mem_peak'])} | {mib(c['mem_growth_bytes'])} | {mib(c['resident_peak'])} | "
                 f"{c['compatibility_class']} | {c['report_complete']} | {c.get('metrics_correct', 'n/a')} |"
             )
         s = bench["summary"]
-        if s["synthetic_rss_growth_range_bytes"]:
-            lo, hi = s["synthetic_rss_growth_range_bytes"]
-            lines += ["", f"- Synthetic pairs span {s['synthetic_size_ratio']:.0f}x in size; RSS growth stays within "
+        if s["synthetic_mem_growth_range_bytes"]:
+            lo, hi = s["synthetic_mem_growth_range_bytes"]
+            lines += ["", f"- Synthetic pairs span {s['synthetic_size_ratio']:.0f}x in size; memory growth stays within "
                           f"{mib(lo)}-{mib(hi)} (bounded by chunk buffers, not tensor size)."]  # fmt: skip
         lines.append("- Sparse synthetic files read zero pages from the page cache: throughput measures compute, "
                      "not disk.")  # fmt: skip

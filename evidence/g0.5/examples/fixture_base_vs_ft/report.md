@@ -13,7 +13,7 @@ Counts: matched 9, missing_in_a 0, missing_in_b 0, tied 0, shape_mismatch 0, dty
 
 ## Completeness
 
-tensors_analyzed: 9, tensors_withheld: 0, entries_not_compared: 0, tied_entries: 0
+tensors_analyzed: 9, tensors_withheld: 0, rollups_withheld: 0, entries_not_compared: 0, tied_entries: 0
 
 ## Caveats
 

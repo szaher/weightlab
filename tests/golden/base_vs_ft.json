@@ -88,13 +88,14 @@
   "settings": {
     "sort": "relative_l2",
     "epsilon_norm": 1e-12,
-    "chunk_elements": 1048576,
+    "chunk_elements": 262144,
     "consistency": "best_effort"
   },
   "complete": true,
   "completeness": {
     "tensors_analyzed": 9,
     "tensors_withheld": 0,
+    "rollups_withheld": 0,
     "entries_not_compared": 0,
     "tied_entries": 0
   },
@@ -128,7 +129,7 @@
       "metrics": {
         "delta_l2": {
           "name": "l2",
-          "value": 1.96214162932,
+          "value": 1.9621416293179186,
           "units": null,
           "method": "||B-A||_2 over finite pairs (power-of-two scaled sum of squares)",
           "source_dtype": "F32",
@@ -144,7 +145,7 @@
         },
         "delta_rms": {
           "name": "rms",
-          "value": 0.245267703665,
+          "value": 0.24526770366473982,
           "units": null,
           "method": "sqrt(sum((B-A)^2)/finite_pairs)",
           "source_dtype": "F32",
@@ -160,7 +161,7 @@
         },
         "relative_l2": {
           "name": "relative_l2",
-          "value": 0.225429303479,
+          "value": 0.22542930347926027,
           "units": null,
           "method": "||B-A||_2 / max(||A||_2, epsilon_norm) over finite pairs",
           "source_dtype": "F32",
@@ -176,7 +177,7 @@
         },
         "cosine": {
           "name": "cosine",
-          "value": 0.981654509173,
+          "value": 0.9816545091729997,
           "units": null,
           "method": "dot(A,B)/(||A|| ||B||) over finite pairs",
           "source_dtype": "F32",
@@ -208,7 +209,7 @@
         },
         "norm_a": {
           "name": "l2",
-          "value": 8.70402205496,
+          "value": 8.704022054960737,
           "units": null,
           "method": "||A||_2 over finite pairs",
           "source_dtype": "F32",
@@ -224,7 +225,7 @@
         },
         "norm_b": {
           "name": "l2",
-          "value": 9.59114169894,
+          "value": 9.59114169894498,
           "units": null,
           "method": "||B||_2 over finite pairs",
           "source_dtype": "F32",
@@ -239,6 +240,7 @@
           "numerical_warnings": []
         }
       },
+      "withheld_metrics": [],
       "caveat": null
     },
     {
@@ -351,7 +353,7 @@
         },
         "norm_a": {
           "name": "l2",
-          "value": 292.136954184,
+          "value": 292.1369541841634,
           "units": null,
           "method": "||A||_2 over finite pairs",
           "source_dtype": "F32",
@@ -367,7 +369,7 @@
         },
         "norm_b": {
           "name": "l2",
-          "value": 292.136954184,
+          "value": 292.1369541841634,
           "units": null,
           "method": "||B||_2 over finite pairs",
           "source_dtype": "F32",
@@ -382,6 +384,7 @@
           "numerical_warnings": []
         }
       },
+      "withheld_metrics": [],
       "caveat": null
     },
     {
@@ -493,7 +496,7 @@
         },
         "norm_a": {
           "name": "l2",
-          "value": 4.61646596883,
+          "value": 4.616465968831768,
           "units": null,
           "method": "||A||_2 over finite pairs",
           "source_dtype": "F32",
@@ -509,7 +512,7 @@
         },
         "norm_b": {
           "name": "l2",
-          "value": 4.61646596883,
+          "value": 4.616465968831768,
           "units": null,
           "method": "||B||_2 over finite pairs",
           "source_dtype": "F32",
@@ -524,6 +527,7 @@
           "numerical_warnings": []
         }
       },
+      "withheld_metrics": [],
       "caveat": null
     },
     {
@@ -635,7 +639,7 @@
         },
         "norm_a": {
           "name": "l2",
-          "value": 150.18218729,
+          "value": 150.18218728975938,
           "units": null,
           "method": "||A||_2 over finite pairs",
           "source_dtype": "F32",
@@ -651,7 +655,7 @@
         },
         "norm_b": {
           "name": "l2",
-          "value": 150.18218729,
+          "value": 150.18218728975938,
           "units": null,
           "method": "||B||_2 over finite pairs",
           "source_dtype": "F32",
@@ -666,6 +670,7 @@
           "numerical_warnings": []
         }
       },
+      "withheld_metrics": [],
       "caveat": null
     },
     {
@@ -808,6 +813,7 @@
           "numerical_warnings": []
         }
       },
+      "withheld_metrics": [],
       "caveat": null
     },
     {
@@ -947,6 +953,7 @@
           "numerical_warnings": []
         }
       },
+      "withheld_metrics": [],
       "caveat": null
     },
     {
@@ -1058,7 +1065,7 @@
         },
         "norm_a": {
           "name": "l2",
-          "value": 3.87298334621,
+          "value": 3.872983346207417,
           "units": null,
           "method": "||A||_2 over finite pairs",
           "source_dtype": "F32",
@@ -1074,7 +1081,7 @@
         },
         "norm_b": {
           "name": "l2",
-          "value": 3.87298334621,
+          "value": 3.872983346207417,
           "units": null,
           "method": "||B||_2 over finite pairs",
           "source_dtype": "F32",
@@ -1089,6 +1096,7 @@
           "numerical_warnings": []
         }
       },
+      "withheld_metrics": [],
       "caveat": null
     },
     {
@@ -1199,7 +1207,7 @@
         },
         "norm_a": {
           "name": "l2",
-          "value": 6.26498204307,
+          "value": 6.264982043070834,
           "units": null,
           "method": "||A||_2 over finite pairs",
           "source_dtype": "F32",
@@ -1215,7 +1223,7 @@
         },
         "norm_b": {
           "name": "l2",
-          "value": 6.26498204307,
+          "value": 6.264982043070834,
           "units": null,
           "method": "||B||_2 over finite pairs",
           "source_dtype": "F32",
@@ -1230,6 +1238,7 @@
           "numerical_warnings": []
         }
       },
+      "withheld_metrics": [],
       "caveat": null
     },
     {
@@ -1376,6 +1385,7 @@
           "numerical_warnings": []
         }
       },
+      "withheld_metrics": [],
       "caveat": "near_zero_reference: ||A|| < epsilon_norm, relative_l2 divides by epsilon_norm"
     }
   ],
@@ -1387,11 +1397,12 @@
       "finite_pairs": 67719,
       "invalid_pairs": 0,
       "withheld_tensors": 0,
-      "delta_l2": 1.96214162932,
-      "delta_rms": 0.00754006489684,
-      "relative_l2": 0.0130370510255,
+      "delta_l2": 1.9621416293179186,
+      "delta_rms": 0.0075400648968406096,
+      "relative_l2": 0.01303705102552179,
+      "max_abs_delta": 1.0,
       "near_zero_reference": false,
-      "max_abs_delta": 1.0
+      "withheld_metrics": []
     },
     {
       "layer": null,
@@ -1403,8 +1414,9 @@
       "delta_l2": 0.0,
       "delta_rms": 0.0,
       "relative_l2": 0.0,
+      "max_abs_delta": 0.0,
       "near_zero_reference": false,
-      "max_abs_delta": 0.0
+      "withheld_metrics": []
     }
   ],
   "roles": [
@@ -1418,8 +1430,9 @@
       "delta_l2": 0.0,
       "delta_rms": 0.0,
       "relative_l2": 0.0,
+      "max_abs_delta": 0.0,
       "near_zero_reference": false,
-      "max_abs_delta": 0.0
+      "withheld_metrics": []
     },
     {
       "role": "mlp.down",
@@ -1431,8 +1444,9 @@
       "delta_l2": 0.0,
       "delta_rms": 0.0,
       "relative_l2": 0.0,
+      "max_abs_delta": 0.0,
       "near_zero_reference": false,
-      "max_abs_delta": 0.0
+      "withheld_metrics": []
     },
     {
       "role": "mlp.up",
@@ -1441,11 +1455,12 @@
       "finite_pairs": 64,
       "invalid_pairs": 0,
       "withheld_tensors": 0,
-      "delta_l2": 1.96214162932,
-      "delta_rms": 0.245267703665,
-      "relative_l2": 0.225429303479,
+      "delta_l2": 1.9621416293179186,
+      "delta_rms": 0.24526770366473982,
+      "relative_l2": 0.22542930347926027,
+      "max_abs_delta": 1.0,
       "near_zero_reference": false,
-      "max_abs_delta": 1.0
+      "withheld_metrics": []
     },
     {
       "role": "other",
@@ -1457,8 +1472,9 @@
       "delta_l2": 0.0,
       "delta_rms": 0.0,
       "relative_l2": 0.0,
+      "max_abs_delta": 0.0,
       "near_zero_reference": false,
-      "max_abs_delta": 0.0
+      "withheld_metrics": []
     }
   ],
   "totals": {
@@ -1468,11 +1484,12 @@
     "finite_pairs": 67802,
     "invalid_pairs": 3,
     "withheld_tensors": 0,
-    "delta_l2": 1.96214162932,
-    "delta_rms": 0.00753544838826,
-    "relative_l2": 0.00596888485517,
+    "delta_l2": 1.9621416293179186,
+    "delta_rms": 0.007535448388255227,
+    "relative_l2": 0.005968884855165,
+    "max_abs_delta": 1.0,
     "near_zero_reference": false,
-    "max_abs_delta": 1.0
+    "withheld_metrics": []
   },
   "warnings": []
 }

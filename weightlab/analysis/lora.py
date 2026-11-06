@@ -414,14 +414,14 @@ def _analyze_module(
         if factors_finite:
             # Finite W and finite factors: a non-finite delta or effective weight is float64
             # overflow of WeightLab's own arithmetic, not a source NaN/Inf; withhold, never mask.
+            # B = W + s B A is unrepresentable wherever d or eff overflowed; W itself stays finite
+            # there and keeps counting towards ||W||.
             fw = np.isfinite(w)
-            fd = np.isfinite(d)
-            bad_d = fw & ~fd
-            bad_b = fw & fd & ~np.isfinite(eff)
-            n_d, n_b = int(bad_d.sum()), int(bad_b.sum())
-            if n_d or n_b:
-                keep = ~(bad_d | bad_b)
-                stats.add_overflow(n_d, n_b, n_d + n_b)
+            bad_d = fw & ~np.isfinite(d)
+            bad_b = fw & ~np.isfinite(eff)  # includes every bad_d position
+            if bad_b.any():
+                stats.add_overflow(w[bad_b], int(bad_d.sum()), int(bad_b.sum()))
+                keep = ~bad_b
                 w, d, eff = w[keep], d[keep], eff[keep]
         stats.update(w, eff, d)
         control.tick((r1 - r0) * cols * esize, base_key)
