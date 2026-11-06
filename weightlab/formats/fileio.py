@@ -1,0 +1,120 @@
+"""Read-only positioned file access with change detection (ADR-011, doc 03 section 6).
+
+No mmap: a file truncated during a read becomes a short read (reported as FILE_CHANGED) instead
+of SIGBUS. Every check compares both the open handle (fstat) and a fresh stat of the path, so an
+atomic replace, rename or symlink swap of the path is detected even though the old inode stays
+readable through the open handle.
+"""
+
+from __future__ import annotations
+
+import hashlib
+import os
+import sys
+import threading
+from dataclasses import dataclass
+from pathlib import Path
+
+from weightlab.core.errors import ErrorCode, fail
+
+_WINDOWS = sys.platform == "win32"
+
+
+@dataclass(frozen=True)
+class FileIdentity:
+    size: int
+    mtime_ns: int
+    ctime_ns: int  # POSIX: inode change time; Windows: creation time
+    dev: int  # POSIX device; Windows volume serial number
+    ino: int  # POSIX inode; Windows file index
+
+    @classmethod
+    def of(cls, st: os.stat_result) -> FileIdentity:
+        return cls(st.st_size, st.st_mtime_ns, st.st_ctime_ns, st.st_dev, st.st_ino)
+
+
+class PositionedFile:
+    """One read-only handle. POSIX reads use os.pread (position-independent, thread-safe);
+    Windows uses seek + read under a lock because the file position is shared."""
+
+    def __init__(self, path: Path) -> None:
+        self.path = path
+        flags = os.O_RDONLY | getattr(os, "O_BINARY", 0) | getattr(os, "O_CLOEXEC", 0)
+        try:
+            self._fd: int | None = os.open(path, flags)
+        except FileNotFoundError:
+            raise fail(ErrorCode.NOT_FOUND, f"file not found: {path.name}") from None
+        except IsADirectoryError:
+            raise fail(ErrorCode.INVALID_FORMAT, f"not a file: {path.name}") from None
+        except PermissionError as e:
+            raise fail(ErrorCode.VALIDATION_ERROR, f"permission denied: {path.name} ({e.strerror})") from None
+        try:
+            handle = FileIdentity.of(os.fstat(self._fd))
+            if handle != FileIdentity.of(os.stat(path)):
+                raise fail(ErrorCode.FILE_CHANGED, f"{path.name} changed while being opened")
+        except BaseException:
+            self.close()
+            raise
+        self.identity = handle
+        self.bytes_read = 0
+        self._lock = threading.Lock()
+
+    @property
+    def fd(self) -> int:
+        if self._fd is None:
+            raise fail(ErrorCode.VALIDATION_ERROR, "file is closed")
+        return self._fd
+
+    def check(self) -> None:
+        """Best-effort identity check of handle and path against the identity recorded at open."""
+        try:
+            handle = FileIdentity.of(os.fstat(self.fd))
+            current = FileIdentity.of(os.stat(self.path))
+        except OSError:
+            raise fail(ErrorCode.FILE_CHANGED, f"{self.path.name} is no longer accessible") from None
+        if handle != self.identity:
+            raise fail(ErrorCode.FILE_CHANGED, f"{self.path.name} was modified (size, time or identity)")
+        if current != self.identity:
+            raise fail(ErrorCode.FILE_CHANGED, f"{self.path.name} was replaced, renamed or relinked")
+
+    def read(self, offset: int, length: int) -> bytes:
+        """Exactly `length` bytes at `offset`, inside the size recorded at open; short read -> FILE_CHANGED."""
+        if offset < 0 or length < 0 or offset + length > self.identity.size:
+            raise fail(ErrorCode.INVALID_FORMAT, "read outside the validated file range")
+        if length == 0:
+            return b""
+        parts: list[bytes] = []
+        done = 0
+        if _WINDOWS:
+            with self._lock:
+                os.lseek(self.fd, offset, os.SEEK_SET)
+                while done < length:
+                    chunk = os.read(self.fd, length - done)
+                    if not chunk:
+                        break
+                    parts.append(chunk)
+                    done += len(chunk)
+        else:
+            while done < length:
+                chunk = os.pread(self.fd, length - done, offset + done)
+                if not chunk:
+                    break
+                parts.append(chunk)
+                done += len(chunk)
+        self.bytes_read += done
+        if done != length:
+            raise fail(ErrorCode.FILE_CHANGED, f"{self.path.name} is shorter than when it was opened")
+        return parts[0] if len(parts) == 1 else b"".join(parts)
+
+    def sha256(self, chunk_bytes: int) -> str:
+        """Digest of the recorded extent, streamed in bounded chunks (verified consistency)."""
+        h = hashlib.sha256()
+        for off in range(0, self.identity.size, chunk_bytes):
+            h.update(self.read(off, min(chunk_bytes, self.identity.size - off)))
+        self.check()
+        return h.hexdigest()
+
+    def close(self) -> None:
+        if self._fd is not None:
+            os.close(self._fd)
+            self._fd = None
