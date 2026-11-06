@@ -1,0 +1,38 @@
+# Phase 0 application CI: format, lint, typecheck and the full test suite on all three desktop OSes,
+# then the G0 evidence report per OS as a build artifact (doc 13 section 9, doc 14 Phase 0).
+name: ci
+on:
+  push:
+  pull_request:
+permissions:
+  contents: read
+jobs:
+  test:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          version: "0.13.4"
+      - name: Install locked environment
+        run: uv sync --locked --python 3.12
+      - name: Format
+        run: uv run ruff format --check .
+      - name: Lint
+        run: uv run ruff check .
+      - name: Typecheck (every target platform, so platform branches are checked everywhere)
+        run: |
+          uv run mypy --platform linux
+          uv run mypy --platform darwin
+          uv run mypy --platform win32
+      - name: Tests and G0 evidence (includes the 12 GiB sparse-file RSS benchmark)
+        run: uv run python scripts/g0_evidence.py --out evidence/ci
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: g0-evidence-${{ matrix.os }}
+          path: evidence/ci

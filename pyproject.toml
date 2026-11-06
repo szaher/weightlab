@@ -1,0 +1,62 @@
+[project]
+name = "weightlab"
+version = "0.0.1.dev0"
+description = "Local-first, CPU-only LLM checkpoint explorer (Phase 0: strict SafeTensors reader and exact ROI)."
+readme = "README.md"
+requires-python = ">=3.12"
+# Exact pins; uv.lock records the full resolved set with hashes.
+dependencies = ["numpy==2.5.4"]
+
+[dependency-groups]
+dev = [
+    "pytest==9.2.0",
+    "hypothesis==6.170.14",
+    "ruff==0.17.4",
+    "mypy==2.4.1",
+    # Upstream reference used only as an accept/reject oracle and by the fixture generator.
+    "safetensors==0.8.0",
+]
+
+[build-system]
+requires = ["uv_build>=0.13.4,<0.14"]
+build-backend = "uv_build"
+
+[tool.uv.build-backend]
+module-root = ""
+
+[tool.ruff]
+line-length = 120
+target-version = "py312"
+# Frozen specification tooling and docs (1.2-final) keep their own formatting; only new code is formatted.
+extend-exclude = [
+    "examples",
+    "tests/fixtures/generated",
+    "*.md",
+    "scripts/build_documentation.py",
+    "scripts/check_contracts.py",
+    "scripts/check_demo_fixtures.py",
+    "scripts/check_spec.py",
+    "scripts/generate_demo_fixtures.py",
+    "scripts/manifest.py",
+]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B", "UP", "SIM", "RUF", "PT", "S"]
+ignore = ["S101", "RUF001", "RUF002", "RUF003"]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = ["S603", "S108", "S311"]
+"scripts/**" = ["S603", "S607", "E501"]
+
+[tool.mypy]
+python_version = "3.12"
+strict = true
+packages = ["weightlab"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-ra --strict-markers"
+markers = [
+    "perf: resource measurements on large sparse files (run by default; WEIGHTLAB_SKIP_PERF=1 skips)",
+]
+xfail_strict = true

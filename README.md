@@ -9,6 +9,27 @@
 
 This blueprint is frozen at **1.2-final**. Changes require a demonstrated implementation correctness or security blocker, a versioned ADR, updated contracts/fixtures/tests and a `CHANGELOG.md` entry (ADR-019). Run the specification checks with the commands in `docs/13_TEST_STRATEGY.md` section 10; CI runs them in `.github/workflows/spec-checks.yml`.
 
+## Implementation status: Phase 0 (reader)
+
+The `weightlab/` package implements Phase 0 only: a strict, read-only SafeTensors catalog with sharded index validation and exact, lossless ROI reads behind a Python interface. No tiles, API, CLI or UI yet. Gate G0 evidence lives in `evidence/g0/`.
+
+```bash
+uv sync --locked                     # Python 3.12+, pinned toolchain
+uv run pytest                        # full suite, includes the 12 GiB sparse-file RSS test
+uv run ruff format --check . && uv run ruff check . && uv run mypy
+uv run python scripts/g0_evidence.py --out evidence/g0   # writes G0_<os>.md
+```
+
+```python
+from weightlab import open_checkpoint
+from weightlab.analysis.roi import encode_roi
+
+with open_checkpoint("/models/my-model", selected_root="/models") as ck:
+    print(ck.metadata()[:3])
+    roi = ck.read_roi_raw("model.embed_tokens.weight", 0, 4, 0, 8)
+    print(encode_roi(roi).to_json())   # lossless typed values (doc 09 section 2)
+```
+
 ## Read this first
 
 This package is designed to hand to an engineer or coding agent without leaving important product, numerical, systems, or delivery decisions implicit. It does **not** guarantee a bug-free first attempt: the acceptance gates and automated tests make failures observable before release.
