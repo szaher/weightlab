@@ -91,7 +91,7 @@ All exports/experiments have `schema_version=1`, `tool_version`, `reader_version
 
 ## 6. Cache
 
-Two independent LRU caches: memory tile cache (default <= 128 MiB backend), disk tile/stat cache (default <= 1 GiB). Namespaced by file fingerprint, source kind (raw/delta/LoRA), view selection, tile level/x/y, reducer, sampling mode, seed and numerics version. Cache may be safely deleted on shutdown or version mismatch. Browser cache <= 64 MiB decoded tile arrays as target; per-project tile prefetch bounded.
+Two independent LRU caches: memory tile cache (default <= 128 MiB backend), disk tile/pyramid/stat cache (default <= 1 GiB). Entries are keyed by the SHA-256 of a canonical sorted-key JSON identity (doc 03 section 5): source kind; every input file's fingerprint; tensor key(s); view (row_axis, col_axis, fixed_indices, transpose); operation parameters (transform, epsilon, LoRA native scale, experiment multiplier, module mask); `numerics_version`; `pyramid_record_format`; and, for tiles, level, x, y, size, aggregation, quality mode and sampling seed. Any fingerprint change of any input invalidates every entry that includes it. Cache may be safely deleted on shutdown or version mismatch. Browser cache <= 64 MiB decoded tile arrays as target; per-project tile prefetch bounded.
 
 ## 7. Data retention
 

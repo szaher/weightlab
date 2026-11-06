@@ -1,0 +1,676 @@
+{
+  "schema": "contracts/openapi.yaml#/components/schemas",
+  "examples": [
+    {
+      "schema": "Source",
+      "valid": true,
+      "why": "tensor source",
+      "instance": {
+        "kind": "tensor",
+        "model_id": "mod_a",
+        "tensor_id": "tns_0009"
+      }
+    },
+    {
+      "schema": "Source",
+      "valid": true,
+      "why": "delta source",
+      "instance": {
+        "kind": "delta",
+        "comparison_id": "cmp_001",
+        "entry_id": "ent_01",
+        "transform": "b_minus_a"
+      }
+    },
+    {
+      "schema": "Source",
+      "valid": true,
+      "why": "lora delta",
+      "instance": {
+        "kind": "lora_delta",
+        "adapter_id": "adp_001",
+        "module_id": "mdl_up",
+        "experiment_multiplier": 1.0
+      }
+    },
+    {
+      "schema": "Source",
+      "valid": true,
+      "why": "virtual effective",
+      "instance": {
+        "kind": "virtual_effective",
+        "adapter_id": "adp_001",
+        "module_id": "mdl_up",
+        "experiment_multiplier": 0.5,
+        "research_mode": false
+      }
+    },
+    {
+      "schema": "Source",
+      "valid": false,
+      "why": "unknown kind",
+      "instance": {
+        "kind": "merged",
+        "model_id": "mod_a"
+      }
+    },
+    {
+      "schema": "Source",
+      "valid": false,
+      "why": "tensor source with conflicting delta field",
+      "instance": {
+        "kind": "tensor",
+        "model_id": "mod_a",
+        "tensor_id": "tns_0009",
+        "comparison_id": "cmp_001"
+      }
+    },
+    {
+      "schema": "Source",
+      "valid": false,
+      "why": "delta missing entry_id",
+      "instance": {
+        "kind": "delta",
+        "comparison_id": "cmp_001",
+        "transform": "b_minus_a"
+      }
+    },
+    {
+      "schema": "Source",
+      "valid": false,
+      "why": "multiplier out of range",
+      "instance": {
+        "kind": "lora_delta",
+        "adapter_id": "adp_001",
+        "module_id": "mdl_up",
+        "experiment_multiplier": 100
+      }
+    },
+    {
+      "schema": "Source",
+      "valid": false,
+      "why": "virtual effective without research_mode",
+      "instance": {
+        "kind": "virtual_effective",
+        "adapter_id": "adp_001",
+        "module_id": "mdl_up",
+        "experiment_multiplier": 1
+      }
+    },
+    {
+      "schema": "Source",
+      "valid": false,
+      "why": "id with path characters",
+      "instance": {
+        "kind": "tensor",
+        "model_id": "../etc",
+        "tensor_id": "tns_1"
+      }
+    },
+    {
+      "schema": "RoiRequest",
+      "valid": true,
+      "why": "2D ROI",
+      "instance": {
+        "source": {
+          "kind": "tensor",
+          "model_id": "mod_a",
+          "tensor_id": "tns_0009"
+        },
+        "view": {
+          "row_axis": 0,
+          "col_axis": 1,
+          "fixed_indices": {},
+          "transpose": false
+        },
+        "roi": {
+          "r0": 10,
+          "r1": 14,
+          "c0": 20,
+          "c1": 24
+        }
+      }
+    },
+    {
+      "schema": "RoiRequest",
+      "valid": true,
+      "why": "3D slice ROI with hex bits",
+      "instance": {
+        "source": {
+          "kind": "tensor",
+          "model_id": "mod_a",
+          "tensor_id": "tns_0009"
+        },
+        "view": {
+          "row_axis": 1,
+          "col_axis": 2,
+          "fixed_indices": {
+            "0": 1
+          },
+          "transpose": false
+        },
+        "roi": {
+          "r0": 10,
+          "r1": 14,
+          "c0": 20,
+          "c1": 24
+        },
+        "value_encoding": "hex_bits"
+      }
+    },
+    {
+      "schema": "RoiRequest",
+      "valid": false,
+      "why": "coordinate beyond JS safe integer",
+      "instance": {
+        "source": {
+          "kind": "tensor",
+          "model_id": "mod_a",
+          "tensor_id": "tns_0009"
+        },
+        "view": {
+          "row_axis": 0,
+          "col_axis": 1,
+          "fixed_indices": {},
+          "transpose": false
+        },
+        "roi": {
+          "r0": 10,
+          "r1": 1152921504606846976,
+          "c0": 20,
+          "c1": 24
+        }
+      }
+    },
+    {
+      "schema": "RoiRequest",
+      "valid": false,
+      "why": "non-numeric fixed axis key",
+      "instance": {
+        "source": {
+          "kind": "tensor",
+          "model_id": "mod_a",
+          "tensor_id": "tns_0009"
+        },
+        "view": {
+          "row_axis": 0,
+          "col_axis": 1,
+          "fixed_indices": {
+            "a": 0
+          },
+          "transpose": false
+        },
+        "roi": {
+          "r0": 10,
+          "r1": 14,
+          "c0": 20,
+          "c1": 24
+        }
+      }
+    },
+    {
+      "schema": "RoiRequest",
+      "valid": false,
+      "why": "legacy lossy output_dtype field",
+      "instance": {
+        "source": {
+          "kind": "tensor",
+          "model_id": "mod_a",
+          "tensor_id": "tns_0009"
+        },
+        "view": {
+          "row_axis": 0,
+          "col_axis": 1,
+          "fixed_indices": {},
+          "transpose": false
+        },
+        "roi": {
+          "r0": 10,
+          "r1": 14,
+          "c0": 20,
+          "c1": 24
+        },
+        "output_dtype": "float32"
+      }
+    },
+    {
+      "schema": "RoiResponse",
+      "valid": true,
+      "why": "I64 values as decimal strings",
+      "instance": {
+        "schema_version": 2,
+        "source": {
+          "kind": "tensor",
+          "model_id": "mod_a",
+          "tensor_id": "tns_0009"
+        },
+        "roi": {
+          "r0": 0,
+          "r1": 1,
+          "c0": 0,
+          "c1": 2
+        },
+        "shape": [
+          1,
+          2
+        ],
+        "source_dtype": "I64",
+        "value_encoding": "int_decimal_string",
+        "coverage": "complete",
+        "numeric_precision": "lossless",
+        "values": [
+          [
+            "-9223372036854775808",
+            "9007199254740993"
+          ]
+        ],
+        "nonfinite_mask": null,
+        "warnings": []
+      }
+    },
+    {
+      "schema": "RoiResponse",
+      "valid": false,
+      "why": "ROI claimed sampled",
+      "instance": {
+        "schema_version": 2,
+        "source": {
+          "kind": "tensor",
+          "model_id": "mod_a",
+          "tensor_id": "tns_0009"
+        },
+        "roi": {
+          "r0": 10,
+          "r1": 14,
+          "c0": 20,
+          "c1": 24
+        },
+        "shape": [
+          4,
+          4
+        ],
+        "source_dtype": "F32",
+        "value_encoding": "float_json",
+        "coverage": "sampled",
+        "numeric_precision": "lossless",
+        "values": [],
+        "nonfinite_mask": null,
+        "warnings": []
+      }
+    },
+    {
+      "schema": "TileRequest",
+      "valid": true,
+      "why": "auto tile",
+      "instance": {
+        "source": {
+          "kind": "tensor",
+          "model_id": "mod_a",
+          "tensor_id": "tns_0009"
+        },
+        "view": {
+          "row_axis": 0,
+          "col_axis": 1,
+          "fixed_indices": {},
+          "transpose": false
+        },
+        "tile": {
+          "level": 4,
+          "x": 0,
+          "y": 0,
+          "size": 256
+        },
+        "aggregation": "mean_abs",
+        "quality": {
+          "mode": "auto"
+        }
+      }
+    },
+    {
+      "schema": "TileRequest",
+      "valid": false,
+      "why": "removed per-cell sampled mode",
+      "instance": {
+        "source": {
+          "kind": "tensor",
+          "model_id": "mod_a",
+          "tensor_id": "tns_0009"
+        },
+        "view": {
+          "row_axis": 0,
+          "col_axis": 1,
+          "fixed_indices": {},
+          "transpose": false
+        },
+        "tile": {
+          "level": 4,
+          "x": 0,
+          "y": 0,
+          "size": 256
+        },
+        "aggregation": "mean_abs",
+        "quality": {
+          "mode": "sampled",
+          "samples_per_block": 64
+        }
+      }
+    },
+    {
+      "schema": "TileRequest",
+      "valid": false,
+      "why": "tile larger than 256",
+      "instance": {
+        "source": {
+          "kind": "tensor",
+          "model_id": "mod_a",
+          "tensor_id": "tns_0009"
+        },
+        "view": {
+          "row_axis": 0,
+          "col_axis": 1,
+          "fixed_indices": {},
+          "transpose": false
+        },
+        "tile": {
+          "level": 0,
+          "x": 0,
+          "y": 0,
+          "size": 512
+        },
+        "aggregation": "mean_abs",
+        "quality": {
+          "mode": "auto"
+        }
+      }
+    },
+    {
+      "schema": "TileStatus",
+      "valid": true,
+      "why": "L0 NaN cell",
+      "instance": 3
+    },
+    {
+      "schema": "TileStatus",
+      "valid": true,
+      "why": "all-nonfinite mixed block",
+      "instance": 15
+    },
+    {
+      "schema": "TileStatus",
+      "valid": true,
+      "why": "finite aggregate not representable",
+      "instance": 16
+    },
+    {
+      "schema": "TileStatus",
+      "valid": false,
+      "why": "reserved bit set",
+      "instance": 32
+    },
+    {
+      "schema": "TileStatus",
+      "valid": false,
+      "why": "negative",
+      "instance": -1
+    },
+    {
+      "schema": "LineageAssessment",
+      "valid": true,
+      "why": "fixture class V",
+      "instance": {
+        "compatibility_class": "V",
+        "base_file_identity_verified": true,
+        "base_identity_method": "sha256_recorded",
+        "lineage_claim_source": "synthetic_fixture_generator",
+        "lineage_trust_level": "proven_by_construction",
+        "lineage_evidence": "cryptographically_verified",
+        "transfer_eligibility": "T1",
+        "reasons": []
+      }
+    },
+    {
+      "schema": "LineageAssessment",
+      "valid": true,
+      "why": "user attestation stays class L",
+      "instance": {
+        "compatibility_class": "L",
+        "base_file_identity_verified": false,
+        "base_identity_method": "none",
+        "lineage_claim_source": "user_attestation",
+        "lineage_trust_level": "unverified_claim",
+        "lineage_evidence": "user_attested",
+        "transfer_eligibility": "T2",
+        "reasons": [
+          "attested by user"
+        ]
+      }
+    },
+    {
+      "schema": "LineageAssessment",
+      "valid": false,
+      "why": "class V without verified base identity",
+      "instance": {
+        "compatibility_class": "V",
+        "base_file_identity_verified": false,
+        "base_identity_method": "none",
+        "lineage_claim_source": "user_attestation",
+        "lineage_trust_level": "unverified_claim",
+        "lineage_evidence": "user_attested",
+        "transfer_eligibility": "T2",
+        "reasons": [
+          "attested by user"
+        ]
+      }
+    },
+    {
+      "schema": "LineageAssessment",
+      "valid": false,
+      "why": "verified base identity but evidence declared",
+      "instance": {
+        "compatibility_class": "V",
+        "base_file_identity_verified": true,
+        "base_identity_method": "sha256_recorded",
+        "lineage_claim_source": "synthetic_fixture_generator",
+        "lineage_trust_level": "proven_by_construction",
+        "lineage_evidence": "declared",
+        "transfer_eligibility": "T1",
+        "reasons": []
+      }
+    },
+    {
+      "schema": "LineageAssessment",
+      "valid": false,
+      "why": "attestation labelled cryptographic",
+      "instance": {
+        "compatibility_class": "L",
+        "base_file_identity_verified": false,
+        "base_identity_method": "none",
+        "lineage_claim_source": "user_attestation",
+        "lineage_trust_level": "unverified_claim",
+        "lineage_evidence": "cryptographically_verified",
+        "transfer_eligibility": "T2",
+        "reasons": [
+          "attested by user"
+        ]
+      }
+    },
+    {
+      "schema": "JobRequest",
+      "valid": true,
+      "why": "exact stats job",
+      "instance": {
+        "kind": "tensor_stats",
+        "source": {
+          "kind": "tensor",
+          "model_id": "mod_a",
+          "tensor_id": "tns_0009"
+        },
+        "budget": {
+          "max_working_set_mib": 768,
+          "max_threads": 2,
+          "max_wall_seconds": 600
+        }
+      }
+    },
+    {
+      "schema": "JobRequest",
+      "valid": true,
+      "why": "hash a model",
+      "instance": {
+        "kind": "file_hash",
+        "model_id": "mod_a",
+        "budget": {
+          "max_working_set_mib": 768,
+          "max_threads": 2,
+          "max_wall_seconds": 600
+        },
+        "consistency": "best_effort"
+      }
+    },
+    {
+      "schema": "JobRequest",
+      "valid": false,
+      "why": "stats job without source",
+      "instance": {
+        "kind": "tensor_stats",
+        "budget": {
+          "max_working_set_mib": 768,
+          "max_threads": 2,
+          "max_wall_seconds": 600
+        }
+      }
+    },
+    {
+      "schema": "JobRequest",
+      "valid": false,
+      "why": "file hash with a source",
+      "instance": {
+        "kind": "file_hash",
+        "model_id": "mod_a",
+        "source": {
+          "kind": "tensor",
+          "model_id": "mod_a",
+          "tensor_id": "tns_0009"
+        },
+        "budget": {
+          "max_working_set_mib": 768,
+          "max_threads": 2,
+          "max_wall_seconds": 600
+        }
+      }
+    },
+    {
+      "schema": "JobRequest",
+      "valid": false,
+      "why": "free-form quality object",
+      "instance": {
+        "kind": "tensor_stats",
+        "source": {
+          "kind": "tensor",
+          "model_id": "mod_a",
+          "tensor_id": "tns_0009"
+        },
+        "budget": {
+          "max_working_set_mib": 768,
+          "max_threads": 2,
+          "max_wall_seconds": 600
+        },
+        "quality": {
+          "anything": true
+        }
+      }
+    },
+    {
+      "schema": "SettingsPatch",
+      "valid": true,
+      "why": "lower memory budget",
+      "instance": {
+        "memory_budget_mib": 768
+      }
+    },
+    {
+      "schema": "SettingsPatch",
+      "valid": false,
+      "why": "empty patch",
+      "instance": {}
+    },
+    {
+      "schema": "SettingsPatch",
+      "valid": false,
+      "why": "attempt to enable telemetry",
+      "instance": {
+        "telemetry_enabled": true
+      }
+    },
+    {
+      "schema": "SettingsPatch",
+      "valid": false,
+      "why": "unknown setting",
+      "instance": {
+        "gpu": true
+      }
+    },
+    {
+      "schema": "ModelImport",
+      "valid": true,
+      "why": "windows absolute path",
+      "instance": {
+        "entry_path": "C:\\Models\\qwen\\model.safetensors.index.json",
+        "selected_root": "C:\\Models\\qwen"
+      }
+    },
+    {
+      "schema": "ModelImport",
+      "valid": false,
+      "why": "oversized path body",
+      "instance": {
+        "entry_path": "/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "selected_root": "/"
+      }
+    },
+    {
+      "schema": "ExportRecord",
+      "valid": false,
+      "why": "file name with path",
+      "instance": {
+        "id": "exp_1",
+        "project_id": "prj_1",
+        "format": "png",
+        "state": "ready",
+        "file_name": "../x.png",
+        "created_at": "2026-11-05T00:00:00Z"
+      }
+    },
+    {
+      "schema": "Error",
+      "valid": false,
+      "why": "nested details object",
+      "instance": {
+        "request_id": "req_1",
+        "error": {
+          "code": "RESOURCE_LIMIT",
+          "message": "x",
+          "retryable": true,
+          "details": {
+            "a": {
+              "b": 1
+            }
+          }
+        }
+      }
+    },
+    {
+      "schema": "Error",
+      "valid": false,
+      "why": "unknown error code",
+      "instance": {
+        "request_id": "req_1",
+        "error": {
+          "code": "OOPS",
+          "message": "x",
+          "retryable": false
+        }
+      }
+    }
+  ]
+}

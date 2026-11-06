@@ -1,8 +1,13 @@
 openapi: 3.1.0
 info:
   title: WeightLab Local API
-  version: 0.2.0-draft
-  description: Draft R1 API contract; design artifact, not an implemented endpoint.
+  version: 0.3.0-spec-1.2-final
+  description: >-
+    R1 API contract, frozen with blueprint 1.2-final. Design artifact, not an implemented service.
+    All request bodies are closed (additionalProperties false) and size-bounded. Every ID is an opaque
+    server-issued string; a referenced object must belong to the same project as the request scope,
+    otherwise 404 (no cross-project existence oracle). docs/09_API_CONTRACT.md is authoritative for
+    behavior not expressible here.
 servers:
 - url: http://127.0.0.1:{port}/api/v1
   variables:
@@ -16,573 +21,706 @@ components:
       type: http
       scheme: bearer
       bearerFormat: random-launch-token
-      description: Random token generated per launch and handed to the browser only via the URL fragment printed by `weightlab start` (`#token=...`); never embedded in served HTML, never logged, never exported (ADR-016).
+      description: >-
+        Random token (secrets.token_urlsafe(32)) generated per launch and handed to the browser only via the
+        URL fragment printed by `weightlab start` (`#token=...`); never embedded in served HTML, never logged,
+        never exported (ADR-016). Origin and Host checks apply in addition to the token (docs/12 section 4).
+  parameters:
+    ProjectId:
+      in: path
+      name: project_id
+      required: true
+      schema: {$ref: '#/components/schemas/Id'}
+    ModelId:
+      in: path
+      name: model_id
+      required: true
+      schema: {$ref: '#/components/schemas/Id'}
+    Limit:
+      in: query
+      name: limit
+      schema: {type: integer, minimum: 1, maximum: 1000, default: 100}
+    Offset:
+      in: query
+      name: offset
+      schema: {type: integer, minimum: 0, maximum: 9007199254740991, default: 0}
+  responses:
+    ErrorResponse:
+      description: Structured error (docs/09 section 7). No stack traces, paths outside the selected root, or model bytes.
+      content:
+        application/json:
+          schema: {$ref: '#/components/schemas/Error'}
   schemas:
+    Id:
+      type: string
+      pattern: '^[a-z]{3}_[A-Za-z0-9]{1,64}$'
+      maxLength: 68
+    SafeInt:
+      description: Integer within the JavaScript safe range, so it survives JSON.parse exactly.
+      type: integer
+      minimum: 0
+      maximum: 9007199254740991
+    LocalPath:
+      description: Absolute local path typed or pasted by the user (or returned by the optional native dialog). Never a browser upload.
+      type: string
+      minLength: 1
+      maxLength: 4096
+    Sha256:
+      type: string
+      pattern: '^[0-9a-f]{64}$'
     Error:
       type: object
-      required:
-      - error
-      - request_id
+      additionalProperties: false
+      required: [error, request_id]
       properties:
-        request_id:
-          type: string
+        request_id: {type: string, maxLength: 64}
         error:
           type: object
-          required:
-          - code
-          - message
-          - retryable
+          additionalProperties: false
+          required: [code, message, retryable]
           properties:
             code:
               type: string
-            message:
-              type: string
-            retryable:
-              type: boolean
-            recommended_action:
-              type: string
+              enum: [VALIDATION_ERROR, UNAUTHORIZED, FORBIDDEN_ORIGIN, NOT_FOUND, CONFLICT, PATH_OUTSIDE_ROOT,
+                     INVALID_FORMAT, MISSING_SHARD, INVALID_ROI, RESOURCE_LIMIT, RATE_LIMITED, UNSUPPORTED_DTYPE,
+                     UNSUPPORTED_PRECISION, INCOMPATIBLE_TENSOR, LINEAGE_UNVERIFIED, FILE_CHANGED, NONFINITE_POLICY,
+                     OPTIONAL_RUNTIME_MISSING, NOT_ACCEPTABLE]
+            message: {type: string, maxLength: 2000}
+            retryable: {type: boolean}
+            recommended_action: {type: string, maxLength: 2000}
             details:
               type: object
-              additionalProperties: true
+              maxProperties: 32
+              additionalProperties:
+                type: [string, number, integer, boolean, 'null']
+    # ------------------------------------------------------------------ projects / models / tensors
     ProjectCreate:
       type: object
       additionalProperties: false
-      required:
-      - name
+      required: [name]
       properties:
-        name:
-          type: string
-          minLength: 1
-          maxLength: 120
+        name: {type: string, minLength: 1, maxLength: 120}
     Project:
       type: object
-      required:
-      - id
-      - name
-      - created_at
+      additionalProperties: false
+      required: [id, name, created_at]
       properties:
-        id:
-          type: string
-        name:
-          type: string
-        created_at:
-          type: string
-          format: date-time
+        id: {$ref: '#/components/schemas/Id'}
+        name: {type: string, maxLength: 120}
+        created_at: {type: string, format: date-time}
     ModelImport:
       type: object
       additionalProperties: false
-      required:
-      - entry_path
-      - selected_root
+      required: [entry_path, selected_root]
       properties:
-        entry_path:
-          type: string
-          minLength: 1
-        selected_root:
-          type: string
-          minLength: 1
-        display_name:
-          type: string
+        entry_path: {$ref: '#/components/schemas/LocalPath'}
+        selected_root: {$ref: '#/components/schemas/LocalPath'}
+        display_name: {type: string, maxLength: 120}
+    ModelRelink:
+      type: object
+      additionalProperties: false
+      required: [entry_path, selected_root]
+      properties:
+        entry_path: {$ref: '#/components/schemas/LocalPath'}
+        selected_root: {$ref: '#/components/schemas/LocalPath'}
     Model:
       type: object
-      required:
-      - id
-      - display_name
-      - format
-      - status
+      additionalProperties: false
+      required: [id, project_id, display_name, format, status, tensor_count, fingerprint_method]
       properties:
-        id:
-          type: string
-        display_name:
-          type: string
-        format:
-          type: string
-          enum:
-          - safetensors
-          - sharded_safetensors
-        status:
-          type: string
-          enum:
-          - ready
-          - incomplete
-          - changed
-          - unsupported
-        tensor_count:
-          type: integer
-          minimum: 0
-        quick_fingerprint_kind:
-          type: string
+        id: {$ref: '#/components/schemas/Id'}
+        project_id: {$ref: '#/components/schemas/Id'}
+        display_name: {type: string, maxLength: 120}
+        format: {type: string, enum: [safetensors, sharded_safetensors]}
+        status: {type: string, enum: [ready, incomplete, changed, disconnected, unsupported]}
+        tensor_count: {$ref: '#/components/schemas/SafeInt'}
+        fingerprint_method: {type: string, enum: [size_mtime, sha256, hf_cache_blob_sha256]}
+        warnings: {type: array, maxItems: 100, items: {type: string, maxLength: 500}}
     Tensor:
       type: object
-      required:
-      - id
-      - raw_key
-      - shape
-      - dtype
-      - rank
-      - byte_length
+      additionalProperties: false
+      required: [id, model_id, raw_key, shape, dtype, rank, numel, byte_length, shard_relpath, file_offset_begin,
+                 file_offset_end, role, role_is_heuristic, layer_index]
       properties:
-        id:
-          type: string
-        raw_key:
-          type: string
-        shape:
-          type: array
-          items:
-            type: integer
-            minimum: 0
-        dtype:
-          type: string
-        rank:
-          type: integer
-          minimum: 0
-        byte_length:
-          type: integer
-          minimum: 0
+        id: {$ref: '#/components/schemas/Id'}
+        model_id: {$ref: '#/components/schemas/Id'}
+        raw_key: {type: string, maxLength: 4096}
+        shape: {type: array, maxItems: 32, items: {$ref: '#/components/schemas/SafeInt'}}
+        dtype: {type: string, enum: [F64, F32, F16, BF16, I64, I32, I16, I8, U64, U32, U16, U8, BOOL]}
+        rank: {type: integer, minimum: 0, maximum: 32}
+        numel: {$ref: '#/components/schemas/SafeInt'}
+        byte_length: {$ref: '#/components/schemas/SafeInt'}
+        shard_relpath: {type: string, maxLength: 4096, description: Path relative to the selected root; never absolute.}
+        file_offset_begin: {$ref: '#/components/schemas/SafeInt'}
+        file_offset_end: {$ref: '#/components/schemas/SafeInt'}
         role:
-          type:
-          - string
-          - 'null'
-        layer_index:
-          type:
-          - integer
-          - 'null'
+          type: [string, 'null']
+          enum: [embedding, attention.q, attention.k, attention.v, attention.o, mlp.up, mlp.down, mlp.gate, norm,
+                 lm_head, other, unknown, null]
+        role_is_heuristic: {type: boolean, const: true}
+        layer_index: {type: [integer, 'null'], minimum: 0}
+    TensorPage:
+      type: object
+      additionalProperties: false
+      required: [total, items]
+      properties:
+        total: {$ref: '#/components/schemas/SafeInt'}
+        items: {type: array, maxItems: 1000, items: {$ref: '#/components/schemas/Tensor'}}
+    # ------------------------------------------------------------------ views, sources, ROI
     Bounds:
       type: object
       additionalProperties: false
-      required:
-      - r0
-      - r1
-      - c0
-      - c1
+      required: [r0, r1, c0, c1]
       properties:
-        r0:
-          type: integer
-          minimum: 0
-        r1:
-          type: integer
-          minimum: 0
-        c0:
-          type: integer
-          minimum: 0
-        c1:
-          type: integer
-          minimum: 0
+        r0: {$ref: '#/components/schemas/SafeInt'}
+        r1: {$ref: '#/components/schemas/SafeInt'}
+        c0: {$ref: '#/components/schemas/SafeInt'}
+        c1: {$ref: '#/components/schemas/SafeInt'}
     View:
+      description: >-
+        2D view of a tensor. row_axis != col_axis; every other axis must appear in fixed_indices exactly once
+        (keys are decimal axis numbers). Rank 0/1 tensors use row_axis=col_axis=null.
       type: object
-      required:
-      - row_axis
-      - col_axis
-      - fixed_indices
-      - transpose
+      additionalProperties: false
+      required: [row_axis, col_axis, fixed_indices, transpose]
       properties:
-        row_axis:
-          type: integer
-          minimum: 0
-        col_axis:
-          type: integer
-          minimum: 0
+        row_axis: {type: [integer, 'null'], minimum: 0, maximum: 31}
+        col_axis: {type: [integer, 'null'], minimum: 0, maximum: 31}
         fixed_indices:
           type: object
-          additionalProperties:
-            type: integer
-            minimum: 0
-        transpose:
-          type: boolean
+          maxProperties: 30
+          propertyNames: {pattern: '^(?:[0-9]|[12][0-9]|3[01])$'}
+          additionalProperties: {$ref: '#/components/schemas/SafeInt'}
+        transpose: {type: boolean}
+    TensorSource:
+      type: object
+      additionalProperties: false
+      required: [kind, model_id, tensor_id]
+      properties:
+        kind: {const: tensor}
+        model_id: {$ref: '#/components/schemas/Id'}
+        tensor_id: {$ref: '#/components/schemas/Id'}
+    DeltaSource:
+      description: Elementwise B - A of one matched comparison entry, computed in a paired pass (never from A and B aggregates).
+      type: object
+      additionalProperties: false
+      required: [kind, comparison_id, entry_id, transform]
+      properties:
+        kind: {const: delta}
+        comparison_id: {$ref: '#/components/schemas/Id'}
+        entry_id: {$ref: '#/components/schemas/Id'}
+        transform: {type: string, enum: [b_minus_a, abs_b_minus_a, relative_abs]}
+        epsilon: {type: number, exclusiveMinimum: 0, maximum: 1, default: 1.0e-8, description: Only for relative_abs.}
+    LoraDeltaSource:
+      type: object
+      additionalProperties: false
+      required: [kind, adapter_id, module_id, experiment_multiplier]
+      properties:
+        kind: {const: lora_delta}
+        adapter_id: {$ref: '#/components/schemas/Id'}
+        module_id: {$ref: '#/components/schemas/Id'}
+        experiment_multiplier: {type: number, minimum: -16, maximum: 16, description: Separate from the native PEFT scale.}
+    VirtualEffectiveSource:
+      description: base W + multiplier * native_scale * B @ A; visualization only. Requires class V or recorded research_mode.
+      type: object
+      additionalProperties: false
+      required: [kind, adapter_id, module_id, experiment_multiplier, research_mode]
+      properties:
+        kind: {const: virtual_effective}
+        adapter_id: {$ref: '#/components/schemas/Id'}
+        module_id: {$ref: '#/components/schemas/Id'}
+        experiment_multiplier: {type: number, minimum: -16, maximum: 16}
+        research_mode: {type: boolean}
+    Source:
+      oneOf:
+      - $ref: '#/components/schemas/TensorSource'
+      - $ref: '#/components/schemas/DeltaSource'
+      - $ref: '#/components/schemas/LoraDeltaSource'
+      - $ref: '#/components/schemas/VirtualEffectiveSource'
+      discriminator:
+        propertyName: kind
+        mapping:
+          tensor: '#/components/schemas/TensorSource'
+          delta: '#/components/schemas/DeltaSource'
+          lora_delta: '#/components/schemas/LoraDeltaSource'
+          virtual_effective: '#/components/schemas/VirtualEffectiveSource'
     RoiRequest:
       type: object
       additionalProperties: false
-      required:
-      - model_id
-      - tensor_id
-      - view
-      - roi
-      - output_dtype
+      required: [source, view, roi]
       properties:
-        model_id:
+        source: {$ref: '#/components/schemas/Source'}
+        view: {$ref: '#/components/schemas/View'}
+        roi: {$ref: '#/components/schemas/Bounds'}
+        value_encoding:
           type: string
-        tensor_id:
-          type: string
-        view:
-          $ref: '#/components/schemas/View'
-        roi:
-          $ref: '#/components/schemas/Bounds'
-        output_dtype:
-          type: string
-          enum:
-          - float32
-          - float64
+          enum: [auto, hex_bits]
+          default: auto
+          description: >-
+            auto: lossless typed encoding (see RoiResponse). hex_bits: every element as the raw source bit pattern
+            (lowercase hex, source width, e.g. BF16 "0x7fc1"), preserving NaN payloads; only for kind=tensor.
     RoiResponse:
+      description: >-
+        Lossless for raw tensor sources. value_encoding tells the client how to read values:
+        float_json = JSON numbers that parse to exactly the source value as IEEE float64 (serializer emits the
+        shortest round-trip repr and "-0.0" for negative zero); int_json = integers within +/-(2^53-1) for
+        I8..I32/U8..U32; int_decimal_string = decimal strings for I64/U64 (always, regardless of magnitude);
+        bool_json = booleans; hex_bits = raw bits. Non-finite floats are null with nonfinite_mask set.
+        Derived sources (delta, lora_delta, virtual_effective) are computed in float64 and report
+        numeric_precision=rounded or overflowed.
       type: object
-      required:
-      - schema_version
-      - roi
-      - shape
-      - dtype
-      - exact
-      - values
-      - warnings
+      additionalProperties: false
+      required: [schema_version, source, roi, shape, source_dtype, value_encoding, coverage, numeric_precision, values,
+                 nonfinite_mask, warnings]
       properties:
-        schema_version:
-          type: integer
-          const: 1
-        roi:
-          $ref: '#/components/schemas/Bounds'
-        shape:
-          type: array
-          items:
-            type: integer
-          minItems: 2
-          maxItems: 2
-        dtype:
-          type: string
-        exact:
-          type: boolean
-          const: true
+        schema_version: {const: 2}
+        source: {$ref: '#/components/schemas/Source'}
+        roi: {$ref: '#/components/schemas/Bounds'}
+        shape: {type: array, minItems: 2, maxItems: 2, items: {$ref: '#/components/schemas/SafeInt'}}
+        source_dtype: {type: string, enum: [F64, F32, F16, BF16, I64, I32, I16, I8, U64, U32, U16, U8, BOOL]}
+        value_encoding: {type: string, enum: [float_json, int_json, int_decimal_string, bool_json, hex_bits]}
+        coverage: {const: complete}
+        numeric_precision: {type: string, enum: [lossless, rounded, overflowed]}
         values:
           type: array
+          maxItems: 4096
           items:
             type: array
-            items:
-              type:
-              - number
-              - 'null'
+            maxItems: 4096
+            items: {type: [number, integer, string, boolean, 'null']}
         nonfinite_mask:
-          type:
-          - array
-          - 'null'
+          type: [array, 'null']
           items:
             type: array
-            items:
-              type:
-              - string
-              - 'null'
-              enum:
-              - nan
-              - pos_inf
-              - neg_inf
-              - null
-        warnings:
-          type: array
-          items:
-            type: string
+            items: {type: [string, 'null'], enum: [nan, pos_inf, neg_inf, overflow, null]}
+        warnings: {type: array, maxItems: 50, items: {type: string, maxLength: 500}}
+    # ------------------------------------------------------------------ tiles
     TileRequest:
       type: object
-      required:
-      - source
-      - view
-      - tile
-      - aggregation
-      - quality
+      additionalProperties: false
+      required: [source, view, tile, aggregation, quality]
       properties:
-        source:
-          type: object
-          additionalProperties: true
-        view:
-          $ref: '#/components/schemas/View'
+        source: {$ref: '#/components/schemas/Source'}
+        view: {$ref: '#/components/schemas/View'}
         tile:
           type: object
-          required:
-          - level
-          - x
-          - y
-          - size
+          additionalProperties: false
+          required: [level, x, y, size]
           properties:
-            level:
-              type: integer
-              minimum: 0
-              maximum: 63
-            x:
-              type: integer
-              minimum: 0
-            y:
-              type: integer
-              minimum: 0
-            size:
-              type: integer
-              minimum: 1
-              maximum: 256
-        aggregation:
-          type: string
-          enum:
-          - mean
-          - mean_abs
-          - rms
-          - min
-          - max
+            level: {type: integer, minimum: 0, maximum: 52}
+            x: {$ref: '#/components/schemas/SafeInt'}
+            y: {$ref: '#/components/schemas/SafeInt'}
+            size: {type: integer, minimum: 1, maximum: 256}
+        aggregation: {type: string, enum: [mean, mean_abs, rms, min, max]}
         quality:
           type: object
-          required:
-          - mode
+          additionalProperties: false
+          required: [mode]
           properties:
             mode:
               type: string
-              description: auto = exact (direct read for L0-L3, cached pyramid for L>=4) when available, otherwise a labeled row-sampled preview for tensors above pyramid_exact_max_mib. exact returns 202 + job if the pyramid is not built yet. Per-cell scattered sampling is not offered (doc 03 section 5).
               default: auto
-              enum:
-              - auto
-              - exact
-              - row_sampled
-            sampled_rows_per_block:
-              type: integer
-              minimum: 1
-              maximum: 256
-            seed:
-              type: integer
+              enum: [auto, exact, row_sampled]
+              description: >-
+                See docs/09 section 3 for the full decision table. auto: exact by direct read when covered bytes <=
+                direct_tile_max_mib, exact from a ready pyramid, otherwise 202 + deduplicated pyramid_build job for
+                sources <= pyramid_exact_max_mib, or a labeled row-sampled 200 above it. Never silently sampled.
+                exact: never sampled; 202 + job when not ready. row_sampled: only for sources above the pyramid limit.
+            sampled_rows_per_block: {type: integer, minimum: 1, maximum: 256}
+            seed: {type: integer, minimum: 0, maximum: 4294967295}
     TileStatus:
+      description: >-
+        One byte per cell, bitfield: 1 NO_FINITE (no finite element in the cell's block; value is a placeholder and
+        is never drawn), 2 HAS_NAN, 4 HAS_POS_INF, 8 HAS_NEG_INF, 16 NOT_REPRESENTABLE (a finite aggregate exists
+        but cannot be shown as float32, or its computation overflowed; value placeholder, exact value via ROI or
+        stats). Bits 32, 64, 128 are reserved and must be 0; clients reject tiles that set them. A cell is drawable
+        iff (status & 17) == 0. Examples: L0 NaN cell = 3, L0 +Inf = 5, L0 -Inf = 9, finite block containing a NaN
+        and a +Inf = 6, all-non-finite block with all three kinds = 15.
       type: integer
-      description: 0 finite; 1 block contains NaN; 2 contains +Inf; 3 contains -Inf; 4 several non-finite kinds; 5 no finite data (value placeholder, never drawn as a number).
-      enum: [0, 1, 2, 3, 4, 5]
+      minimum: 0
+      maximum: 31
     TileMetadata:
       type: object
-      required: [schema_version, cache_key, rows, cols, row_start, row_end, col_start, col_end, level, quality, aggregation, finite_count, nonfinite_count, source]
+      additionalProperties: false
+      required: [schema_version, cache_key, rows, cols, row_start, row_end, col_start, col_end, level, quality,
+                 value_precision, aggregation, finite_count, nonfinite_count, source, view]
       properties:
-        schema_version: {type: integer, const: 1}
-        cache_key: {type: string}
+        schema_version: {const: 2}
+        cache_key: {type: string, pattern: '^[0-9a-f]{64}$'}
         rows: {type: integer, minimum: 0, maximum: 256}
         cols: {type: integer, minimum: 0, maximum: 256}
-        row_start: {type: integer, minimum: 0}
-        row_end: {type: integer, minimum: 0}
-        col_start: {type: integer, minimum: 0}
-        col_end: {type: integer, minimum: 0}
-        level: {type: integer, minimum: 0, maximum: 63}
+        row_start: {$ref: '#/components/schemas/SafeInt'}
+        row_end: {$ref: '#/components/schemas/SafeInt'}
+        col_start: {$ref: '#/components/schemas/SafeInt'}
+        col_end: {$ref: '#/components/schemas/SafeInt'}
+        level: {type: integer, minimum: 0, maximum: 52}
         quality: {type: string, enum: [exact, row_sampled]}
+        value_precision: {const: float32_visualization, description: Tiles are lossy visualizations; exact numbers come from /tensors/roi.}
         sampled_rows: {type: [integer, 'null'], minimum: 0}
-        sampling_policy: {type: [string, 'null']}
-        seed: {type: [integer, 'null']}
+        sampling_policy: {type: [string, 'null'], enum: [stride, splitmix64_rows, null]}
+        seed: {type: [integer, 'null'], minimum: 0, maximum: 4294967295}
         aggregation: {type: string, enum: [mean, mean_abs, rms, min, max]}
-        finite_count: {type: integer, minimum: 0}
-        nonfinite_count: {type: integer, minimum: 0}
-        source: {type: object, additionalProperties: true}
-        warnings: {type: array, items: {type: string}}
+        finite_count: {$ref: '#/components/schemas/SafeInt'}
+        nonfinite_count: {$ref: '#/components/schemas/SafeInt'}
+        invalid_pair_count: {$ref: '#/components/schemas/SafeInt'}
+        source: {$ref: '#/components/schemas/Source'}
+        view: {$ref: '#/components/schemas/View'}
+        warnings: {type: array, maxItems: 50, items: {type: string, maxLength: 500}}
     TileJson:
-      description: JSON form, allowed only for tiles with at most 16384 cells (128x128); for tests and debugging. Carries the same information as the binary form - values holds the finite aggregate for status 0-4 and is null only for status 5 (no finite data).
+      description: >-
+        JSON form, only for tiles with at most 16384 cells (128x128); for tests and debugging. Same information as
+        the binary form: values[i][j] is the float32 display value when the cell is drawable and null otherwise;
+        status carries the identical bitfield.
       type: object
+      additionalProperties: false
       required: [metadata, values, status]
       properties:
         metadata: {$ref: '#/components/schemas/TileMetadata'}
-        values:
-          type: array
-          items: {type: array, items: {type: [number, 'null']}}
-        status:
-          type: array
-          items: {type: array, items: {$ref: '#/components/schemas/TileStatus'}}
+        values: {type: array, maxItems: 128, items: {type: array, maxItems: 128, items: {type: [number, 'null']}}}
+        status: {type: array, maxItems: 128, items: {type: array, maxItems: 128, items: {$ref: '#/components/schemas/TileStatus'}}}
+    # ------------------------------------------------------------------ jobs
+    Budget:
+      description: >-
+        Upper bounds requested by the client. Values above the server's caps (memory_budget_mib, max_threads,
+        max_job_seconds) are rejected with 422 RESOURCE_LIMIT listing the caps in details; the server never raises
+        its own limits on request.
+      type: object
+      additionalProperties: false
+      required: [max_working_set_mib, max_threads, max_wall_seconds]
+      properties:
+        max_working_set_mib: {type: integer, minimum: 64, maximum: 65536}
+        max_threads: {type: integer, minimum: 1, maximum: 64}
+        max_wall_seconds: {type: integer, minimum: 1, maximum: 86400}
     JobRequest:
       type: object
-      required:
-      - kind
-      - source
-      - quality
-      - budget
+      additionalProperties: false
+      required: [kind, budget]
       properties:
-        kind:
+        kind: {type: string, enum: [tensor_stats, pyramid_build, compare_stats, file_hash]}
+        source: {$ref: '#/components/schemas/Source'}
+        view: {$ref: '#/components/schemas/View'}
+        model_id: {$ref: '#/components/schemas/Id'}
+        consistency:
           type: string
-          enum:
-          - tensor_stats
-          - exact_tile
-          - compare_stats
-        source:
-          type: object
-          additionalProperties: true
-        quality:
-          type: object
-          additionalProperties: true
-        budget:
-          type: object
-          description: Upper bounds requested by the client. Values above the server's configured caps (memory_budget_mib, max_threads, max_job_seconds) are rejected with 422 RESOURCE_LIMIT listing the caps in details; the server never raises its own limits on request.
-          required:
-          - max_working_set_mib
-          - max_threads
-          - max_wall_seconds
-          properties:
-            max_working_set_mib:
-              type: integer
-              minimum: 64
-              maximum: 65536
-            max_threads:
-              type: integer
-              minimum: 1
-              maximum: 64
-            max_wall_seconds:
-              type: integer
-              minimum: 1
-              maximum: 86400
-    Job:
+          enum: [best_effort, verified]
+          default: best_effort
+          description: verified hashes every input file before and after the job (2x full read) and fails with FILE_CHANGED on any difference.
+        budget: {$ref: '#/components/schemas/Budget'}
+      allOf:
+      - if: {properties: {kind: {const: file_hash}}}
+        then: {required: [model_id], not: {required: [source]}}
+        else: {required: [source]}
+    Metric:
       type: object
-      required:
-      - job_id
-      - state
-      - progress
+      additionalProperties: false
+      required: [name, value, method, source_dtype, compute_dtype, element_count, finite_count, coverage, numeric_precision]
       properties:
-        job_id:
-          type: string
-        state:
-          type: string
-          enum:
-          - created
-          - queued
-          - running
-          - completed
-          - canceled
-          - failed
-          - interrupted
-        progress:
-          type: number
-          minimum: 0
-          maximum: 1
-        poll_after_ms:
-          type: integer
+        name: {type: string, enum: [count, zeros, negatives, positives, nan, pos_inf, neg_inf, mean, std_population,
+                                    l1, l2, rms, min, max, max_abs, relative_l2, cosine, pearson]}
+        value: {type: [number, string, 'null'], description: string only for 64-bit integer counts or extrema.}
+        units: {type: [string, 'null'], maxLength: 32}
+        method: {type: string, maxLength: 200}
+        source_dtype: {type: string, maxLength: 8}
+        compute_dtype: {type: string, enum: [float64, int64, python_int]}
+        element_count: {type: [integer, string]}
+        finite_count: {type: [integer, string]}
+        sample_count: {type: [integer, 'null']}
+        coverage: {type: string, enum: [complete, sampled]}
+        numeric_precision: {type: string, enum: [lossless, rounded, overflowed, unsupported]}
+        seed: {type: [integer, 'null']}
+        epsilon: {type: [number, 'null']}
+        numerical_warnings: {type: array, maxItems: 20, items: {type: string, maxLength: 300}}
+    JobResult:
+      oneOf:
+      - type: object
+        additionalProperties: false
+        required: [kind, metrics]
+        properties:
+          kind: {const: tensor_stats}
+          metrics: {type: array, maxItems: 64, items: {$ref: '#/components/schemas/Metric'}}
+      - type: object
+        additionalProperties: false
+        required: [kind, metrics, invalid_pair_count]
+        properties:
+          kind: {const: compare_stats}
+          metrics: {type: array, maxItems: 64, items: {$ref: '#/components/schemas/Metric'}}
+          invalid_pair_count: {$ref: '#/components/schemas/SafeInt'}
+      - type: object
+        additionalProperties: false
+        required: [kind, pyramid_id]
+        properties:
+          kind: {const: pyramid_build}
+          pyramid_id: {type: string, pattern: '^[0-9a-f]{64}$'}
+      - type: object
+        additionalProperties: false
+        required: [kind, files]
+        properties:
+          kind: {const: file_hash}
+          files:
+            type: array
+            maxItems: 10000
+            items:
+              type: object
+              additionalProperties: false
+              required: [relpath, sha256]
+              properties:
+                relpath: {type: string, maxLength: 4096}
+                sha256: {$ref: '#/components/schemas/Sha256'}
+      - type: object
+        additionalProperties: false
+        required: [kind, export_id]
+        properties:
+          kind: {const: export}
+          export_id: {$ref: '#/components/schemas/Id'}
+    Job:
+      description: >-
+        States: created -> queued -> running -> completed | failed | canceled; queued -> canceled; running ->
+        interrupted on restart. Timeout and budget overrun are failed with RESOURCE_LIMIT. result is non-null only
+        when completed; canceled/failed/interrupted never carry a partial result.
+      type: object
+      additionalProperties: false
+      required: [job_id, kind, state, progress, created_at]
+      properties:
+        job_id: {$ref: '#/components/schemas/Id'}
+        kind: {type: string, enum: [tensor_stats, pyramid_build, compare_stats, file_hash, export]}
+        state: {type: string, enum: [created, queued, running, completed, canceled, failed, interrupted]}
+        progress: {type: number, minimum: 0, maximum: 1}
+        poll_after_ms: {type: integer, minimum: 100, maximum: 10000}
+        estimated_bytes: {$ref: '#/components/schemas/SafeInt'}
+        bytes_scanned: {$ref: '#/components/schemas/SafeInt'}
+        created_at: {type: string, format: date-time}
+        started_at: {type: [string, 'null'], format: date-time}
+        finished_at: {type: [string, 'null'], format: date-time}
+        deduplicated: {type: boolean, description: True when this request joined an identical pending job.}
         result:
-          type:
-          - object
-          - 'null'
-          additionalProperties: true
+          oneOf:
+          - {type: 'null'}
+          - {$ref: '#/components/schemas/JobResult'}
         error:
-          type:
-          - object
-          - 'null'
-          additionalProperties: true
+          oneOf:
+          - {type: 'null'}
+          - {$ref: '#/components/schemas/Error/properties/error'}
+    # ------------------------------------------------------------------ comparisons and lineage
     ComparisonRequest:
       type: object
-      required:
-      - model_a_id
-      - model_b_id
+      additionalProperties: false
+      required: [project_id, model_a_id, model_b_id]
       properties:
-        model_a_id:
-          type: string
-        model_b_id:
-          type: string
-        policy:
-          type: string
-          enum:
-          - strict
-          - descriptive_only
-          default: strict
+        project_id: {$ref: '#/components/schemas/Id'}
+        model_a_id: {$ref: '#/components/schemas/Id'}
+        model_b_id: {$ref: '#/components/schemas/Id'}
+        policy: {type: string, enum: [strict, descriptive_only], default: strict}
+        user_attestation:
+          type: boolean
+          default: false
+          description: The user states A is B's training base. Recorded; never upgrades class beyond L (docs/04 section 7).
+    LineageAssessment:
+      description: >-
+        base_file_identity_verified says the base file is byte-identical to the base the derivative's record names;
+        it does not prove that the derivative was trained from it. lineage_trust_level says how much the ancestry
+        statement itself is trusted. lineage_evidence is derived for compatibility with manifests
+        (cryptographically_verified iff base_file_identity_verified).
+      type: object
+      additionalProperties: false
+      required: [compatibility_class, base_file_identity_verified, base_identity_method, lineage_claim_source,
+                 lineage_trust_level, lineage_evidence, transfer_eligibility, reasons]
+      properties:
+        compatibility_class: {type: string, enum: [V, L, S, X]}
+        base_file_identity_verified: {type: boolean}
+        base_identity_method: {type: string, enum: [sha256_recorded, hf_cache_blob_sha256, none]}
+        lineage_claim_source: {type: string, enum: [none, adapter_config, model_card, weightlab_manifest,
+                                                    synthetic_fixture_generator, user_attestation]}
+        lineage_trust_level: {type: string, enum: [proven_by_construction, trusted_statement, unverified_claim, none]}
+        lineage_evidence: {type: string, enum: [cryptographically_verified, user_attested, declared, none]}
+        transfer_eligibility: {type: string, enum: [T1, T2, T3, T4, T5, none]}
+        reasons: {type: array, maxItems: 100, items: {type: string, maxLength: 500}}
+      allOf:
+      - if: {properties: {compatibility_class: {const: V}}}
+        then: {properties: {base_file_identity_verified: {const: true}, base_identity_method: {enum: [sha256_recorded, hf_cache_blob_sha256]}}}
+      - if: {properties: {base_file_identity_verified: {const: true}}}
+        then: {properties: {lineage_evidence: {const: cryptographically_verified}}}
+        else: {properties: {lineage_evidence: {enum: [user_attested, declared, none]}}}
+    ComparisonCounts:
+      type: object
+      additionalProperties: false
+      required: [matched, missing_in_a, missing_in_b, tied, shape_mismatch, dtype_mismatch]
+      properties:
+        matched: {$ref: '#/components/schemas/SafeInt'}
+        missing_in_a: {$ref: '#/components/schemas/SafeInt'}
+        missing_in_b: {$ref: '#/components/schemas/SafeInt'}
+        tied: {$ref: '#/components/schemas/SafeInt'}
+        shape_mismatch: {$ref: '#/components/schemas/SafeInt'}
+        dtype_mismatch: {$ref: '#/components/schemas/SafeInt'}
     Comparison:
       type: object
-      required:
-      - id
-      - model_a_id
-      - model_b_id
-      - compatibility
+      additionalProperties: false
+      required: [id, project_id, model_a_id, model_b_id, lineage, counts, created_at]
       properties:
-        id:
-          type: string
-        model_a_id:
-          type: string
-        model_b_id:
-          type: string
-        compatibility:
-          type: object
-          required:
-          - class
-          - reasons
-          properties:
-            class:
-              type: string
-              enum:
-              - V
-              - L
-              - S
-              - X
-            reasons:
-              type: array
-              items:
-                type: string
-    ExportRequest:
+        id: {$ref: '#/components/schemas/Id'}
+        project_id: {$ref: '#/components/schemas/Id'}
+        model_a_id: {$ref: '#/components/schemas/Id'}
+        model_b_id: {$ref: '#/components/schemas/Id'}
+        lineage: {$ref: '#/components/schemas/LineageAssessment'}
+        counts: {$ref: '#/components/schemas/ComparisonCounts'}
+        created_at: {type: string, format: date-time}
+    ComparisonEntry:
       type: object
-      required:
-      - project_id
-      - format
-      - strip_absolute_paths
+      additionalProperties: false
+      required: [entry_id, raw_key, status, reasons]
       properties:
-        project_id:
-          type: string
-        format:
-          type: string
-          enum:
-          - json
-          - png
-        strip_absolute_paths:
-          type: boolean
-          default: true
-        view:
-          type: object
-          additionalProperties: true
+        entry_id: {$ref: '#/components/schemas/Id'}
+        raw_key: {type: string, maxLength: 4096}
+        status: {type: string, enum: [matched, missing_in_a, missing_in_b, tied, shape_mismatch, dtype_mismatch]}
+        tensor_id_a: {oneOf: [{type: 'null'}, {$ref: '#/components/schemas/Id'}]}
+        tensor_id_b: {oneOf: [{type: 'null'}, {$ref: '#/components/schemas/Id'}]}
+        shape_a: {type: [array, 'null'], items: {$ref: '#/components/schemas/SafeInt'}}
+        shape_b: {type: [array, 'null'], items: {$ref: '#/components/schemas/SafeInt'}}
+        dtype_a: {type: [string, 'null'], maxLength: 8}
+        dtype_b: {type: [string, 'null'], maxLength: 8}
+        tied_to: {type: [string, 'null'], maxLength: 4096, description: Source key when status=tied (positive evidence only).}
+        tie_evidence: {type: [string, 'null'], enum: [config_and_known_mapping, trusted_alias_metadata, null]}
+        reasons: {type: array, maxItems: 20, items: {type: string, maxLength: 500}}
+    ComparisonEntryPage:
+      type: object
+      additionalProperties: false
+      required: [total, items]
+      properties:
+        total: {$ref: '#/components/schemas/SafeInt'}
+        items: {type: array, maxItems: 1000, items: {$ref: '#/components/schemas/ComparisonEntry'}}
+    # ------------------------------------------------------------------ adapters, bookmarks, exports, settings
     AdapterImport:
       type: object
       additionalProperties: false
-      required:
-      - base_model_id
-      - adapter_directory
+      required: [base_model_id, adapter_directory]
       properties:
-        base_model_id:
-          type: string
-        adapter_directory:
-          type: string
-        strict_lineage:
-          type: boolean
-          default: true
+        base_model_id: {$ref: '#/components/schemas/Id'}
+        adapter_directory: {$ref: '#/components/schemas/LocalPath'}
+    AdapterModule:
+      type: object
+      additionalProperties: false
+      required: [module_id, adapter_key_prefix, base_tensor_id, rank, alpha, native_scale, status]
+      properties:
+        module_id: {$ref: '#/components/schemas/Id'}
+        adapter_key_prefix: {type: string, maxLength: 4096}
+        base_tensor_id: {oneOf: [{type: 'null'}, {$ref: '#/components/schemas/Id'}]}
+        rank: {type: integer, minimum: 1, maximum: 4096}
+        alpha: {type: number}
+        native_scale: {type: number}
+        transpose: {type: boolean, default: false, description: true only for supported fan_in_fan_out modules.}
+        status: {type: string, enum: [supported, unsupported, no_base_tensor]}
+        reason: {type: [string, 'null'], maxLength: 500}
     Adapter:
       type: object
-      required:
-      - id
-      - base_model_id
-      - status
-      - modules
+      additionalProperties: false
+      required: [id, project_id, base_model_id, status, lineage, modules]
       properties:
-        id:
-          type: string
-        base_model_id:
-          type: string
-        status:
-          type: string
-          enum:
-          - ready
-          - partial
-          - unsupported
-          - lineage_unverified
-        modules:
-          type: array
-          items:
-            type: object
-            additionalProperties: true
-        warnings:
-          type: array
-          items:
-            type: string
+        id: {$ref: '#/components/schemas/Id'}
+        project_id: {$ref: '#/components/schemas/Id'}
+        base_model_id: {$ref: '#/components/schemas/Id'}
+        status: {type: string, enum: [ready, partial, unsupported]}
+        lineage: {$ref: '#/components/schemas/LineageAssessment'}
+        modules: {type: array, maxItems: 10000, items: {$ref: '#/components/schemas/AdapterModule'}}
+        warnings: {type: array, maxItems: 100, items: {type: string, maxLength: 500}}
+    SavedView:
+      type: object
+      additionalProperties: false
+      required: [source, view]
+      properties:
+        source: {$ref: '#/components/schemas/Source'}
+        view: {$ref: '#/components/schemas/View'}
+        roi: {$ref: '#/components/schemas/Bounds'}
+        tile_level: {type: integer, minimum: 0, maximum: 52}
+        aggregation: {type: string, enum: [mean, mean_abs, rms, min, max]}
+        color:
+          type: object
+          additionalProperties: false
+          required: [mode]
+          properties:
+            mode: {type: string, enum: [auto_robust, fixed, min_max, symmetric]}
+            vmin: {type: [number, 'null']}
+            vmax: {type: [number, 'null']}
+            locked_shared_scale: {type: boolean, default: false}
     BookmarkCreate:
       type: object
-      required:
-      - view
+      additionalProperties: false
+      required: [view]
       properties:
-        view:
-          type: object
-          additionalProperties: true
-        note:
-          type: string
+        view: {$ref: '#/components/schemas/SavedView'}
+        note: {type: string, maxLength: 2000}
     Bookmark:
       type: object
-      required:
-      - id
-      - view
+      additionalProperties: false
+      required: [id, view, note, created_at]
       properties:
-        id:
-          type: string
-        view:
-          type: object
-          additionalProperties: true
-        note:
-          type:
-          - string
-          - 'null'
-  responses:
-    ValidationError:
-      description: Request failed validation or exceeds resource budget
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/Error'
+        id: {$ref: '#/components/schemas/Id'}
+        view: {$ref: '#/components/schemas/SavedView'}
+        note: {type: [string, 'null'], maxLength: 2000}
+        created_at: {type: string, format: date-time}
+    ExportRequest:
+      type: object
+      additionalProperties: false
+      required: [project_id, format, views]
+      properties:
+        project_id: {$ref: '#/components/schemas/Id'}
+        format: {type: string, enum: [json, png]}
+        views: {type: array, minItems: 1, maxItems: 20, items: {$ref: '#/components/schemas/SavedView'}}
+        strip_absolute_paths: {type: boolean, default: true}
+        include_raw_values: {type: boolean, default: false, description: Requires explicit user confirmation in the UI (SEC-07).}
+    ExportRecord:
+      type: object
+      additionalProperties: false
+      required: [id, project_id, format, state, file_name, created_at]
+      properties:
+        id: {$ref: '#/components/schemas/Id'}
+        project_id: {$ref: '#/components/schemas/Id'}
+        format: {type: string, enum: [json, png]}
+        state: {type: string, enum: [pending, ready, failed]}
+        file_name: {type: string, pattern: '^[A-Za-z0-9._-]{1,128}$', description: Server-generated; never contains tokens or paths.}
+        size_bytes: {$ref: '#/components/schemas/SafeInt'}
+        sha256: {oneOf: [{type: 'null'}, {$ref: '#/components/schemas/Sha256'}]}
+        created_at: {type: string, format: date-time}
+    Settings:
+      type: object
+      additionalProperties: false
+      required: [offline, telemetry_enabled, memory_budget_mib, max_threads, max_active_tiles, max_heavy_jobs, roi_max_cells,
+                 max_tile_cells, direct_tile_max_mib, pyramid_exact_max_mib, tile_cache_memory_mib, tile_cache_disk_mib,
+                 max_scan_read_mib_without_confirmation, max_job_seconds, max_lora_scan_gmac, export_absolute_paths]
+      properties:
+        offline: {const: true, description: Read-only in R1.}
+        telemetry_enabled: {const: false, description: Read-only in R1.}
+        memory_budget_mib: {type: integer, minimum: 256, maximum: 65536}
+        max_threads: {type: integer, minimum: 1, maximum: 64}
+        max_active_tiles: {type: integer, minimum: 1, maximum: 8}
+        max_heavy_jobs: {type: integer, minimum: 1, maximum: 4}
+        roi_max_cells: {type: integer, minimum: 1, maximum: 65536}
+        max_tile_cells: {const: 65536}
+        direct_tile_max_mib: {type: integer, minimum: 8, maximum: 512}
+        pyramid_exact_max_mib: {type: integer, minimum: 64, maximum: 16384}
+        tile_cache_memory_mib: {type: integer, minimum: 16, maximum: 4096}
+        tile_cache_disk_mib: {type: integer, minimum: 0, maximum: 1048576}
+        max_scan_read_mib_without_confirmation: {type: integer, minimum: 1, maximum: 1048576}
+        max_job_seconds: {type: integer, minimum: 1, maximum: 86400}
+        max_lora_scan_gmac: {type: integer, minimum: 1, maximum: 100000}
+        export_absolute_paths: {type: boolean}
+    SettingsPatch:
+      description: Any subset of the writable Settings fields. Server validates against hard upper bounds and returns the full Settings.
+      type: object
+      additionalProperties: false
+      minProperties: 1
+      properties:
+        memory_budget_mib: {$ref: '#/components/schemas/Settings/properties/memory_budget_mib'}
+        max_threads: {$ref: '#/components/schemas/Settings/properties/max_threads'}
+        max_active_tiles: {$ref: '#/components/schemas/Settings/properties/max_active_tiles'}
+        max_heavy_jobs: {$ref: '#/components/schemas/Settings/properties/max_heavy_jobs'}
+        roi_max_cells: {$ref: '#/components/schemas/Settings/properties/roi_max_cells'}
+        direct_tile_max_mib: {$ref: '#/components/schemas/Settings/properties/direct_tile_max_mib'}
+        pyramid_exact_max_mib: {$ref: '#/components/schemas/Settings/properties/pyramid_exact_max_mib'}
+        tile_cache_memory_mib: {$ref: '#/components/schemas/Settings/properties/tile_cache_memory_mib'}
+        tile_cache_disk_mib: {$ref: '#/components/schemas/Settings/properties/tile_cache_disk_mib'}
+        max_scan_read_mib_without_confirmation: {$ref: '#/components/schemas/Settings/properties/max_scan_read_mib_without_confirmation'}
+        max_job_seconds: {$ref: '#/components/schemas/Settings/properties/max_job_seconds'}
+        max_lora_scan_gmac: {$ref: '#/components/schemas/Settings/properties/max_lora_scan_gmac'}
+        export_absolute_paths: {$ref: '#/components/schemas/Settings/properties/export_absolute_paths'}
 paths:
   /health:
     get:
@@ -590,26 +728,18 @@ paths:
       security: []
       responses:
         '200':
-          description: Runtime status
+          description: Runtime status. Contains no paths, project data or token.
           content:
             application/json:
               schema:
                 type: object
-                required:
-                - status
-                - version
-                - offline
+                additionalProperties: false
+                required: [status, version, offline, capabilities]
                 properties:
-                  status:
-                    type: string
-                  version:
-                    type: string
-                  offline:
-                    type: boolean
-                  capabilities:
-                    type: array
-                    items:
-                      type: string
+                  status: {type: string, enum: [ok, degraded]}
+                  version: {type: string, maxLength: 64}
+                  offline: {const: true}
+                  capabilities: {type: array, maxItems: 32, items: {type: string, enum: [native_directory_dialog, binary_tiles]}}
   /projects:
     get:
       summary: List local projects
@@ -618,34 +748,45 @@ paths:
           description: Projects
           content:
             application/json:
-              schema:
-                type: array
-                items:
-                  $ref: '#/components/schemas/Project'
+              schema: {type: array, maxItems: 10000, items: {$ref: '#/components/schemas/Project'}}
     post:
       summary: Create a local project
       requestBody:
         required: true
         content:
           application/json:
-            schema:
-              $ref: '#/components/schemas/ProjectCreate'
+            schema: {$ref: '#/components/schemas/ProjectCreate'}
       responses:
         '201':
           description: Created
           content:
             application/json:
-              schema:
-                $ref: '#/components/schemas/Project'
-        '422':
-          $ref: '#/components/responses/ValidationError'
+              schema: {$ref: '#/components/schemas/Project'}
+        '422': {$ref: '#/components/responses/ErrorResponse'}
+  /projects/{project_id}:
+    parameters:
+    - $ref: '#/components/parameters/ProjectId'
+    get:
+      summary: Get one project
+      responses:
+        '200':
+          description: Project
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/Project'}
+        '404': {$ref: '#/components/responses/ErrorResponse'}
+    delete:
+      summary: Delete project metadata (and optionally its cache). Never touches checkpoint files.
+      parameters:
+      - in: query
+        name: purge_cache
+        schema: {type: boolean, default: true}
+      responses:
+        '204': {description: Deleted}
+        '404': {$ref: '#/components/responses/ErrorResponse'}
   /projects/{project_id}/models:
     parameters:
-    - in: path
-      name: project_id
-      required: true
-      schema:
-        type: string
+    - $ref: '#/components/parameters/ProjectId'
     get:
       summary: List imported models
       responses:
@@ -653,325 +794,358 @@ paths:
           description: Models
           content:
             application/json:
-              schema:
-                type: array
-                items:
-                  $ref: '#/components/schemas/Model'
+              schema: {type: array, maxItems: 10000, items: {$ref: '#/components/schemas/Model'}}
     post:
-      summary: Import user-selected model path
+      summary: Import a model in place from a user-typed absolute path (no upload)
       requestBody:
         required: true
         content:
           application/json:
-            schema:
-              $ref: '#/components/schemas/ModelImport'
+            schema: {$ref: '#/components/schemas/ModelImport'}
       responses:
         '201':
           description: Model catalog created
           content:
             application/json:
-              schema:
-                $ref: '#/components/schemas/Model'
-        '409':
-          $ref: '#/components/responses/ValidationError'
-  /models/{model_id}/tensors:
-    get:
-      summary: List tensors in imported model
-      parameters:
-      - in: path
-        name: model_id
+              schema: {$ref: '#/components/schemas/Model'}
+        '403': {$ref: '#/components/responses/ErrorResponse'}
+        '404': {$ref: '#/components/responses/ErrorResponse'}
+        '409': {$ref: '#/components/responses/ErrorResponse'}
+        '413': {$ref: '#/components/responses/ErrorResponse'}
+        '422': {$ref: '#/components/responses/ErrorResponse'}
+  /models/{model_id}/relink:
+    parameters:
+    - $ref: '#/components/parameters/ModelId'
+    post:
+      summary: Point a disconnected model at its new location
+      description: Succeeds only if every referenced file's quick fingerprint (size, mtime_ns) matches; otherwise 409 FILE_CHANGED and the user must re-import.
+      requestBody:
         required: true
-        schema:
-          type: string
-      - in: query
-        name: q
-        required: false
-        schema:
-          type: string
-      - in: query
-        name: limit
-        required: false
-        schema:
-          type: integer
-          minimum: 1
-          maximum: 1000
-          default: 100
-      - in: query
-        name: offset
-        required: false
-        schema:
-          type: integer
-          minimum: 0
-          default: 0
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/ModelRelink'}
+      responses:
+        '200':
+          description: Relinked model
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/Model'}
+        '404': {$ref: '#/components/responses/ErrorResponse'}
+        '409': {$ref: '#/components/responses/ErrorResponse'}
+  /models/{model_id}/tensors:
+    parameters:
+    - $ref: '#/components/parameters/ModelId'
+    get:
+      summary: List and filter tensors in an imported model
+      parameters:
+      - {in: query, name: q, schema: {type: string, maxLength: 256}, description: Case-insensitive substring of raw_key}
+      - {in: query, name: dtype, schema: {type: array, maxItems: 13, items: {$ref: '#/components/schemas/Tensor/properties/dtype'}}, style: form, explode: true}
+      - {in: query, name: role, schema: {type: array, maxItems: 12, items: {type: string, maxLength: 16}}, style: form, explode: true}
+      - {in: query, name: layer, schema: {type: integer, minimum: 0, maximum: 100000}}
+      - {in: query, name: rank, schema: {type: integer, minimum: 0, maximum: 32}}
+      - {in: query, name: min_numel, schema: {$ref: '#/components/schemas/SafeInt'}}
+      - {in: query, name: sort, schema: {type: string, enum: [raw_key, numel, byte_length, layer_index], default: raw_key}}
+      - {in: query, name: order, schema: {type: string, enum: [asc, desc], default: asc}}
+      - $ref: '#/components/parameters/Limit'
+      - $ref: '#/components/parameters/Offset'
       responses:
         '200':
           description: Tensor catalog page
           content:
             application/json:
-              schema:
-                type: object
-                required:
-                - total
-                - items
-                properties:
-                  total:
-                    type: integer
-                  items:
-                    type: array
-                    items:
-                      $ref: '#/components/schemas/Tensor'
+              schema: {$ref: '#/components/schemas/TensorPage'}
+        '404': {$ref: '#/components/responses/ErrorResponse'}
+        '422': {$ref: '#/components/responses/ErrorResponse'}
+  /models/{model_id}/tensors/{tensor_id}:
+    parameters:
+    - $ref: '#/components/parameters/ModelId'
+    - {in: path, name: tensor_id, required: true, schema: {$ref: '#/components/schemas/Id'}}
+    get:
+      summary: Get exact tensor catalog metadata
+      responses:
+        '200':
+          description: Tensor metadata
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/Tensor'}
+        '404': {$ref: '#/components/responses/ErrorResponse'}
   /tensors/roi:
     post:
-      summary: Read a bounded exact numerical ROI
+      summary: Read a bounded exact numerical ROI (lossless typed encoding)
       requestBody:
         required: true
         content:
           application/json:
-            schema:
-              $ref: '#/components/schemas/RoiRequest'
+            schema: {$ref: '#/components/schemas/RoiRequest'}
       responses:
         '200':
           description: Exact ROI
           content:
             application/json:
-              schema:
-                $ref: '#/components/schemas/RoiResponse'
-        '422':
-          $ref: '#/components/responses/ValidationError'
-        '413':
-          $ref: '#/components/responses/ValidationError'
+              schema: {$ref: '#/components/schemas/RoiResponse'}
+        '404': {$ref: '#/components/responses/ErrorResponse'}
+        '409': {$ref: '#/components/responses/ErrorResponse'}
+        '413': {$ref: '#/components/responses/ErrorResponse'}
+        '422': {$ref: '#/components/responses/ErrorResponse'}
   /tiles:
     post:
-      summary: Compute an exact or explicitly sampled heatmap tile
+      summary: Compute a heatmap tile (lossy float32 visualization; exact or labeled row-sampled coverage)
       requestBody:
         required: true
         content:
           application/json:
-            schema:
-              $ref: '#/components/schemas/TileRequest'
+            schema: {$ref: '#/components/schemas/TileRequest'}
       responses:
         '200':
-          description: Tile. Binary (default) is rows*cols float32 little-endian values in row-major order followed by rows*cols uint8 TileStatus codes; body length is exactly rows*cols*5 bytes. JSON only when Accept is application/json and the tile has at most 16384 cells.
+          description: >-
+            Tile. Binary (default) is rows*cols float32 little-endian display values in row-major order followed by
+            rows*cols uint8 TileStatus bitfields; body length is exactly rows*cols*5 bytes. JSON only when Accept is
+            application/json and the tile has at most 16384 cells.
           headers:
-            X-WeightLab-Rows:
-              description: Output rows
-              schema: {type: integer}
-            X-WeightLab-Cols:
-              description: Output columns
-              schema: {type: integer}
-            X-WeightLab-Row-Start:
-              description: First covered tensor row (inclusive)
-              schema: {type: integer}
-            X-WeightLab-Row-End:
-              description: Last covered tensor row (exclusive)
-              schema: {type: integer}
-            X-WeightLab-Col-Start:
-              description: First covered tensor column (inclusive)
-              schema: {type: integer}
-            X-WeightLab-Col-End:
-              description: Last covered tensor column (exclusive)
-              schema: {type: integer}
-            X-WeightLab-Level:
-              description: Pyramid level; block size 2^level
-              schema: {type: integer}
-            X-WeightLab-Quality:
-              description: exact or row_sampled
-              schema: {type: string}
-            X-WeightLab-Sampled-Rows:
-              description: Rows read per block when row_sampled
-              schema: {type: integer}
-            X-WeightLab-Aggregation:
-              description: Aggregation function
-              schema: {type: string}
-            X-WeightLab-Cache-Key:
-              description: Key for GET /tiles/{cache_key}/metadata
-              schema: {type: string}
+            X-WeightLab-Rows: {description: Output rows, schema: {type: integer}}
+            X-WeightLab-Cols: {description: Output columns, schema: {type: integer}}
+            X-WeightLab-Row-Start: {description: First covered tensor row (inclusive), schema: {type: integer}}
+            X-WeightLab-Row-End: {description: Last covered tensor row (exclusive), schema: {type: integer}}
+            X-WeightLab-Col-Start: {description: First covered tensor column (inclusive), schema: {type: integer}}
+            X-WeightLab-Col-End: {description: Last covered tensor column (exclusive), schema: {type: integer}}
+            X-WeightLab-Level: {description: Pyramid level; block size 2^level, schema: {type: integer}}
+            X-WeightLab-Quality: {description: exact or row_sampled, schema: {type: string}}
+            X-WeightLab-Value-Precision: {description: Always float32_visualization, schema: {type: string}}
+            X-WeightLab-Sampled-Rows: {description: Rows read per block when row_sampled, schema: {type: integer}}
+            X-WeightLab-Aggregation: {description: Aggregation function, schema: {type: string}}
+            X-WeightLab-Cache-Key: {description: 'Key for GET /tiles/{cache_key}/metadata', schema: {type: string}}
           content:
-            application/vnd.weightlab.tile.v1:
-              schema:
-                type: string
-                format: binary
+            application/vnd.weightlab.tile.v2:
+              schema: {type: string, format: binary}
             application/json:
-              schema:
-                $ref: '#/components/schemas/TileJson'
+              schema: {$ref: '#/components/schemas/TileJson'}
         '202':
-          description: Exact pyramid not built yet; job queued, poll job endpoint
+          description: Exact result not ready; a (deduplicated) pyramid_build job is queued. Poll the job, then repeat the request.
           content:
             application/json:
-              schema:
-                $ref: '#/components/schemas/Job'
-        '406':
-          $ref: '#/components/responses/ValidationError'
-        '413':
-          $ref: '#/components/responses/ValidationError'
-        '422':
-          $ref: '#/components/responses/ValidationError'
+              schema: {$ref: '#/components/schemas/Job'}
+        '404': {$ref: '#/components/responses/ErrorResponse'}
+        '406': {$ref: '#/components/responses/ErrorResponse'}
+        '409': {$ref: '#/components/responses/ErrorResponse'}
+        '413': {$ref: '#/components/responses/ErrorResponse'}
+        '422': {$ref: '#/components/responses/ErrorResponse'}
+        '429': {$ref: '#/components/responses/ErrorResponse'}
   /tiles/{cache_key}/metadata:
     get:
       summary: Full metadata for a previously served tile
       parameters:
-      - name: cache_key
-        in: path
-        required: true
-        schema: {type: string}
+      - {name: cache_key, in: path, required: true, schema: {type: string, pattern: '^[0-9a-f]{64}$'}}
       responses:
         '200':
           description: Tile metadata
           content:
             application/json:
-              schema:
-                $ref: '#/components/schemas/TileMetadata'
-        '404':
-          $ref: '#/components/responses/ValidationError'
+              schema: {$ref: '#/components/schemas/TileMetadata'}
+        '404': {$ref: '#/components/responses/ErrorResponse'}
   /comparisons:
     post:
-      summary: Analyze checkpoint compatibility
+      summary: Analyze checkpoint compatibility and lineage evidence
       requestBody:
         required: true
         content:
           application/json:
-            schema:
-              $ref: '#/components/schemas/ComparisonRequest'
+            schema: {$ref: '#/components/schemas/ComparisonRequest'}
       responses:
         '201':
           description: New comparison
           content:
             application/json:
-              schema:
-                $ref: '#/components/schemas/Comparison'
+              schema: {$ref: '#/components/schemas/Comparison'}
+        '404': {$ref: '#/components/responses/ErrorResponse'}
+        '409': {$ref: '#/components/responses/ErrorResponse'}
+        '422': {$ref: '#/components/responses/ErrorResponse'}
   /comparisons/{comparison_id}:
+    parameters:
+    - {in: path, name: comparison_id, required: true, schema: {$ref: '#/components/schemas/Id'}}
     get:
-      summary: Get comparison and unmatched tensor details
-      parameters:
-      - in: path
-        name: comparison_id
-        required: true
-        schema:
-          type: string
+      summary: Get comparison summary
       responses:
         '200':
           description: Comparison
           content:
             application/json:
-              schema:
-                $ref: '#/components/schemas/Comparison'
+              schema: {$ref: '#/components/schemas/Comparison'}
+        '404': {$ref: '#/components/responses/ErrorResponse'}
+  /comparisons/{comparison_id}/entries:
+    parameters:
+    - {in: path, name: comparison_id, required: true, schema: {$ref: '#/components/schemas/Id'}}
+    get:
+      summary: Matched, missing, tied and mismatched tensors
+      parameters:
+      - {in: query, name: status, schema: {type: array, maxItems: 6, items: {$ref: '#/components/schemas/ComparisonEntry/properties/status'}}, style: form, explode: true}
+      - $ref: '#/components/parameters/Limit'
+      - $ref: '#/components/parameters/Offset'
+      responses:
+        '200':
+          description: Entry page
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/ComparisonEntryPage'}
+        '404': {$ref: '#/components/responses/ErrorResponse'}
   /jobs:
     post:
-      summary: Queue bounded analysis job
+      summary: Queue a bounded analysis job (identical pending jobs are deduplicated)
       requestBody:
         required: true
         content:
           application/json:
-            schema:
-              $ref: '#/components/schemas/JobRequest'
+            schema: {$ref: '#/components/schemas/JobRequest'}
       responses:
         '202':
-          description: Job accepted
+          description: Job accepted (or joined)
           content:
             application/json:
-              schema:
-                $ref: '#/components/schemas/Job'
+              schema: {$ref: '#/components/schemas/Job'}
+        '404': {$ref: '#/components/responses/ErrorResponse'}
+        '422': {$ref: '#/components/responses/ErrorResponse'}
+        '429': {$ref: '#/components/responses/ErrorResponse'}
   /jobs/{job_id}:
+    parameters:
+    - {in: path, name: job_id, required: true, schema: {$ref: '#/components/schemas/Id'}}
     get:
-      summary: Inspect job status
-      parameters:
-      - in: path
-        name: job_id
-        required: true
-        schema:
-          type: string
+      summary: Inspect job status and, when completed, its typed result
       responses:
         '200':
           description: Job status
           content:
             application/json:
-              schema:
-                $ref: '#/components/schemas/Job'
+              schema: {$ref: '#/components/schemas/Job'}
+        '404': {$ref: '#/components/responses/ErrorResponse'}
   /jobs/{job_id}/cancel:
+    parameters:
+    - {in: path, name: job_id, required: true, schema: {$ref: '#/components/schemas/Id'}}
     post:
-      summary: Cancel queued or active job
-      parameters:
-      - in: path
-        name: job_id
-        required: true
-        schema:
-          type: string
+      summary: Cancel queued or running job (idempotent)
       responses:
         '200':
           description: Latest job status
           content:
             application/json:
-              schema:
-                $ref: '#/components/schemas/Job'
+              schema: {$ref: '#/components/schemas/Job'}
+        '404': {$ref: '#/components/responses/ErrorResponse'}
   /exports:
     post:
-      summary: Export selected view with provenance
+      summary: Export selected views with provenance into the app's export directory
       requestBody:
         required: true
         content:
           application/json:
-            schema:
-              $ref: '#/components/schemas/ExportRequest'
+            schema: {$ref: '#/components/schemas/ExportRequest'}
       responses:
         '202':
-          description: Export job
+          description: Export job; on completion its result carries export_id
           content:
             application/json:
-              schema:
-                $ref: '#/components/schemas/Job'
+              schema: {$ref: '#/components/schemas/Job'}
+        '404': {$ref: '#/components/responses/ErrorResponse'}
+        '422': {$ref: '#/components/responses/ErrorResponse'}
+  /exports/{export_id}:
+    parameters:
+    - {in: path, name: export_id, required: true, schema: {$ref: '#/components/schemas/Id'}}
+    get:
+      summary: Export record
+      responses:
+        '200':
+          description: Export record
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/ExportRecord'}
+        '404': {$ref: '#/components/responses/ErrorResponse'}
+  /exports/{export_id}/download:
+    parameters:
+    - {in: path, name: export_id, required: true, schema: {$ref: '#/components/schemas/Id'}}
+    get:
+      summary: Download a ready export
+      description: >-
+        Requires the bearer token like every other route, so the UI fetches it and saves via a Blob object URL
+        (docs/09 section 6). Content-Disposition attachment with the server-generated file_name; Cache-Control no-store.
+      responses:
+        '200':
+          description: Export bytes
+          content:
+            application/json:
+              schema: {type: object}
+            image/png:
+              schema: {type: string, format: binary}
+        '404': {$ref: '#/components/responses/ErrorResponse'}
+        '409': {$ref: '#/components/responses/ErrorResponse'}
   /settings:
     get:
-      summary: Read local resource budget and privacy settings
+      summary: Read resource budget and privacy settings
       responses:
         '200':
           description: Current settings
           content:
             application/json:
+              schema: {$ref: '#/components/schemas/Settings'}
+    patch:
+      summary: Update writable settings within hard bounds
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/SettingsPatch'}
+      responses:
+        '200':
+          description: Updated settings
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/Settings'}
+        '422': {$ref: '#/components/responses/ErrorResponse'}
+  /dialogs/select-directory:
+    post:
+      summary: Optional native folder picker on the server host (capability native_directory_dialog)
+      description: >-
+        Opens an OS dialog via a platform helper (osascript, PowerShell, zenity/kdialog) and returns the chosen
+        absolute path; never required, since typed path input is the mandatory R1 import path. 404 when the
+        capability is absent.
+      responses:
+        '200':
+          description: Chosen path, or null if the user cancelled
+          content:
+            application/json:
               schema:
                 type: object
-                additionalProperties: true
+                additionalProperties: false
+                required: [path]
+                properties:
+                  path: {oneOf: [{type: 'null'}, {$ref: '#/components/schemas/LocalPath'}]}
+        '404': {$ref: '#/components/responses/ErrorResponse'}
   /projects/{project_id}/adapters:
     parameters:
-    - in: path
-      name: project_id
-      required: true
-      schema:
-        type: string
+    - $ref: '#/components/parameters/ProjectId'
     get:
-      summary: List supported adapter imports
+      summary: List adapter imports
       responses:
         '200':
           description: Adapter list
           content:
             application/json:
-              schema:
-                type: array
-                items:
-                  $ref: '#/components/schemas/Adapter'
+              schema: {type: array, maxItems: 10000, items: {$ref: '#/components/schemas/Adapter'}}
     post:
       summary: Import a local PEFT adapter and validate its base mapping
       requestBody:
         required: true
         content:
           application/json:
-            schema:
-              $ref: '#/components/schemas/AdapterImport'
+            schema: {$ref: '#/components/schemas/AdapterImport'}
       responses:
         '201':
           description: Adapter imported
           content:
             application/json:
-              schema:
-                $ref: '#/components/schemas/Adapter'
-        '409':
-          $ref: '#/components/responses/ValidationError'
+              schema: {$ref: '#/components/schemas/Adapter'}
+        '404': {$ref: '#/components/responses/ErrorResponse'}
+        '409': {$ref: '#/components/responses/ErrorResponse'}
+        '422': {$ref: '#/components/responses/ErrorResponse'}
   /projects/{project_id}/bookmarks:
     parameters:
-    - in: path
-      name: project_id
-      required: true
-      schema:
-        type: string
+    - $ref: '#/components/parameters/ProjectId'
     get:
       summary: List saved views
       responses:
@@ -979,60 +1153,27 @@ paths:
           description: Bookmarks
           content:
             application/json:
-              schema:
-                type: array
-                items:
-                  $ref: '#/components/schemas/Bookmark'
+              schema: {type: array, maxItems: 10000, items: {$ref: '#/components/schemas/Bookmark'}}
     post:
       summary: Save current view and note
       requestBody:
         required: true
         content:
           application/json:
-            schema:
-              $ref: '#/components/schemas/BookmarkCreate'
+            schema: {$ref: '#/components/schemas/BookmarkCreate'}
       responses:
         '201':
           description: Bookmark saved
           content:
             application/json:
-              schema:
-                $ref: '#/components/schemas/Bookmark'
+              schema: {$ref: '#/components/schemas/Bookmark'}
+        '422': {$ref: '#/components/responses/ErrorResponse'}
   /projects/{project_id}/bookmarks/{bookmark_id}:
     parameters:
-    - in: path
-      name: project_id
-      required: true
-      schema:
-        type: string
-    - in: path
-      name: bookmark_id
-      required: true
-      schema:
-        type: string
+    - $ref: '#/components/parameters/ProjectId'
+    - {in: path, name: bookmark_id, required: true, schema: {$ref: '#/components/schemas/Id'}}
     delete:
       summary: Remove a bookmark without touching checkpoint files
       responses:
-        '204':
-          description: Bookmark deleted
-  /models/{model_id}/tensors/{tensor_id}:
-    get:
-      summary: Get exact tensor catalog metadata
-      parameters:
-      - in: path
-        name: model_id
-        required: true
-        schema:
-          type: string
-      - in: path
-        name: tensor_id
-        required: true
-        schema:
-          type: string
-      responses:
-        '200':
-          description: Tensor metadata
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Tensor'
+        '204': {description: Bookmark deleted}
+        '404': {$ref: '#/components/responses/ErrorResponse'}

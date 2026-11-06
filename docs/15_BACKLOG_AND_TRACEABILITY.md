@@ -4,12 +4,12 @@ Tickets ordered for a solo developer/coding agent. Estimates are **relative comp
 
 | Ticket | Priority | Requirement refs | Deliverable | Complexity | Done when |
 |---|---|---|---|---|---|
-| WL-001 | P0 | FR-063 | Repo, CI, offline build, lockfiles | M | Clean install without internet after deps installed |
+| WL-001 | P0 | FR-063 | Repo, CI, offline build, lockfiles | M | Runs offline once dependencies are installed (installation itself may need network or a local wheelhouse); spec checks green |
 | WL-002 | P0 | FR-003,005 | Validated SafeTensors parser, positioned-read reader, BF16/F16 decode | L | Malformed fixtures fail with expected codes; AC-013, AC-014 |
 | WL-003 | P0 | FR-002,005 | Sharded model index support | M | Missing/path traversal shard errors |
 | WL-004 | P0 | FR-016,017,018 | ROI reader 0D-4D with explicit axes | L | Exact fixture parity |
 | WL-005 | P0 | FR-019,020 | Streaming statistics engine | L | Exact independent ref and cancellation |
-| WL-024 | P0 | FR-023,030 | `weightlab diff` change report CLI (R0.5) | M | Golden reports on fixtures; real-checkpoint run in budget; practitioner feedback recorded |
+| WL-024 | P0 | FR-023,030 | `weightlab diff` change report CLI (R0.5) | M | Golden reports on fixtures; LoRA budget and completeness flag; real-checkpoint run in budget; practitioner feedback recorded |
 | WL-006 | P0 | FR-011,012,013 | Tile engine: direct L0-L3, exact pyramid, row-sampled preview above limit | XL | Odd-edge aggregations, pyramid parity and resource budget correct |
 | WL-007 | P0 | FR-001,008 | SQLite project/import persistence | M | Relink/restart and migrations pass |
 | WL-008 | P0 | FR-065,066 | Job queue, budget enforcement | L | Saturation, cancel, resource errors pass |
@@ -28,6 +28,7 @@ Tickets ordered for a solo developer/coding agent. Estimates are **relative comp
 | WL-021 | P1 | FR-056,067 | Reproducible research report | M | Provenance, warnings, precise evidence |
 | WL-022 | P2 | FR-057-059 | Activation capture and patching plugin | XL | Small-model causal study and memory bound |
 | WL-023 | P1 | FR-010 | GGUF float reader, then quantized | XL | Golden decoder for each block type |
+| WL-025 | P0 | all | Specification checks in CI (`check_demo_fixtures`, `check_contracts`, `check_spec`, `manifest --check`, doc build reproducibility, 3-OS fixture hashes) | S | Green on a clean clone |
 
 ## One example story broken into acceptance tests
 

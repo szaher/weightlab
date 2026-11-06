@@ -7,7 +7,8 @@ date: "2026-11-05"
 
 # WeightLab: Complete Product & Engineering Blueprint
 
-**Design baseline:** 5 November 2026 (revision 1.1)
+**Design baseline:** 5 November 2026, frozen as 1.2-final (ADR-019)
+
 **Delivery state:** Product documentation and synthetic proof fixtures; **the WeightLab application has not been implemented**.
 
 This volume is generated from `docs/*.md` by `scripts/build_documentation.py`; edit the source documents, not this file. It includes the product requirements, functional requirements, architecture, format reader design, mathematical semantics, scientific experiment plan, UI specification, API and persistence model, performance constraints, threat model, QA strategy, delivery plan, research references and packaging instructions. Machine-readable contracts, the fixture generator/checker and agent execution instructions live alongside it in the repository.
@@ -75,7 +76,7 @@ A heatmap is a useful interaction, not a sufficient scientific explanation. Weig
 | Objective | Metric | Release acceptance |
 |---|---|---|
 | First value | Import synthetic fixture -> interactive heatmap | First-time walkthrough works offline |
-| Weight inspection | ROI value accuracy | Bit-identical for supported integer/finite float reads, except documented float conversion |
+| Weight inspection | ROI value accuracy | Lossless for every supported dtype through typed ROI encoding (floats as exact float64 JSON numbers or raw bits, 64-bit integers as decimal strings); tiles are labeled lossy float32 visualizations; unrepresentable results return `UNSUPPORTED_PRECISION` or `overflowed`, never a silently rounded "exact" value (doc 09 section 2) |
 | Compare | Delta and norms | Match independent NumPy reference within dtype tolerances |
 | Memory | App memory footprint | R1 8 GB laptop gate under documented test profiles; backend idle RSS <= 300 MiB and peak RSS <= 1 GiB during bounded work (doc 11) |
 | User autonomy | No cloud credentials needed | Offline E2E green |
@@ -91,8 +92,8 @@ Thresholds are requirements to verify, **not results already achieved**. Track p
 
 - Synthetic SafeTensors fixture generator with known matrices (constant, ramp, pseudo-random, NaNs, infinity, rank 0, 1D, 1x1, 3D), **F16 and BF16 tensors (mandatory: most current LLM checkpoints are BF16)**, at least two shard files, LoRA pairs (rank-1 via `rank_pattern`, rank-2, rsLoRA, unsupported DoRA), compatibility sets and malformed binaries. Provided by `scripts/generate_demo_fixtures.py` and verified by `scripts/check_demo_fixtures.py`.
 - Reader proof: tensor catalog, exact rectangular ROI, bytes read evidence, bounded RAM for an oversized sparse synthetic checkpoint, using bounded positioned reads (ADR-011) with WeightLab's own BF16/F16 decoding (the safetensors NumPy backend cannot read BF16).
-- Primitive heatmap tile with agreed coordinate conventions; no model inference.
-- Scientific notebook or unit test independently verifying every displayed cell.
+- No heatmap tile, API or UI in R0: reader, catalog and exact ROI only, behind a Python interface. Tiles start in Phase 1 (doc 14).
+- Unit tests independently verifying every ROI value read, plus real G0 benchmark evidence (memory, mutation); fixture self-checks alone are not G0 evidence.
 
 ### R0.5 — change report CLI (validation release)
 
@@ -104,7 +105,7 @@ Thresholds are requirements to verify, **not results already achieved**. Track p
 
 ### R1 — minimum useful product (P0)
 
-- Local directory/file import (explicit user path or native picker), format validation, metadata preview, sharded index support.
+- Local directory/file import by typed absolute path (mandatory; browsers cannot hand local paths to the server and model bytes are never uploaded), with an optional server-side native folder dialog where available; format validation, metadata preview, sharded index support.
 - Model overview: the R0.5 ranked change table (per tensor, per layer, per role) as the entry point into heatmaps.
 - Searchable tensors by name, shape, dtype, transformer component and layer.
 - 1D vectors as line plot; 2D matrices as heatmap; 3D+ requires explicit axis/index or reduction selection.
@@ -176,7 +177,7 @@ Conventions: **P0** mandatory R1, **P1** R2/R3, **P2** optional R4. Every requir
 ## A. Project and import
 
 - **FR-001 [P0]:** Create/open local project with project name, timestamp, app/schema version and references to paths, not duplicates of checkpoint bytes.
-- **FR-002 [P0]:** Import one `.safetensors` file or a local model directory with `model.safetensors.index.json` and referenced shards.
+- **FR-002 [P0]:** Import one `.safetensors` file or a local model directory with `model.safetensors.index.json` and referenced shards, by typed absolute path, read in place. No HTTP upload of model bytes; an optional native folder dialog is a convenience only (doc 09 section 1.1).
 - **FR-003 [P0]:** Safely parse tensor metadata without materializing data. List tensor name, shape, dtype, file/shard, byte extent, parameter count and estimated byte count.
 - **FR-004 [P0]:** Explicitly reject unsupported formats with an actionable explanation; no eager `torch.load`, pickle or remote code execution.
 - **FR-005 [P0]:** Detect non-regular files, symlink escapes (when project policy restricts paths), missing/duplicate shards, incorrect offsets, malformed headers, unsupported dtype, and changed files after import.
@@ -196,15 +197,15 @@ Conventions: **P0** mandatory R1, **P1** R2/R3, **P2** optional R4. Every requir
 - **FR-016 [P0]:** Show row/column coordinate ranges and actual matrix dimensions; origin top-left, row-major logical indexing for all screens. No implicit transpose.
 - **FR-017 [P0]:** Display vector as line or histogram with sorted/strided sampling warning, and 3D+ as axis slices selected by user; no semantic assumption for unknown dimensions.
 - **FR-018 [P0]:** Exact ROI table within bounded cell count. ROI larger than threshold gives download/export of chunked CSV or asks to narrow request.
-- **FR-019 [P0]:** Tensor details: dtype, finite count, zero count, range, mean, standard deviation, L1/L2/Frobenius norms (when applicable), percentiles, exact-vs-sampled and elapsed scan.
+- **FR-019 [P0]:** Tensor details: dtype, element/finite/zero/non-finite counts, min, max, mean, population standard deviation, L1/L2/Frobenius norms (when applicable), each with `coverage` (complete/sampled) and `numeric_precision` (lossless/rounded/overflowed), and elapsed scan. Exact percentiles only for an ROI (<= `roi_max_cells`, exact sort, linear interpolation between order statistics, non-finite excluded). Global tensor percentiles are **deferred to R2** (FR-021).
 - **FR-020 [P0]:** Disable or cancel expensive full scans. Data rendering must remain interactive during scans.
-- **FR-021 [P1]:** Tensor histograms, per-row/per-column profiles, outlier hotspots, sign histograms and numerical precision analysis.
+- **FR-021 [P1]:** Tensor histograms, per-row/per-column profiles, outlier hotspots, sign histograms and numerical precision analysis; global percentiles from a deterministic mergeable sketch whose algorithm, rank-error bound and golden adversarial tests are fixed by an ADR before R2.
 - **FR-022 [P1]:** Model-layer treemap or matrix overview driven by catalog and aggregate summaries.
 - **FR-023 [P0]:** Ranked change report. For a compatible A/B pair or base + adapter, compute per matched tensor in one bounded streaming pass: exact delta L2, RMS, relative L2 (denominator policy visible), cosine(A,B), max-abs delta, element/finite/non-finite counts; roll up by layer index and role (heuristic, labeled). Delivered as CLI in R0.5 and as the UI model overview in R1; JSON/CSV/Markdown export with provenance. Sorting by a metric never implies causal importance.
 
 ## C. Checkpoint comparison
 
-- **FR-030 [P0]:** Choose A and B with explicit model provenance, strict tensor key match and shape/dtype compatibility. Output matched, missing, tied, renamed-suspected and shape-mismatched tensors. A tensor absent because parameters are tied (`tie_word_embeddings` in `config.json`, or a SafeTensors save that dropped a shared alias) is reported as `tied -> <source key>`, not `missing`, and never synthesized from a guess.
+- **FR-030 [P0]:** Choose A and B with explicit model provenance, strict tensor key match and shape/dtype compatibility. Output matched, missing, tied, renamed-suspected and shape-mismatched tensors. A tensor is reported as `tied -> <source key>` only with positive evidence: `tie_word_embeddings: true` in `config.json` together with a known architecture key mapping (e.g. `lm_head.weight` <-> `model.embed_tokens.weight`), or trusted alias metadata. Absence of a key alone is `missing`. The absent tensor is never synthesized.
 - **FR-031 [P0]:** Compare same-shaped tensors using `delta=B-A` in explicitly documented promoted computation dtype; no arithmetic on packed quantized representation.
 - **FR-032 [P0]:** Modes: A, B, delta, abs(delta), ratio `abs(delta)/(abs(A)+epsilon)` with epsilon visible and configurable, masked epsilon-near-zero values.
 - **FR-033 [P0]:** Delta summary: L1, L2, max abs, RMS, relative L2 with denominator policy and dot-product/cosine with explicit degeneracy handling.
@@ -263,8 +264,11 @@ Conventions: **P0** mandatory R1, **P1** R2/R3, **P2** optional R4. Every requir
 - **AC-011:** Export filenames/manifest never contain auth tokens or source model bytes unintentionally.
 - **AC-012:** UI indicates sampled/aggregate tiles and distinguishes them from exact cell values.
 - **AC-013:** BF16 and F16 tensors in `tiny_dtypes.safetensors` decode bit-exactly to the expected float32 values, including NaN, +Inf, -Inf, -0.0 and each dtype's max finite value.
-- **AC-014:** Truncating or replacing a checkpoint file while a read or job is in progress yields `FILE_CHANGED` and never terminates the backend process (no SIGBUS).
-- **AC-015:** `compat/tied_embeddings` vs `compat/untied_reference` reports `lm_head.weight` as tied, not missing; the permuted same-function pair is Class S with a visible caveat although its function is identical.
+- **AC-014:** Truncation, append, size or mtime change, atomic replace/rename and symlink swap of a checkpoint file during a read or job yield `FILE_CHANGED` and the backend process survives. A same-size in-place rewrite that preserves mtime is detected only by `consistency=verified` jobs; this limitation is shown in the UI and docs (doc 03 section 6).
+- **AC-015:** `compat/tied_embeddings` vs `compat/untied_reference` reports `lm_head.weight` as tied (config + known mapping), `compat/missing_head_no_tie_evidence` reports it missing; the permuted same-function pair is Class S with a visible caveat although its function is identical.
+- **AC-016:** `tiny_precision_a/b` round-trip losslessly through the ROI API: U64 max, I64 min, 2^53-1, 2^53, 2^53+1, F64 extremes, the 2^-52 F64 difference and signed zero. The finite F64 pair whose delta overflows is reported `overflowed`; the F32 delta beyond float32 range is `NOT_REPRESENTABLE` in tiles. Nothing rounded is labeled lossless.
+- **AC-017:** The non-finite golden blocks of `tiny_edge.safetensors` produce the status bitfields in `expected_results.json` in both binary and JSON tiles; legend and hover show the same NaN/+Inf/-Inf kinds.
+- **AC-018:** A derivative whose metadata names a genuine base SHA-256 but was not built from it is reported with `base_file_identity_verified=true`, `lineage_trust_level=unverified_claim`; it is never shown as proven trained-from-base and is not T1-eligible without a trusted lineage statement.
 
 ## H. User stories
 
@@ -310,7 +314,7 @@ flowchart LR
 **Catalog module:** Imports selected local files, verifies SafeTensors metadata/shard index, persists references and renders normalized semantic tensor inventory.  
 **TensorReader abstraction:** `tensor_metadata()`, `read_roi()`, `iter_contiguous_chunks()`. SafeTensors first. Default implementation uses bounded positioned reads (`os.pread` / `readinto`) into preallocated buffers over validated byte ranges, with WeightLab's own BF16/F16 decoding; mmap is an optional, measured backend (ADR-011, section 6).  
 **Numerics:** Performs streaming reductions with numerically stable accumulation, sampling, min/max, percentiles, delta composition and LoRA ROI matmul.  
-**Tile engine:** Serves low levels by direct bounded reads and higher levels from an exact per-tensor aggregate pyramid built in one streaming pass; only tensors above `pyramid_exact_max_mib` start with a row-sampled preview (ADR-012, section 5). Tile and ROI-table budgets are separate.  
+**Tile engine:** Serves tiles by direct bounded reads when the covered bytes are small, otherwise from an exact aggregate pyramid built in one streaming pass for that exact source and view; only sources above `pyramid_exact_max_mib` get a row-sampled preview. Cold requests return 202 with a deduplicated build job, never a silently sampled tile (ADR-012, section 5; decision table in doc 09 section 3). Tile and ROI-table budgets are separate.  
 **Job supervisor:** Caps concurrency and memory; cancellation between chunks; progress; per-job CPU limits; batch results stored in SQLite or small cache.  
 **Persistence:** SQLite WAL, narrow schema, project state and file references only. Cache is disposable and size-bounded.  
 **Optional experiment runner:** Separate process with its own dependencies, model resource preflight and explicit user opt-in.
@@ -362,14 +366,32 @@ weightlab/
 
 **Coordinate convention:** Logical 2D tensor `(R,C)`, rows downward, columns rightward, zero-based, half-open rectangles `[r0,r1)×[c0,c1)`. For view level `L`, `block_size=2^L` input cells per aggregate cell. A rendered tile is `tile_size=256` aggregate cells per side (smaller at tensor edges). Tile `(x,y)` covers raw columns `[x*256*2^L,(x+1)*256*2^L)` and raw rows `[y*256*2^L,(y+1)*256*2^L)` clipped to tensor dimensions. All downsampling anchored at origin to guarantee deterministic parent-child consistency.
 
-At `L=0`: actual cell values (within the tile budget `max_tile_cells`, independent of the ROI-table budget). At `L>0`: aggregate summaries for the covered real cells using selected aggregation. A mean of children must be **count-weighted** at partial edges, and RMS must aggregate sums of squares rather than averaging per-block RMS values; min/max combine trivially. Cached aggregates store `(count,finite_count,nan_count,pos_inf_count,neg_inf_count,sum,sum_abs,sum_sq,min,max)` (`count` is implied by block geometry), sufficient for every aggregation: mean = sum/finite_count, mean_abs = sum_abs/finite_count, RMS = sqrt(sum_sq/finite_count), min/max direct. All are mergeable by addition (counts, sums) or min/max.
+At `L=0`: actual cell values (within the tile budget `max_tile_cells`, independent of the ROI-table budget). At `L>0`: aggregate summaries for the covered real cells using selected aggregation. A mean of children must be **count-weighted** at partial edges, and RMS must aggregate sums of squares rather than averaging per-block RMS values; min/max combine trivially. Aggregate records (format below) are sufficient for every aggregation: mean = sum/finite_count, mean_abs = sum_abs/finite_count, RMS = sqrt(sum_sq/finite_count), min/max direct. All fields merge by addition (counts, sums) or min/max.
 
 **Exact pyramid first (ADR-012).** Typical LLM weight matrices are 30-250 MiB on disk (4096x4096 BF16 = 32 MiB; 4096x14336 BF16 = 112 MiB). Reading one end to end in row stripes is sequential I/O and is cheaper than scattered sampling. Therefore:
 
-- Levels 0-3 are computed directly from a bounded row-stripe read of the covered region (an L3 tile covers at most 2048x2048 cells = 8 MiB of BF16).
-- Levels >= 4 are served from a cached exact pyramid whose base is level 4 (16x16-cell blocks). Each base block stores `(finite_count, nan_count, pos_inf_count, neg_inf_count, sum, sum_abs, sum_sq, min, max)`: four uint16 counts (8 B), three float64 sums (24 B) and float32 min/max over finite values (8 B), i.e. 40 bytes per 256-cell block, about 8% of a BF16 tensor's size (4% of F32). `sum_abs` is required for `mean_abs`; `sum_sq` for RMS; coarser levels are merged from children. The pyramid is built in one streaming pass, is exact, and is cached keyed by file fingerprint and numerics version.
-- Tensors up to `pyramid_exact_max_mib` (default 1024 MiB on disk) build the pyramid automatically in the background, with progress and cancel. Larger tensors (e.g. large-vocabulary embeddings / `lm_head`) first show a **row-sampled** preview: whole rows chosen by deterministic stride or SplitMix64 seed (doc 05 section 5), read sequentially, labeled with rows sampled; the exact pyramid is offered as an explicit queued job.
+- **Direct reads** when the bytes covered by the requested tile are <= `direct_tile_max_mib` (default 64 MiB). Levels 0-3 always qualify for every supported dtype (an L3 tile covers at most 2048x2048 cells = 32 MiB at F64).
+- **Exact pyramid** otherwise. Base level 4 (16x16-cell blocks) and coarser levels merged from children, built in one streaming pass. Pyramids are built on demand per source and view (never for a whole model at import).
+- **Row-sampled preview** only for sources above `pyramid_exact_max_mib` (default 1024 MiB on disk, e.g. large-vocabulary embeddings / `lm_head`): whole rows chosen by deterministic stride or SplitMix64 seed (doc 05 section 5), read sequentially and labeled with rows sampled. The exact pyramid is available there only as an explicitly requested job.
+- **Cold cache:** a request that needs a pyramid that is not ready returns 202 with a `pyramid_build` job, deduplicated by pyramid identity; the UI shows a progress placeholder and never substitutes a sampled tile for a source under the limit (doc 09 section 3).
 - Per-cell scattered sampling is not used: k point samples per block over a 256x256 output is about 4M random accesses, each of which can touch a separate 4 KiB page, which is more I/O than an exact scan of most tensors.
+
+**Aggregate record format v1** (little-endian, versioned as `pyramid_record_format=1`, part of the cache key):
+
+| Record | Fields | Size |
+|---|---|---|
+| Base (L4, <= 256 cells) | `finite_count, nan_count, pos_inf_count, neg_inf_count` as uint16; `flags` uint8 + 7 B padding; `sum, sum_abs, sum_sq` float64; `min, max` float64 over finite values | 56 B |
+| Coarse (L >= 5) | the same counts as **uint64** (an L8 block already holds 65,536 cells); `flags` uint8 + 7 B padding; sums and min/max float64 | 80 B |
+
+- Counters are merged with checked addition; overflow (impossible below 2^64 elements) aborts the build with `RESOURCE_LIMIT` rather than wrapping.
+- min/max are stored in float64, which is exact for every float dtype up to F64 and for integers within +/-2^53. For I64/U64 sources pyramid min/max/sums are `numeric_precision=rounded`; exact integer values come from the ROI API.
+- `flags`: bit 0 `SUM_OVERFLOW`, bit 1 `SUM_ABS_OVERFLOW`, bit 2 `SUM_SQ_OVERFLOW`, set when a float64 accumulator becomes +/-Inf although every input was finite (e.g. F64 values near 1e200 squared). Flags propagate to parents. An aggregation that depends on an overflowed field is returned with tile status `NOT_REPRESENTABLE` and `numeric_precision=overflowed`; it is never shown as a source Inf or as an exact finite value.
+- Blocks outside the tensor are not stored; edge blocks hold only their real cells, so parents are count-weighted automatically.
+- Storage for all levels: one base record per 256 cells plus about one third as many coarse records, i.e. (56 + 80/3) / 256 = 0.323 B per cell: about **16.1% of a BF16 tensor's size**, 8.1% of F32, 4.0% of F64. The disk cache cap (`tile_cache_disk_mib`) and LRU eviction apply; a pyramid that cannot fit is kept in memory for the session or refused with `RESOURCE_LIMIT`.
+
+**Pyramid and tile identity.** A pyramid is valid only for one exact `(source kind, input file fingerprints, tensor key(s), view: row_axis, col_axis, fixed_indices, transpose, operation parameters: transform, epsilon, LoRA native scale, experiment multiplier, module mask, numerics_version, pyramid_record_format)`. Two slices of one 3D tensor, two LoRA multipliers or two transforms therefore never share a pyramid. The tile cache key adds level, x, y, size, aggregation, quality mode and sampling seed. Identities are serialized as canonical sorted-key JSON and hashed with SHA-256 (doc 10 section 6). Any change to an input's fingerprint invalidates every pyramid and tile that includes it.
+
+**Derived sources need their own pass.** A `delta` pyramid is built by a paired streaming pass over A and B computing `B - A` elementwise in float64 and aggregating the result; RMS, mean-absolute, min and max of `B - A` cannot be derived from separate A and B pyramids (only the signed mean can, and only with identical finite support). A pair where either input is non-finite yields the IEEE result of the subtraction, which is counted in the non-finite counters by its computed kind and in `invalid_pair_count`. LoRA sources stream `s * B[rows] @ A` in row blocks without materializing the full product, within `max_lora_scan_gmac`.
 
 Current viewport cost and estimated bytes scanned remain visible.
 
@@ -381,12 +403,20 @@ Current viewport cost and estimated bytes scanned remain visible.
 
 - **BF16:** the safetensors NumPy backend cannot return BF16 (verified with safetensors 0.8.0: `TypeError: data type 'bfloat16' not understood`), and BF16 is the dominant dtype of current LLM checkpoints. WeightLab decodes BF16 itself (`uint16` bits shifted left 16, viewed as float32) and F16 via NumPy `<f2`. F8 variants (`F8_E4M3`, `F8_E5M2`, `F8_E8M0`, ...) are rejected with `UNSUPPORTED_DTYPE` in R1 until decoders with golden vectors exist.
 - **Crash safety:** with mmap, truncating the file during a read raises SIGBUS on macOS/Linux and kills the Python process; stat checks before and after a job cannot prevent this. Positioned reads turn the same event into a short read, which the reader reports as `FILE_CHANGED`.
-- **Windows:** an open mapping blocks deletion or rename of the user's file; positioned reads hold only a short-lived, LRU-capped handle.
+- **Windows:** an open mapping blocks deletion or rename of the user's file; positioned reads hold only short-lived, LRU-capped handles. Seek + `readinto` shares a file position, so on Windows every job and thread uses its own handle (POSIX `os.pread` is position-independent and may share one).
 - **Explicit memory accounting:** peak usage is the sum of live buffers, not page-cache behavior.
 
 mmap may be added later as an opt-in backend if benchmarks show a benefit, only inside an isolated worker process (so SIGBUS cannot take down the API) and with the same allocation tests. The safetensors library remains a reference validator: every fixture must be accepted or rejected identically by WeightLab's parser and upstream. Non-contiguous column slices are served by reading the covering row stripes and slicing in memory; the I/O estimate reports stripe bytes, not selected bytes.
 
-Never dereference untrusted offsets without range validation. Keep file handles under an LRU cap (`max_file_handles`) to avoid descriptor exhaustion, and re-`fstat` each handle (size, `mtime_ns`, inode / file ID) before every job and after every read batch.
+Never dereference untrusted offsets without range validation. Keep file handles under an LRU cap (`max_file_handles`) to avoid descriptor exhaustion.
+
+**Change detection and snapshot consistency.** An `fstat` on an open handle cannot see an atomic replace of the *path* (the old inode stays open), and checks race with in-place writes. WeightLab therefore defines two levels:
+
+- **`best_effort` (default):** before a job, after every read batch and at the end, compare (a) the open handle's `fstat` (size, `mtime_ns`, `ctime_ns`, device + inode on POSIX / volume serial + file index on Windows) and (b) a fresh `stat` of the path (same fields, following the symlink chain once) against the identity recorded at import. Any difference, a short read, or a path that now resolves elsewhere (replace, rename, symlink swap) raises `FILE_CHANGED`, discards the result and invalidates caches for that file. Limitation: a same-size in-place rewrite that also preserves `mtime_ns` and `ctime_ns` is not detectable this way.
+- **`verified` (job option):** additionally hash every input file before and after the job (two full reads) and fail with `FILE_CHANGED` if the digests differ. This is the only mode that may be described as a consistent snapshot.
+
+Documentation and UI must not claim that "any mutation" is detected; they state the best-effort rule and the verified option.
+
 
 ## 7. Task / concurrency model
 
@@ -403,7 +433,7 @@ Roles are `embedding`, `attention.q`, `attention.k`, `attention.v`, `attention.o
 
 ## 9. Error model
 
-Use stable structured errors (`INVALID_FORMAT`, `MISSING_SHARD`, `INVALID_ROI`, `RESOURCE_LIMIT`, `UNSUPPORTED_DTYPE`, `INCOMPATIBLE_TENSOR`, `LINEAGE_UNVERIFIED`, `FILE_CHANGED`, `NONFINITE_POLICY`, `OPTIONAL_RUNTIME_MISSING`). API never returns a Python traceback to frontend; sanitized diagnostics go to local opt-in logs.
+Use stable structured errors (`VALIDATION_ERROR`, `UNAUTHORIZED`, `FORBIDDEN_ORIGIN`, `NOT_FOUND`, `CONFLICT`, `PATH_OUTSIDE_ROOT`, `INVALID_FORMAT`, `MISSING_SHARD`, `INVALID_ROI`, `RESOURCE_LIMIT`, `RATE_LIMITED`, `UNSUPPORTED_DTYPE`, `UNSUPPORTED_PRECISION`, `INCOMPATIBLE_TENSOR`, `LINEAGE_UNVERIFIED`, `FILE_CHANGED`, `NONFINITE_POLICY`, `OPTIONAL_RUNTIME_MISSING`, `NOT_ACCEPTABLE`; the enum in `contracts/openapi.yaml` is authoritative). API never returns a Python traceback to frontend; sanitized diagnostics go to local opt-in logs.
 
 ## 10. Packaging model
 
@@ -412,7 +442,7 @@ R1 installs as one CLI package (`uv tool install .` or `pipx install .`) plus pr
 ## 11. Design constraints and gotchas
 
 - Reading != free memory: OS page cache and large scans can exert memory pressure even with low process RSS. Measure RSS and system memory pressure separately.
-- File mutation during a read: positioned reads see a short read or changed `fstat` and report `FILE_CHANGED`; never mmap in the API process (SIGBUS).
+- File mutation during a read: best-effort detection compares handle and path identity per batch; only `verified` jobs prove snapshot consistency (section 6). Never mmap in the API process (SIGBUS).
 - `safetensors.numpy.save_file` (0.8.0), used by fixtures and any future export, writes non-C-contiguous arrays in memory order, i.e. silently transposed, and does not keep multi-key `__metadata__` order stable between runs. Always pass `np.require(a, requirements="C")` (not `np.ascontiguousarray`, which turns 0-d arrays into 1-d) and use one metadata key where byte reproducibility matters.
 - The browser can become the RAM bottleneck with large tiles or retained arrays; enforce per-view tile count (default 12 visible + 8 prefetched) and LRU purge.
 - A single 2D matrix of 100k x 100k has 10B cells; avoid full-row materializations.
@@ -442,23 +472,24 @@ R1 installs as one CLI package (`uv tool install .` or `pipx install .`) plus pr
 
 ## 2. SafeTensors structural contract
 
-The format stores an 8-byte little-endian header byte length, JSON metadata (may be right-padded with spaces), and a tensor data region. Each tensor definition has dtype, shape and `[begin,end)` byte offsets relative to the start of the tensor data region. Supported core dtypes: F64, F32, F16, BF16, I64, I32, I16, I8, U64, U32, U16, U8, BOOL where a safe numerical conversion exists. **F16 and BF16 are mandatory from R0**; BF16 is decoded by WeightLab because the safetensors NumPy backend cannot represent it (doc 03 section 6). F8 variants, complex and any unknown dtype string are rejected with `UNSUPPORTED_DTYPE` until explicitly tested. Dtypes with limited browser precision require output conversion disclosure; do not convert 64-bit integer values to JavaScript Number silently.
+The format stores an 8-byte little-endian header byte length, JSON metadata (may be right-padded with spaces), and a tensor data region. Each tensor definition has dtype, shape and `[begin,end)` byte offsets relative to the start of the tensor data region. Supported core dtypes: F64, F32, F16, BF16, I64, I32, I16, I8, U64, U32, U16, U8, BOOL where a safe numerical conversion exists. **F16 and BF16 are mandatory from R0**; BF16 is decoded by WeightLab because the safetensors NumPy backend cannot represent it (doc 03 section 6). F8 variants, complex and any unknown dtype string are rejected with `UNSUPPORTED_DTYPE` until explicitly tested. Exact inspection is lossless for every listed dtype through the typed ROI encodings of doc 09 section 2 (64-bit integers as decimal strings, floats as exact float64 JSON numbers or raw bits); tiles are float32 visualizations and are labeled as such. 64-bit integers are never converted to JavaScript Number.
 
 Mandatory validation:
 
-1. Header byte length sane and accepted by format library limits; full file must accommodate header.
-2. Header JSON well-formed and no duplicate tensor keys. Python's `json` silently keeps the last duplicate, so WeightLab parses with `object_pairs_hook` and rejects duplicates itself.
-3. Shapes non-negative integers, product checked for integer overflow, and byte length exactly `product(shape)*dtype_size` for fixed-width tensors.
+1. Header byte length N: 8-byte little-endian prefix, `N <= 100,000,000` (the upstream safetensors cap) and `8 + N <= file size`. The header may be right-padded with spaces.
+2. **Strict JSON:** valid UTF-8; standard JSON only, so `NaN`, `Infinity` and `-Infinity` tokens are rejected (Python `json.loads` accepts them by default: pass `parse_constant` that raises); duplicate keys rejected at every level (`object_pairs_hook`); nesting depth bounded (parse failure or `RecursionError` -> `INVALID_FORMAT`). The top level is an object; `__metadata__`, if present, maps strings to strings only (no nesting, numbers or null).
+3. **Strict entries:** every other key is a tensor name (UTF-8, <= 4096 bytes, compared byte-for-byte, no Unicode normalization) whose value has exactly the fields `dtype`, `shape`, `data_offsets`. `dtype` is a known string; `shape` is a list of at most 32 non-negative JSON integers (booleans and floats rejected; in Python `bool` is an `int` subclass, so test `type(v) is int`); `data_offsets` is two JSON integers. Element count and byte length use exact integer arithmetic (`math.prod`), and `end - begin == numel * dtype_size`. Zero-sized dimensions are legal (`numel = 0`, `begin == end`): such tensors appear in the catalog with an "empty tensor" state, have no heatmap, and report statistics with `count = 0` and null values.
 4. Offsets non-negative and within payload, and the ranges of all tensors, sorted by `begin`, must tile the data region exactly: no overlap, no gap, no trailing bytes. This matches what the upstream safetensors validator enforces (fixtures `overlapping_offsets`, `gap_in_offsets`).
-5. No out-of-bound reads; file size and stat identity revalidated before each job.
-6. Any file mutations during analysis cause job to fail with `FILE_CHANGED`; do not continue against stale offsets.
+   WeightLab is deliberately stricter than upstream in two places, recorded as permitted differences in `expected_results.json`: rank above 32 and unknown fields in a tensor entry are rejected by WeightLab but accepted by safetensors 0.8.0. For all other fixtures, upstream acceptance is the compatibility oracle.
+5. No out-of-bound reads; handle and path identity revalidated before, during and after each job (doc 03 section 6).
+6. Detected file changes during analysis fail the job with `FILE_CHANGED`; do not continue against stale offsets. Detection is best-effort unless the job runs with `consistency=verified`.
 7. JSON metadata strings are treated as data, not executable code.
 
 Prefer mature official library for parsing and validation; supplemental low-level mmap must use validated ranges only.
 
 ## 3. Sharded index contract
 
-Expected `model.safetensors.index.json` with `weight_map`: exact tensor name -> relative `.safetensors` shard. Validate all referenced shard names are ordinary relative paths, normalize against selected root, disallow `..` or absolute paths and symlink escapes, check every key exists once in referenced shard, and do not treat catalog from incomplete shards as complete. Track missing/extra keys and report them. Path traversal rejected even if underlying OS would permit it. No automatic downloads.
+Expected `model.safetensors.index.json` with `weight_map`: exact tensor name -> relative `.safetensors` shard, parsed with the same strict JSON rules as headers. Every value must be a string holding a relative POSIX-style path: no backslashes, no drive letter or UNC prefix, not absolute, no `..` component; it is normalized against the selected root and must not escape it through symlinks or reparse points. Keys are compared byte-for-byte. Check every key exists once in its referenced shard and do not treat a catalog from incomplete shards as complete. `metadata.total_size`, if present, must be an integer; a mismatch with the shards is a warning, not an error. Track missing/extra keys and report them. Path traversal is rejected even if the OS would permit it. No automatic downloads.
 
 ## 4. Reader interface
 
@@ -518,13 +549,16 @@ Allow output ROI only if intermediate arrays fit budget. If user chooses a large
 
 ## 7. Model comparability classification
 
-**Class V (verified same base):** WeightLab can establish *cryptographically* that A's files are byte-identical to the base the derivative declares (`lineage_evidence = cryptographically_verified`), by one of:
-1. SHA-256 of every referenced base file equals a hash recorded in the derivative's provenance (a WeightLab manifest, a model card hash list, or `expected_results.json` for fixtures).
-2. Offline Hugging Face hub cache: both repos resolve in the local cache, the derivative declares the base repo **and revision**, the base snapshot is that revision, and each LFS blob's filename (the hub cache names LFS blobs by the file's SHA-256) matches a fresh hash of the file. No download.
+Two questions are kept apart in every compatibility decision (`LineageAssessment` in `contracts/openapi.yaml`):
 
-Plus the same architecture, tensor names/shapes and tokenizer/config where behavioral interpretation requires it. Real-world adapters usually record only `base_model_name_or_path` without a revision or hash; those are Class L, not V. Weight similarity (for example per-tensor cosine(A,B) > 0.99 across all matched tensors) is recorded as supporting evidence for Class L, never as proof of V.  
+1. **Is the base file the one the derivative names?** `base_file_identity_verified` is true when the base files are byte-identical to a reference the derivative's record names, established by (a) SHA-256 of every referenced base file equal to a hash recorded in the derivative's provenance (`base_identity_method=sha256_recorded`), or (b) the offline Hugging Face hub cache: the derivative declares the base repo **and revision**, the base snapshot is that revision, and each LFS blob's filename (the hub cache names LFS blobs by the file's SHA-256) matches a fresh hash (`hf_cache_blob_sha256`). No download.
+2. **Was the derivative actually trained from that base?** A hash match cannot prove this: anyone can write a genuine base hash into a fabricated derivative's metadata, and model cards are unsigned claims. `lineage_claim_source` records where the ancestry statement comes from (`adapter_config`, `model_card`, `weightlab_manifest`, `synthetic_fixture_generator`, `user_attestation`, `none`) and `lineage_trust_level` how far it is trusted: `proven_by_construction` (only fixtures built by WeightLab's generator), `trusted_statement` (a manifest the user explicitly marks as trusted, e.g. from their own training run), `unverified_claim`, or `none`.
 
-User attestation is **not** a route to Class V. When the user states that these exact files were the training base, the hashes are recorded and the pair stays Class L with `lineage_evidence = user_attested`; that attestation satisfies the T2 acknowledgment (doc 06 section 6) but never unlocks behavior reserved for cryptographically verified lineage. Every compatibility decision records `lineage_evidence` as one of `cryptographically_verified`, `user_attested`, `declared` (name/ID only) or `none`.
+**Class V (base identity verified):** `base_file_identity_verified=true` plus the same architecture, tensor names/shapes and tokenizer/config where behavioral interpretation requires it. Class V means "the base file is the one named", **not** "training ancestry proven". `lineage_evidence` is `cryptographically_verified`.
+
+User attestation is not a route to Class V. When the user states that these exact files were the training base, the hashes are recorded and the pair stays Class L with `lineage_evidence = user_attested`, `lineage_claim_source = user_attestation`; it satisfies the T2 acknowledgment (doc 06 section 6) and nothing more. Real-world adapters usually record only `base_model_name_or_path` without a revision or hash: Class L with `lineage_evidence = declared`. Weight similarity (for example per-tensor cosine(A,B) > 0.99 across all matched tensors) is recorded as supporting evidence for Class L, never as proof.
+
+Transfer eligibility (doc 06 section 6) needs both: T1 requires Class V **and** `lineage_trust_level` in {`proven_by_construction`, `trusted_statement`}; Class V with `unverified_claim` is research-mode only. The generated fixture pair `tiny_base`/`tiny_ft` is Class V with `proven_by_construction` because the generator builds one from the other, and the UI says so ("synthetic: ancestry known by construction").
 
 **Class L (lineage declared or attested, not cryptographically verified):** Metadata references same base ID (`declared`) or the user attested it (`user_attested`), but no cryptographic proof; side-by-side descriptive comparisons allowed; transfer behind acknowledgment, default disabled; the evidence kind is shown wherever the class is shown.  
 **Class S (shape-compatible only):** Exact names/shapes but unknown or different origin; difference may be meaningless due to parameter permutation/alignment; display with prominent caveat; transfer disabled.  
@@ -532,7 +566,7 @@ User attestation is **not** a route to Class V. When the user states that these 
 
 File content hash can establish identity, not functional equivalence or shared optimization trajectory. Naming equal tensors is never proof of semantic alignment.
 
-**Tied parameters.** When `config.json` declares `tie_word_embeddings: true`, or a SafeTensors save dropped an alias of a shared tensor, the absent key (typically `lm_head.weight`) is reported as `tied -> model.embed_tokens.weight` and does not make the pair Class X. A comparison against an untied model compares the source tensor once and states that the tie differs.
+**Tied parameters.** A missing key is reported as `tied -> <source key>` only with positive evidence: `tie_word_embeddings: true` in `config.json` together with a known architecture mapping (`lm_head.weight` <-> `model.embed_tokens.weight` for Llama/Qwen-style keys, `lm_head.weight` <-> `transformer.wte.weight` for GPT-2-style keys), or trusted alias metadata. Without such evidence the key is `missing` (fixture `compat/missing_head_no_tie_evidence`). A comparison against an untied model compares the source tensor once and states that the tie differs. Missing values are never invented.
 
 ## 8. GGUF specific later considerations
 
@@ -572,7 +606,14 @@ Numerical methods are products, not implementation details. Every metric include
 
 ## 3. Numerical promotion / accumulation
 
-Default arithmetic conversion: F16/BF16 -> float32, F32 -> float32 for tiles and float64 accumulator for reductions; F64 -> float64. Integer comparisons promote to float64 only when exact range representable; otherwise require Python int or separate exact integer math to avoid silent precision loss. Arithmetic overflow/underflow safeguards; return `nonfinite_count`. Stable online Welford for mean/variance and compensated summation for sums when feasible. Use `np.isfinite` policy by default: finite-only stats with separate nonfinite counters. Norms on very large magnitude use scaled sum-of-squares algorithm to avoid overflow.
+Default arithmetic conversion: raw values are never converted for exact inspection (the ROI API encodes them losslessly, doc 09 section 2). For computation, F16/BF16/F32 are promoted to float64 (exact), F64 stays float64, and deltas and LoRA products are computed in float64; tiles convert the final aggregate to float32 for display only. Integers up to 32 bits promote exactly to float64; I64/U64 statistics use Python integers for counts, min and max and float64 (marked `rounded`) for sums and means. Stable online Welford for mean/variance (Chan et al. merge for chunks) and scaled sum of squares for norms (LAPACK `dnrm2`-style), so finite inputs never overflow an L2 norm.
+
+**Coverage vs precision.** Streaming every element makes *coverage* complete; it does not make float64 arithmetic exact. Every metric therefore carries two independent labels:
+
+- `coverage`: `complete` (every element in scope was read) or `sampled`.
+- `numeric_precision`: `lossless` (the value is a source value, e.g. min/max of a float tensor, a count, or an ROI value), `rounded` (result of float64 arithmetic within the stated tolerance), `overflowed` (an intermediate or the result left the float64 or float32-display range although inputs were finite; the value is withheld), or `unsupported`.
+
+The UI's "exact" badge means `coverage=complete`; precision is shown next to it. Overflowed values are never displayed as source NaN/Inf or as finite statistics. Fixture `tiny_precision_a/b` covers F64 1e300 extremes, a finite pair with an overflowing delta, and a sum of squares that overflows.
 
 **R1 tolerance:** Tests state per-dtype tolerances, e.g. for float32 direct deltas `atol=1e-6, rtol=1e-5`; LoRA matmul float32 `atol=2e-5,rtol=1e-4` for fixture shapes; refine based on BLAS cross-platform numerical behavior. Do not set blanket tolerance for every tensor scale/dtype.
 
@@ -587,7 +628,7 @@ For finite elements `x1...xn`:
 - `relative_L2 = ||B-A||_2 / max(||A||_2, epsilon_norm)`; expose denominator and a `near_zero_reference` flag.
 - cosine similarity `dot(A,B)/(||A||*||B||)`; null for zero norms or no overlapping finite pairs.
 - Pearson correlation requires enough nonconstant finite pairs; null for zero variance or `n<2`.
-- Percentiles exact requires memory-heavy sorting or external algorithm; R1 use bounded deterministic approximate quantile sketch/mergeable histogram with stated error policy, or offer offline exact selected ROI only. Never label global percentiles exact without proof.
+- Percentiles: R1 offers exact percentiles only for an ROI (<= `roi_max_cells` values, exact sort, linear interpolation between order statistics, non-finite excluded and counted). Global tensor percentiles are deferred to R2 (FR-021): an ADR will fix a deterministic mergeable sketch, its rank-error bound and adversarial golden distributions before they ship. Never label global percentiles exact without proof.
 
 For deltas, pairs with non-finite in either input excluded from finite pair metrics but counted in `invalid_pair_count`. All metrics declare total tensor elements vs analyzed finite elements.
 
@@ -612,9 +653,9 @@ For a block `S` of original tensor elements:
 - RMS: `sqrt(sum x_i^2 / count_finite)`
 - min / max: min or max over finite values
 - non-finite mask: show if any NaN/Inf; optionally show fraction overlay
-- empty/all-nonfinite: return null and status, never fabricate zero
+- empty/all-nonfinite: return null with the status bitfield (`NO_FINITE` plus the kinds present, doc 09 section 3), never fabricate zero
 
-For a *difference heatmap* compute elementwise difference then aggregate; subtracting independently aggregated RMS or absolute values is **not** the same operation. For signed mean, `mean(B-A)=mean(B)-mean(A)` with identical finite pair support only. For a LoRA overlay, compute each needed block/ROI without allocating the full effective weight.
+For a *difference heatmap* compute elementwise difference then aggregate, in a dedicated paired streaming pass (doc 03 section 5); subtracting independently aggregated RMS or absolute values is **not** the same operation (fixture expectation `rms_delta_vs_difference_of_rms`). For signed mean, `mean(B-A)=mean(B)-mean(A)` with identical finite pair support only. For a LoRA overlay, compute each needed block/ROI without allocating the full effective weight.
 
 ## 7. Color/legend
 
@@ -661,7 +702,7 @@ Fixture family:
 
 ## 11. Exported metric schema
 
-Every metric object includes `name`, `value`, `units`, `method`, `source_dtype`, `compute_dtype`, `element_count`, `finite_count`, `sample_count`, `exact`, `seed` (if any), `epsilon` (if any), `numerical_warnings`, `tool_version`, and model fingerprint references.
+Every metric object includes `name`, `value`, `units`, `method`, `source_dtype`, `compute_dtype`, `element_count`, `finite_count`, `sample_count`, `coverage`, `numeric_precision`, `seed` (if any), `epsilon` (if any), `numerical_warnings`, `tool_version`, and model fingerprint references (`Metric` in `contracts/openapi.yaml`). 64-bit integer counts and extrema are decimal strings.
 
 
 
@@ -715,9 +756,9 @@ Do not claim "better at reasoning" from math score alone; it is evidence for mea
 
 ## 6. Transfer eligibility rules
 
-**T1:** LoRA adapters whose base is Class V (`lineage_evidence = cryptographically_verified`) with compatible target names/scaling -> eligible virtual composition; note potential interference.  
-**T2:** LoRA adapter + same model architecture and base ID, lineage `declared` or `user_attested` -> require explicit user acknowledgment (a recorded attestation counts) and block export until cryptographically verified or overridden in recorded research mode.  
-**T3:** Full-task delta and second fine-tune descended from exact shared base with matching tensor keys/shapes/dtypes/tokenizer -> permitted research-mode weighted addition, never silently assumed to improve behavior.  
+**T1:** LoRA adapters whose base is Class V (base file identity verified) **and** whose lineage statement is `proven_by_construction` or `trusted_statement`, with compatible target names/scaling -> eligible virtual composition; note potential interference. Class V with `unverified_claim` falls to T2.  
+**T2:** LoRA adapter + same model architecture and base ID, where base identity is unverified (`declared`, `user_attested`) or the lineage statement is an `unverified_claim` -> require explicit user acknowledgment (a recorded attestation counts) and block export until verified and trusted, or overridden in recorded research mode.  
+**T3:** Full-task delta and second fine-tune descended from exact shared base with matching tensor keys/shapes/dtypes/tokenizer, where the shared-base claim is Class V and `trusted_statement` or better -> permitted research-mode weighted addition, never silently assumed to improve behavior.  
 **T4:** Similar model names/architectures but different training base or unverified coordinate system -> descriptive compare only; no automatic direct merge.  
 **T5:** Different shapes/families -> no direct addition; an advanced projection/alignment study is separate scope, potentially using activation matching and calibration data, and requires proof of mapping.
 
@@ -882,7 +923,7 @@ Top: Base checkpoint + Adapter directory -> mapping status. Middle: table (`modu
 
 ## 5. Interaction specifications
 
-- **Open local model:** OS file selection or user path input; progress during validation; error actionable.
+- **Open local model:** a path field (paste or type an absolute path; recent paths offered) is the mandatory method, with an optional "Browse..." button only when the server reports the `native_directory_dialog` capability. Browsers cannot reveal local paths and model bytes are never uploaded, so drag-and-drop shows how to copy a path (Finder Option-Command-C, Explorer Shift+right-click "Copy as path") instead of importing. Windows drive, long-path and UNC paths are accepted (UNC with a slow-network warning); permission errors explain the OS reason without suggesting elevation. Progress during validation; errors actionable.
 - **Tensor list:** virtualized for thousands of entries, keyboard searchable, sort shape/size/name; semantic tags heuristic.
 - **Pan/zoom:** scroll wheel + modifier with accessible zoom buttons; deterministic coordinate mapping; no approximate hover presented as exact.
 - **ROI selection:** pointer drag, display raw bounds while dragging, max preview selection limit, exact-read action for selected region.
@@ -926,117 +967,155 @@ A new user with no model files starts demo, selects a known tensor, sees 2D heat
 # 09 — Local API Contract
 
 **Base URL:** `http://127.0.0.1:{port}/api/v1`  
-**Protocol:** JSON metadata + optional compact binary payloads for heatmap tiles, no external API dependencies.  
-**Security:** Random local bearer token generated at each launch and delivered in the URL fragment printed by `weightlab start` (`http://127.0.0.1:PORT/#token=...`, the pattern Jupyter uses). Browsers never send the fragment in HTTP requests, so it does not reach server logs; the UI moves it to `sessionStorage`, removes it from the address bar and sends `Authorization: Bearer` on every API call. The static UI shell contains no secret. Bind only loopback; Host allowlist; strict Origin checking, request size limits and CSP. Token is not stored in project exports (ADR-016).  
-**Versioning:** `/api/v1` with `schema_version` on every durable record. Unknown optional fields should be tolerated by clients, missing required fields rejected.
+**Protocol:** JSON metadata + compact binary payloads for heatmap tiles, no external API dependencies.  
+**Security:** Random local bearer token (`secrets.token_urlsafe(32)`) generated at each launch and delivered in the URL fragment printed by `weightlab start` (`http://127.0.0.1:PORT/#token=...`, the pattern Jupyter uses). Browsers never send the fragment in HTTP requests, so it does not reach server logs; the UI moves it to `sessionStorage`, removes it from the address bar and history with `history.replaceState`, and sends `Authorization: Bearer` on every API call. The static UI shell contains no secret. Host allowlist, Origin checks and CSP are specified in doc 12 section 4. Token is not stored in project exports (ADR-016).  
+**Versioning:** `/api/v1` with `schema_version` on every durable record. `contracts/openapi.yaml` (0.3.0, frozen with blueprint 1.2-final) is binding: every request body is a closed schema (`additionalProperties: false`) with size limits; unknown fields, unknown source kinds and contradictory fields are rejected with 422. Clients tolerate unknown optional *response* fields.  
+**Ownership:** IDs are opaque server-issued strings matching `^[a-z]{3}_[A-Za-z0-9]{1,64}$`. Any ID referenced in a request must belong to the request's project; otherwise the response is 404, never 403, so the API is not an existence oracle across projects.
 
-The formal YAML (`contracts/openapi.yaml`) is the minimum implementable subset; this document is authoritative for additional behavioral constraints and future endpoints.
+This document adds behavioral rules the schema cannot express. `contracts/examples/api_examples.json` holds positive and negative payloads that `scripts/check_contracts.py` validates against the schema.
 
-## 1. Catalog endpoints
+## 1. Endpoints (R1)
 
-| Method | Path | Body/query | Success | Errors |
-|---|---|---|---|---|
-| GET | `/health` | none | version, status, offline, capabilities | 500 |
-| POST | `/projects` | name | project ID | 400 |
-| GET | `/projects` | none | projects | 500 |
-| POST | `/projects/{id}/models` | local path and selected root | model metadata | 400/403/404/409/413 |
-| GET | `/projects/{id}/models` | none | models | 404 |
-| GET | `/models/{model_id}/tensors` | query, role, page, limit | tensor summaries | 404/422 |
-| GET | `/models/{model_id}/tensors/{tensor_id}` | none | tensor metadata | 404 |
-| POST | `/comparisons` | model_a, model_b, policy | compatibility analysis | 409/422 |
-| GET | `/comparisons/{id}` | none | comparison, unmatched pairs | 404 |
-| POST/GET | `/projects/{id}/adapters` | base model ID + adapter path | validated adapter / module mapping | 404/409/422 |
-| POST/GET | `/projects/{id}/bookmarks` | view configuration and note | saved bookmarks | 404/422 |
-| DELETE | `/projects/{id}/bookmarks/{bookmark_id}` | none | no content | 404 |
+| Method | Path | Purpose | Notes |
+|---|---|---|---|
+| GET | `/health` | version, status, offline, capabilities | unauthenticated; no paths or project data |
+| GET/POST | `/projects` | list / create | |
+| GET/DELETE | `/projects/{id}` | get / delete | delete removes app metadata and (default) cache, never checkpoint files |
+| GET/POST | `/projects/{id}/models` | list / import in place | typed absolute path; no upload (section 1.1) |
+| POST | `/models/{model_id}/relink` | reconnect a moved model | all per-file quick fingerprints must match, else 409 `FILE_CHANGED` |
+| GET | `/models/{model_id}/tensors` | catalog page | filters `q`, `dtype[]`, `role[]`, `layer`, `rank`, `min_numel`; `sort`, `order`, `limit`, `offset` |
+| GET | `/models/{model_id}/tensors/{tensor_id}` | tensor metadata | shape, dtype, numel, shard relpath, file byte extent, heuristic role/layer |
+| POST | `/tensors/roi` | exact ROI, lossless typed values | section 2 |
+| POST | `/tiles` | heatmap tile | section 3 |
+| GET | `/tiles/{cache_key}/metadata` | full tile metadata | |
+| POST | `/comparisons` | compatibility + lineage assessment | optional `user_attestation` |
+| GET | `/comparisons/{id}` | summary with counts and `LineageAssessment` | |
+| GET | `/comparisons/{id}/entries` | matched / missing / tied / mismatched rows | paged, filter by status |
+| GET/POST | `/projects/{id}/adapters` | list / import PEFT adapter | per-module mapping, native scale, support status |
+| GET/POST | `/projects/{id}/bookmarks` | saved views | typed `SavedView` |
+| DELETE | `/projects/{id}/bookmarks/{bookmark_id}` | remove bookmark | |
+| POST | `/jobs` | queue bounded job | deduplicated, section 5 |
+| GET | `/jobs/{id}` | state, progress, typed result | |
+| POST | `/jobs/{id}/cancel` | idempotent cancel | |
+| POST | `/exports` | export views (JSON/PNG) | job; result carries `export_id` |
+| GET | `/exports/{id}` | export record | |
+| GET | `/exports/{id}/download` | export bytes | section 6 |
+| GET/PATCH | `/settings` | resource and privacy settings | PATCH validates hard bounds; `offline`/`telemetry_enabled` read-only |
+| POST | `/dialogs/select-directory` | optional native folder picker | only with capability `native_directory_dialog` |
 
 Tensor IDs are deterministic API-safe opaque IDs mapping to exact raw keys. Never use unescaped arbitrary tensor names as URL path segments.
 
-## 2. ROI request
+### 1.1 Importing a model: typed path, no upload
 
-`POST /tensors/roi` request:
+Browsers do not reveal local absolute paths to a web page, and uploading multi-GB checkpoints through HTTP would contradict the read-in-place design. R1 therefore requires **typed or pasted absolute paths** (`entry_path` and `selected_root`) as the mandatory import method. The server resolves and validates them (doc 12 section 3). An optional server-side native folder dialog (`POST /dialogs/select-directory`) runs a platform helper on the host (`osascript` on macOS, PowerShell on Windows, `zenity`/`kdialog` on Linux) when present and returns the chosen path; the first-run workflow never depends on it. Drag-and-drop shows an explanation instead of importing, because dropped files expose no path. Windows paths are accepted as `C:\...` and long-path `\\?\C:\...`; UNC paths (`\\server\share\...`) are accepted with a "network location, reads may be slow" warning. Permission errors return 403 with the OS reason and never suggest elevation.
 
-```json
-{
-  "model_id": "mod_a",
-  "tensor_id": "tns_0009",
-  "view": {"row_axis": 0, "col_axis": 1, "fixed_indices": {}, "transpose": false},
-  "roi": {"r0": 10, "r1": 14, "c0": 20, "c1": 24},
-  "output_dtype": "float32"
-}
-```
+## 2. ROI request: exact and lossless
 
-Response:
-
-```json
-{
-  "schema_version": 1,
-  "tensor": {"model_id": "mod_a", "tensor_id": "tns_0009", "raw_key": "model.layers.0.mlp.up_proj.weight"},
-  "roi": {"r0": 10, "r1": 14, "c0": 20, "c1": 24},
-  "shape": [4, 4], "dtype": "float32",
-  "exact": true, "values": [[0.1,0.2,0.3,0.4],[0.5,0.6,0.7,0.8],[0.9,1.0,1.1,1.2],[1.3,1.4,1.5,1.6]],
-  "nonfinite_mask": null, "warnings": []
-}
-```
-
-If any non-finite exists, `values` uses JSON `null` at that position and `nonfinite_mask` provides string enum (`nan`, `pos_inf`, `neg_inf`) for each affected element; JSON `NaN`/`Infinity` is forbidden. ROI max cells (`roi_max_cells`) is 4096 by default, configurable within a hard upper bound; this is the numeric-table budget, separate from the heatmap tile budget `max_tile_cells` = 65,536 (doc 03 section 5). Coordinates are half-open and validated before file read.
-
-## 3. Heatmap tile request
-
-`POST /tiles` with:
+`POST /tensors/roi`:
 
 ```json
 {
   "source": {"kind": "tensor", "model_id": "mod_a", "tensor_id": "tns_0009"},
   "view": {"row_axis": 0, "col_axis": 1, "fixed_indices": {}, "transpose": false},
-  "tile": {"level": 2, "x": 0, "y": 1, "size": 256},
+  "roi": {"r0": 10, "r1": 14, "c0": 20, "c1": 24},
+  "value_encoding": "auto"
+}
+```
+
+Response (abridged):
+
+```json
+{
+  "schema_version": 2,
+  "source": {"kind": "tensor", "model_id": "mod_a", "tensor_id": "tns_0009"},
+  "roi": {"r0": 10, "r1": 14, "c0": 20, "c1": 24},
+  "shape": [4, 4], "source_dtype": "BF16",
+  "value_encoding": "float_json", "coverage": "complete", "numeric_precision": "lossless",
+  "values": [[0.1015625, -0.0, 0.25, 0.5]],
+  "nonfinite_mask": null, "warnings": []
+}
+```
+
+**Source, compute and display dtypes.** The source dtype is what the file stores. For raw tensor sources the ROI is **lossless**:
+
+| Source dtype | `value_encoding` (auto) | Exactness |
+|---|---|---|
+| F16, BF16, F32, F64 | `float_json`: JSON number that parses to exactly the source value as IEEE float64; the serializer emits the shortest round-trip representation and `-0.0` for negative zero | lossless (F16/BF16/F32 embed exactly in float64) |
+| I8, I16, I32, U8, U16, U32 | `int_json` | lossless (within ±(2^53−1)) |
+| I64, U64 | `int_decimal_string`: decimal strings, always, regardless of magnitude | lossless |
+| BOOL | `bool_json` | lossless |
+
+`value_encoding: "hex_bits"` returns every element as its raw source bit pattern (lowercase hex at source width, e.g. BF16 `"0x7fc1"`), which also preserves NaN payloads; it is available for `kind=tensor` only. In `auto` mode non-finite floats are `null` with `nonfinite_mask` (`nan`, `pos_inf`, `neg_inf`); JSON `NaN`/`Infinity` literals are forbidden. Display rounding (for example 6 significant digits in a table cell) is a client presentation choice; the tooltip and copy action show the full value.
+
+Derived sources (`delta`, `lora_delta`, `virtual_effective`) are computed in float64 and reported with `numeric_precision: "rounded"`; a value whose computation overflows although its inputs are finite is `null` with mask `overflow` and `numeric_precision: "overflowed"`, never presented as a source Inf or as an exact finite value. A request whose result cannot be represented under these rules returns 422 `UNSUPPORTED_PRECISION`.
+
+ROI max cells (`roi_max_cells`) is 4096 by default, configurable within a hard upper bound; this is the numeric-table budget, separate from the heatmap tile budget `max_tile_cells` = 65,536 (doc 03 section 5). Coordinates are half-open, at most 2^53−1 (JavaScript safe integers), and validated before any file read. Every axis that is neither `row_axis` nor `col_axis` must appear exactly once in `fixed_indices`; `row_axis != col_axis`.
+
+## 3. Heatmap tile request
+
+`POST /tiles` (all fields typed in `TileRequest`):
+
+```json
+{
+  "source": {"kind": "tensor", "model_id": "mod_a", "tensor_id": "tns_0009"},
+  "view": {"row_axis": 0, "col_axis": 1, "fixed_indices": {}, "transpose": false},
+  "tile": {"level": 4, "x": 0, "y": 1, "size": 256},
   "aggregation": "mean_abs",
-  "quality": {"mode": "auto", "seed": 42},
-  "comparison_id": null,
-  "color": {"mode": "client_side"}
+  "quality": {"mode": "auto"}
 }
 ```
 
-`quality.mode`: `auto` (default: exact from direct read or pyramid when available; otherwise a row-sampled preview, labeled), `exact` (202 + job if the pyramid is not built yet), `row_sampled` (with optional `sampled_rows_per_block`). Response formats, chosen by `Accept`, both defined in `contracts/openapi.yaml`:
+Tiles are **lossy visualizations**: display values are float32 (`value_precision: float32_visualization`) and exact numbers always come from section 2. Coverage, however, is never misrepresented: every tile is either `exact` (all covered elements aggregated) or `row_sampled` (labeled).
 
-- `application/vnd.weightlab.tile.v1` (default, binary): `rows*cols` float32 little-endian values in row-major order, immediately followed by `rows*cols` uint8 status codes. Body length is exactly `rows*cols*5` bytes. Status: `0` finite, `1` block contains NaN, `2` contains +Inf, `3` contains -Inf, `4` contains several non-finite kinds, `5` no finite data (value is a NaN placeholder and must not be drawn as a number). For aggregate cells the value is the aggregate over finite elements and the status reports non-finite elements in the block.
-- `application/json`: only for tiles with <= 16,384 cells (128x128), for tests and debugging; `TileJson` with `values` and `status` carrying exactly the same information as the binary form: `values` holds the finite aggregate whenever one exists (status 0-4) and is `null` only for status 5 (no finite data). A block containing NaN/Inf therefore still reports its finite aggregate, with the non-finite kinds in `status`.
+**Quality decision table.** Let *covered bytes* be the source bytes under the tile at this level, *limit* = `pyramid_exact_max_mib` (default 1024 MiB) applied to the source tensor's on-disk size (for paired sources, the larger input), and *pyramid* the pyramid with this tile's identity (doc 03 section 5).
 
-Binary metadata headers: `X-WeightLab-Rows`, `X-WeightLab-Cols`, `X-WeightLab-Row-Start`, `X-WeightLab-Row-End`, `X-WeightLab-Col-Start`, `X-WeightLab-Col-End`, `X-WeightLab-Level`, `X-WeightLab-Quality` (`exact` or `row_sampled`), `X-WeightLab-Sampled-Rows`, `X-WeightLab-Aggregation`, `X-WeightLab-Cache-Key`. Full metadata (source identity, true block coverage, finite/non-finite counts, sampling policy) is at `GET /tiles/{cache_key}/metadata`. Cache key must include file fingerprints, coordinates, aggregation, scope, scale/LoRA config, app numerical version and sample seed. Color is client-side so colors can change without disk reread.
+| Condition | `auto` | `exact` | `row_sampled` |
+|---|---|---|---|
+| covered bytes <= `direct_tile_max_mib` (default 64 MiB; always true for L0–L3) | 200 exact by direct read | same | 422 (not needed) |
+| pyramid ready | 200 exact from pyramid | same | 422 |
+| pyramid not ready, source <= limit | 202 + `pyramid_build` job | 202 + job | 422 |
+| pyramid not ready, source > limit | 200 `row_sampled`, labeled | 202 + job | 200 `row_sampled` |
 
-## 4. Comparison source
+Jobs are **deduplicated** by pyramid identity: concurrent requests for the same pyramid receive the same `job_id` (`deduplicated: true`). While a job is pending, the UI shows a "building exact overview, x%" placeholder with the I/O estimate, never a sampled tile in its place, and may show already-available lower levels. After `completed` the client repeats the request and gets 200 exact. Canceling the job returns all waiters to 202-on-request; nothing marks a tile exact unless the pyramid completed. A pyramid enters the disk cache only if it fits `tile_cache_disk_mib` after LRU eviction; otherwise it is kept in memory for the session or the job is rejected with `RESOURCE_LIMIT`.
 
-For derived source:
+**Response formats**, chosen by `Accept`:
+
+- `application/vnd.weightlab.tile.v2` (default, binary): `rows*cols` float32 little-endian display values in row-major order, immediately followed by `rows*cols` uint8 **status bitfields**. Body length is exactly `rows*cols*5` bytes.
+- `application/json`: only for tiles with <= 16,384 cells (128x128), for tests and debugging (`TileJson`). It carries the identical information: `values[i][j]` is the float32 display value when the cell is drawable and `null` otherwise; `status` is the same bitfield.
+
+**Status bitfield** (one byte per cell; `TileStatus`):
+
+| Bit | Name | Meaning |
+|---|---|---|
+| 1 | `NO_FINITE` | no finite element in the cell's block; value is a placeholder and is never drawn |
+| 2 | `HAS_NAN` | block contains at least one NaN |
+| 4 | `HAS_POS_INF` | block contains at least one +Inf |
+| 8 | `HAS_NEG_INF` | block contains at least one −Inf |
+| 16 | `NOT_REPRESENTABLE` | a finite aggregate exists but cannot be shown as float32 (e.g. F64 1e300, or a delta of 6.8e38) or its computation overflowed; value placeholder, exact value via ROI or stats |
+| 32, 64, 128 | reserved | must be 0; clients reject tiles that set them |
+
+A cell is drawable iff `(status & 17) == 0`. The kind of non-finite content is never lost: an L0 NaN cell is `3` (`NO_FINITE|HAS_NAN`), +Inf `5`, −Inf `9`; a finite block containing a NaN and a +Inf is `6` with its finite aggregate as value; an all-non-finite block containing all three kinds is `15`. Legend and hover derive their non-finite labels from these bits. Golden cases: `edge.nonfinite_blocks.weight` in `examples/fixtures/expected_results.json`.
+
+Binary metadata headers: `X-WeightLab-Rows`, `X-WeightLab-Cols`, `X-WeightLab-Row-Start`, `X-WeightLab-Row-End`, `X-WeightLab-Col-Start`, `X-WeightLab-Col-End`, `X-WeightLab-Level`, `X-WeightLab-Quality` (`exact` or `row_sampled`), `X-WeightLab-Value-Precision` (`float32_visualization`), `X-WeightLab-Sampled-Rows`, `X-WeightLab-Aggregation`, `X-WeightLab-Cache-Key`. Full metadata (source identity, view, true block coverage, finite/non-finite counts, invalid pair count, sampling policy) is at `GET /tiles/{cache_key}/metadata`. The cache key is the SHA-256 of the canonical tile identity (doc 03 section 5 and doc 10 section 6). Color is client-side so colors can change without disk reread.
+
+## 4. Derived sources
+
+`Source` is a discriminated union on `kind` with exactly these variants:
+
+| `kind` | Required fields | Meaning |
+|---|---|---|
+| `tensor` | `model_id`, `tensor_id` | raw tensor |
+| `delta` | `comparison_id`, `entry_id`, `transform` (`b_minus_a`, `abs_b_minus_a`, `relative_abs`), optional `epsilon` | elementwise B − A of one matched comparison entry, computed in a paired pass |
+| `lora_delta` | `adapter_id`, `module_id`, `experiment_multiplier` | `multiplier * native_scale * B @ A` |
+| `virtual_effective` | `adapter_id`, `module_id`, `experiment_multiplier`, `research_mode` | base W + the LoRA delta, visualization only |
 
 ```json
-{
-  "source": {
-    "kind": "delta",
-    "comparison_id": "cmp_001",
-    "transform": "b_minus_a"
-  },
-  "tile": {"level": 0, "x": 0, "y": 0, "size": 256},
-  "aggregation": "mean",
-  "quality": {"mode": "exact"}
-}
+{"kind": "delta", "comparison_id": "cmp_001", "entry_id": "ent_0042", "transform": "b_minus_a"}
 ```
 
-For virtual LoRA delta/effective weight:
+The adapter's experiment multiplier is separate from its native PEFT scale and both are stored. `virtual_effective` requires the adapter's base lineage to be class V, or `research_mode: true`, which is recorded in provenance; otherwise 409 `LINEAGE_UNVERIFIED`. LoRA sources honor the module's `transpose` flag (supported `fan_in_fan_out` only).
 
-```json
-{
-  "source": {
-    "kind": "lora_delta",
-    "base_model_id": "mod_a",
-    "adapter_id": "adp_001",
-    "target_tensor_id": "tns_0009",
-    "experiment_multiplier": 1.0
-  }
-}
-```
-
-Adapter experiment scale is separate from native PEFT scale and must be stored. Unverified mapping returns `409 LINEAGE_UNVERIFIED` for virtual merge unless research-mode flag is explicitly recorded.
-
-## 5. Statistics jobs
+## 5. Jobs
 
 `POST /jobs`:
 
@@ -1044,16 +1123,16 @@ Adapter experiment scale is separate from native PEFT scale and must be stored. 
 {
   "kind": "tensor_stats",
   "source": {"kind": "tensor", "model_id": "mod_a", "tensor_id": "tns_0009"},
-  "quality": {"mode": "exact"},
+  "consistency": "best_effort",
   "budget": {"max_working_set_mib": 768, "max_threads": 2, "max_wall_seconds": 600}
 }
 ```
 
-Response `202`: `{ "job_id": "job_...", "state": "queued", "poll_after_ms": 500 }`. `GET /jobs/{id}` returns state, progress (0..1), estimated bytes, actual bytes scanned, timestamps, error object and result reference. `POST /jobs/{id}/cancel` idempotent; canceled state must not imply a partial exact result. `budget` values are upper bounds requested by the client: the server rejects with 422 `RESOURCE_LIMIT` (server caps in `details`) any value above its configured caps (`memory_budget_mib`, `max_threads`, `max_job_seconds`) and never raises its own limits on request. Jobs that exceed limits during execution return `RESOURCE_LIMIT` with safe suggestions.
+Kinds: `tensor_stats`, `pyramid_build` (with `source` and `view`), `compare_stats`, `file_hash` (with `model_id`, no `source`); exports create jobs of kind `export`. Response 202 is a `Job`. States: `created → queued → running → completed | failed | canceled`; `queued → canceled`; `running → interrupted` when the app restarts. Timeouts and budget overruns end as `failed` with `RESOURCE_LIMIT`. `result` is a typed `JobResult` and is non-null only for `completed`; canceled, failed and interrupted jobs never carry a partial result. `POST /jobs/{id}/cancel` is idempotent. Identical pending jobs (same kind and identity) are deduplicated. `budget` values are upper bounds requested by the client: the server rejects with 422 `RESOURCE_LIMIT` (server caps in `details`) any value above its configured caps and never raises its own limits on request. `consistency: "verified"` hashes every input file before and after the job (two full reads) and fails with `FILE_CHANGED` on any difference (doc 03 section 6).
 
 ## 6. Export
 
-`POST /exports` accepts JSON manifest assembly with model IDs, views and charts, `format` `json|png|markdown` (R1 JSON/PNG, Markdown R2), `strip_absolute_paths=true` default, `include_model_bytes=false` immutable in R1. Return local export job/path under configured export directory, not an arbitrary user-controlled filesystem write.
+`POST /exports` takes typed `SavedView`s, `format` `json|png` (Markdown is R2), `strip_absolute_paths=true` by default and `include_raw_values=false` by default (true requires an explicit confirmation in the UI). Model bytes are never included in R1. The file is written only under the configured export directory with a server-generated name (`^[A-Za-z0-9._-]{1,128}$`). The completed job's result carries `export_id`; `GET /exports/{id}` returns the record (state, size, SHA-256) and `GET /exports/{id}/download` returns the bytes with `Content-Disposition: attachment` and `Cache-Control: no-store`. Because the download requires the bearer token like every route, the UI fetches it and saves it through a Blob object URL; plain links and query-string tokens are not used.
 
 ## 7. Error envelope
 
@@ -1064,21 +1143,23 @@ Response `202`: `{ "job_id": "job_...", "state": "queued", "poll_after_ms": 500 
     "message": "Exact tile scan would exceed the configured disk read budget.",
     "details": {"estimated_read_mib": 4096, "allowed_mib": 1024},
     "retryable": true,
-    "recommended_action": "Use sampled preview or queue a bounded exact job."
+    "recommended_action": "Queue the exact overview job or zoom in."
   },
   "request_id": "req_0123"
 }
 ```
 
-No stack traces, model bytes, directory listings outside approved root or arbitrary local path disclosures in error payloads.
+`code` is one of the enum in `Error` (OpenAPI); `details` is a flat map of scalars. No stack traces, model bytes, directory listings outside approved root or arbitrary local path disclosures in error payloads.
 
 ## 8. WebSocket vs polling
 
-Use ordinary polling in R1 with 500-1000ms adaptive interval for jobs. WebSocket is unnecessary for first release and complicates security. If future streaming is added, secure with same origin/token and bounded message size.
+Use ordinary polling in R1 with 500-1000ms adaptive interval for jobs (`poll_after_ms`). WebSocket is unnecessary for first release and complicates security. If future streaming is added, secure with same origin/token and bounded message size.
 
 ## 9. Contract test list
 
-Validate required/optional fields, coordinate overflow, UTF-8 special tensor keys, concurrent requests, stale fingerprint, nonfinite values, huge shape, 3D slice invalid axes, canceled jobs, binary byte order and body length `rows*cols*5`, status channel codes, job budget above server caps rejected, explicit 413/422/409 errors, no CORS wildcard, auth missing or invalid, token absent from server logs, and closed localhost binding.
+- Static: `scripts/check_contracts.py` (OpenAPI valid, all refs resolve, every positive example accepted and every negative example rejected, fixture status values valid).
+- Generated client: a client generated from `contracts/openapi.yaml` completes every first-run E2E journey (doc 08 section 10) using only described routes.
+- Behavior: catalog filters and pagination correct against the fixture catalog; settings PATCH round-trip and bound rejection; relink after move and refusal after change; project delete leaves checkpoint files byte-identical; export download requires the token and returns the recorded SHA-256; all four source kinds round-trip; unknown/missing/contradictory fields, cross-project IDs and oversized bodies rejected; coordinate overflow beyond 2^53−1 rejected; UTF-8 special tensor keys (`tiny_edge.safetensors`); stale fingerprint; lossless ROI for `tiny_precision_*` (U64 max, I64 min, 2^53±1, F64 extremes, signed zero) and `overflowed` for the overflowing delta; binary tile body length `rows*cols*5`, byte order, status bitfields and JSON parity for the non-finite golden blocks; cold/warm tile requests below and above the pyramid limit, duplicate concurrent requests deduplicated, cancel and restart with no false exact badge; job budget above server caps rejected; explicit 404/409/413/422/429 errors; security cases from doc 12 section 8.
 
 
 
@@ -1177,7 +1258,7 @@ All exports/experiments have `schema_version=1`, `tool_version`, `reader_version
 
 ## 6. Cache
 
-Two independent LRU caches: memory tile cache (default <= 128 MiB backend), disk tile/stat cache (default <= 1 GiB). Namespaced by file fingerprint, source kind (raw/delta/LoRA), view selection, tile level/x/y, reducer, sampling mode, seed and numerics version. Cache may be safely deleted on shutdown or version mismatch. Browser cache <= 64 MiB decoded tile arrays as target; per-project tile prefetch bounded.
+Two independent LRU caches: memory tile cache (default <= 128 MiB backend), disk tile/pyramid/stat cache (default <= 1 GiB). Entries are keyed by the SHA-256 of a canonical sorted-key JSON identity (doc 03 section 5): source kind; every input file's fingerprint; tensor key(s); view (row_axis, col_axis, fixed_indices, transpose); operation parameters (transform, epsilon, LoRA native scale, experiment multiplier, module mask); `numerics_version`; `pyramid_record_format`; and, for tiles, level, x, y, size, aggregation, quality mode and sampling seed. Any fingerprint change of any input invalidates every entry that includes it. Cache may be safely deleted on shutdown or version mismatch. Browser cache <= 64 MiB decoded tile arrays as target; per-project tile prefetch bounded.
 
 ## 7. Data retention
 
@@ -1224,7 +1305,9 @@ Memory targets to **verify**, not guaranteed present-day benchmarks:
 | Frontend decoded tile cache | 64 MiB target | evict |
 | Exact ROI table (`roi_max_cells`) | <= 4096 cells initial | prompt to narrow/export as stream |
 | Tile payload (`max_tile_cells`) | <= 256x256 = 65,536 cells (320 KiB binary incl. status) | no oversized tile responses |
-| Exact pyramid (`pyramid_exact_max_mib`) | auto-build for tensors <= 1024 MiB on disk; storage 40 B per 16x16 block incl. `sum_abs` (~8% of BF16, ~4% of F32 tensor bytes) | larger tensors: row-sampled preview + queued exact job |
+| Exact pyramid (`pyramid_exact_max_mib`) | auto-built on demand per source/view up to 1024 MiB on disk; all levels cost 0.323 B per cell (56 B base + 80 B coarse records): ~16.1% of BF16, 8.1% of F32, 4.0% of F64 tensor bytes | larger sources: row-sampled preview + explicit job; pyramids that do not fit the disk cache stay in memory for the session or are refused |
+| Direct tile read (`direct_tile_max_mib`) | 64 MiB covered bytes | above it: pyramid |
+| LoRA scan (`max_lora_scan_gmac`) | 50 GMAC per module (rows x cols x rank) | reject with estimate; report module as not analyzed |
 | Active tile jobs | 2 | queue/cancel stale |
 | Heavy full-scan jobs | 1 | queue |
 | CPU workers | max 2 by default | config controls |
@@ -1240,8 +1323,8 @@ RSS alone cannot certify absence of memory pressure from mmap/page cache or brow
 |---|---|---|---|
 | Metadata catalog | O(number of tensor headers/shards) | immediate | cap header size and count |
 | Exact ROI | O(selected rows/columns + page accesses) | immediate | 4096 cells, I/O estimate cap |
-| Tile L0-L3 | O(covered cells), sequential row stripes, <= 8 MiB BF16 per tile | interactive | max bytes read |
-| Tile L>=4 | O(output cells) from cached pyramid | interactive | needs pyramid |
+| Tile, covered bytes <= `direct_tile_max_mib` (all L0-L3) | O(covered cells), sequential row stripes | interactive | max bytes read |
+| Tile from ready pyramid | O(output cells) | interactive | 202 + deduplicated build job when not ready |
 | Exact pyramid build | O(N) sequential, once per tensor version | background, automatic up to limit | cancel, progress |
 | Row-sampled tile (above limit) | O(sampled rows x cols), sequential | interactive | fixed row count, max bytes read |
 | Exact aggregate | O(underlying elements) | background | explicit approval; bounded chunking |
@@ -1249,6 +1332,7 @@ RSS alone cannot certify absence of memory pressure from mmap/page cache or brow
 | Pairwise row cosine all rows | O(n²d) | unavailable R1 | selected/sample only |
 | Full SVD | superlinear, high RAM | unavailable R1 | only bounded optional R2 |
 | LoRA ROI | O((rows+cols)r + rows*cols*r) | interactive bounded | r and dimensions capped |
+| LoRA full-module change report (FR-023) | O(out*in*r) multiply-adds per module; Frobenius norm via `s^2 * tr((B^T B)(A A^T))` in O((in+out)r^2) only if independently tested against the direct product | background | `max_lora_scan_gmac`, cancel, completeness flag |
 | Full model evaluation | model load + decoding | optional R3 | separate subprocess and preflight |
 
 ## 3. I/O estimates
@@ -1267,6 +1351,8 @@ To compute a mean/RMS over every cell in a 2D tensor, the system must read every
 - **B08 Adversarial:** malformed header, huge declared dimensions, zip/path traversal, cancel/restart, changed file.
 - **B09 Slow disk:** rate limited reads, UI remains interactive; task cancel works.
 - **B10 Windows/Linux/macOS:** same numeric fixture hashes and no OS-only file-mapping failures.
+- **B11 Mutation:** truncate, append, same-size rewrite, atomic replace/rename and symlink swap during a running job on each OS; backend alive, `FILE_CHANGED` or verified-snapshot result, never a stale result.
+- **B12 Pyramid footprint:** actual pyramid bytes vs the 0.323 B/cell estimate for BF16/F32/F64 tensors; cache admission and eviction under `tile_cache_disk_mib`.
 
 ## 5. Performance definition of done
 
@@ -1309,7 +1395,7 @@ Use a synthetic file *larger than available RAM* (sparse/allocated test where su
 | SEC-03 | Arbitrary deserialization code | SafeTensors only; no `torch.load`/pickle/custom model repo code | Upload .pt rejected |
 | SEC-04 | Malformed header causes OOM/overflow | Official validator, upper limits, checked arithmetic, independent file size ranges | Fuzz and property tests |
 | SEC-05 | DoS through huge ROI/tile/job | Request budgets, concurrency caps, timeouts, cancellation | 413/422/429 + low RSS |
-| SEC-06 | Checkpoint changes or is truncated after import or during a read | Fingerprints/stats, positioned reads (no mmap in API process, so truncation is a short read not SIGBUS), re-`fstat` per batch, fail closed with `FILE_CHANGED`, stale cache invalidation | File truncation and replacement during job; backend process survives |
+| SEC-06 | Checkpoint changes, is truncated or replaced after import or during a read | Positioned reads (no mmap in API process, so truncation is a short read not SIGBUS); handle and path identity compared per batch (detects truncate, append, size/mtime change, replace/rename, symlink swap); `consistency=verified` hashes before/after for snapshot guarantees; fail closed with `FILE_CHANGED`; stale cache invalidation | B11 cases on each OS; backend survives; limitation for same-size, same-mtime rewrites documented |
 | SEC-07 | Sensitive paths or weights leaked in report | Redacted path default, explicit raw tensor export confirmation, no telemetry | Export privacy tests |
 | SEC-08 | Arbitrary process/code launched by inference plugin | Explicit install/enable and declared executable, no shell string interpolation, process isolation | hostile plugin config denied |
 | SEC-09 | Browser malicious script injection via model metadata | Render escaped text, CSP, no `dangerouslySetInnerHTML` from filenames | XSS fixtures |
@@ -1319,11 +1405,17 @@ Use a synthetic file *larger than available RAM* (sparse/allocated test where su
 
 ## 3. Filesystem access
 
-User chooses model root via native path picker or an explicit path. Server resolves canonical path, enforces selected root for shard links, only reads regular files, denies device files/pipes/sockets, applies file size/metadata limits. When OS permissions prevent read, return explicit permission error; never ask for administrator privileges by default.
+User types or pastes the model path (the optional native dialog of doc 09 section 1.1 only fills the same field). Server resolves canonical path, enforces selected root for shard links, only reads regular files, denies device files/pipes/sockets, applies file size/metadata limits. When OS permissions prevent read, return explicit permission error; never ask for administrator privileges by default.
 
 ## 4. Localhost API hardening
 
-Bind to `127.0.0.1` and optionally `::1` only, never `0.0.0.0`. Random opaque token generated on launch and handed to the browser only through the URL fragment printed in the terminal (doc 09). No CORS wildcard; verify Origin for browser mutating requests. Use restrictive CSP (`default-src 'self'`, no remote scripts), no external CDN, disable FastAPI Swagger/OpenAPI route in public release unless authenticated. Defend against DNS rebinding using Host allowlist for localhost and loopback addresses. Normalize/limit JSON body sizes and Pydantic fields. Set no-store for sensitive API responses. If user's browser is shared, note other local apps may still have local OS access.
+Bind to `127.0.0.1` by default; `--host ::1` is the only other accepted value (IPv6 loopback), never `0.0.0.0` or `::`. Token: `secrets.token_urlsafe(32)`, new on every launch (restart rotates it), handed to the browser only through the URL fragment printed in the terminal (doc 09). The UI reads it, stores it in `sessionStorage`, then calls `history.replaceState` so it is removed from the address bar and history; any "copy link" action in the UI produces URLs without the fragment. Responses carry `Referrer-Policy: no-referrer`.
+
+- **Host allowlist (DNS rebinding):** requests are accepted only when `Host` is exactly `127.0.0.1:PORT`, `localhost:PORT` or `[::1]:PORT`; anything else gets 403 `FORBIDDEN_ORIGIN` before routing.
+- **Origin:** checked on every request that carries it, in addition to the bearer token: it must equal the served origin; otherwise 403. No CORS headers are sent at all (no wildcard, no reflection).
+- **CSP for the static UI:** `default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' blob: data:; connect-src 'self'; object-src 'none'; base-uri 'none'; frame-ancestors 'none'`. No external CDN or fonts.
+- Disable the FastAPI Swagger/OpenAPI routes in release builds unless authenticated. Bounded JSON bodies (default 1 MiB) and Pydantic field limits mirroring `contracts/openapi.yaml`. `Cache-Control: no-store` for API responses and downloads. If the user's browser is shared, note other local apps may still have local OS access.
+- The offline demo makes no network request; installation itself may need the network (or a local wheelhouse), which is outside the runtime offline guarantee.
 
 ## 5. Privacy policy
 
@@ -1342,6 +1434,15 @@ Inference can execute third-party native libraries; pinned binaries, checksum ve
 ## 7. Release security gate
 
 All high-severity threat cases have automated regression tests; dependencies scanned; no open network listeners; no cookies or tokens exported; sensitive error messages sanitized; CI includes path traversal on Windows and POSIX; known security exceptions documented with severity, owner and remediation before beta release.
+
+## 8. End-to-end security tests (R1)
+
+- Token: generated per launch with sufficient entropy, different after restart, required on every route except `/health`, absent from served HTML, server logs, `Referer` and browser history after load; copied links contain no fragment.
+- Host: requests with `Host: evil.example`, a rebinding hostname or a wrong port are rejected before routing; IPv4 and IPv6 loopback behave identically; the server refuses non-loopback `--host` values.
+- Origin: a cross-origin request with a valid token is still rejected; no CORS headers are ever present.
+- Files: reads outside the selected root (`../`, absolute, symlink and Windows reparse-point escapes) fail with `PATH_OUTSIDE_ROOT`; cache and export downloads require the token and are confined to app directories.
+- Limits: oversized bodies 413, too many in-flight requests 429, unknown fields 422.
+- Offline: the Playwright run blocks all non-loopback network access and the demo completes.
 
 
 
@@ -1364,15 +1465,19 @@ The first milestone is mathematical trust, not a polished UI. All numerical resu
 
 ## 3. Golden fixture generator
 
-Provided: `scripts/generate_demo_fixtures.py --output tests/fixtures/generated --seed 7` (byte-reproducible; all pseudo-random values come from SplitMix64, not NumPy's RNG) and `scripts/check_demo_fixtures.py --root <dir>`, an **independent reference** built on `struct` + `json` + `numpy.frombuffer` that does not use the safetensors library. The checker also asserts that upstream safetensors accepts every valid fixture and rejects every malformed one. It generates:
+Provided: `scripts/generate_demo_fixtures.py --output tests/fixtures/generated --seed 7` and `scripts/check_demo_fixtures.py --root <dir>`. The checker is a **fixture self-check**: it validates the fixture files and `expected_results.json` with an independent reference parser built on `struct` + `json` + `numpy.frombuffer` (no safetensors library for values), a handful of hand-calculated constants, and upstream safetensors as an accept/reject oracle with the permitted differences recorded in `expected_results.json`. It is **not** application conformance and never counts as G0 evidence: the WeightLab suite must separately assert its own reader's values and the error code listed in `malformed_expected` for every malformed fixture (parameterized test).
+
+**Reproducibility.** All fixture values come from integer arithmetic followed by IEEE-754 correctly rounded division/conversion, and pseudo-random values from SplitMix64; no transcendental functions or NumPy RNG. Byte identity is claimed only under the pinned toolchain in `scripts/requirements-spec-tools.txt`; the spec CI regenerates the fixtures on Linux, macOS and Windows and compares SHA-256 with the committed values. If hashes ever differ on a platform, the difference is diagnosed and recorded, and only numeric parity (not byte identity) is claimed for it. It generates:
 
 - `tiny_base.safetensors`: 8x8 ramp (`up_proj`), 8x8 pseudo-random `down_proj`, 257x263 sine matrix, 3D 2x4x8, 1D vector, rank-0 scalar, 1x1, zeros, non-finite matrix.
 - `tiny_ft.safetensors`: *same keys/shapes*, 10 known changed positions in `up_proj`; `expected_results.json` holds the full 8x8 base, fine-tune and delta.
 - `tiny_dtypes.safetensors`: BF16 and F16 4x4 matrices plus NaN, +/-Inf, -0.0 and max-finite specials (written by a raw writer, since the safetensors NumPy backend cannot write BF16).
 - `tiny_sharded/`: valid `model.safetensors.index.json` referencing two shards.
 - `tiny_lora/`: rank-2 `up_proj` (alpha 4, scale 2) and rank-1 `down_proj` via `rank_pattern` (scale 4); `tiny_lora_rslora/`: rank-4, alpha 8, scale `8/sqrt(4)=4`; `tiny_lora_dora_unsupported/`: must be rejected.
-- `compat/`: `different_ancestry` (Class S), `shape_mismatch` (Class X for one tensor), `permuted_same_function` (identical function, large raw delta), `tied_embeddings` vs `untied_reference`.
-- `malformed/`: truncated payload, header length beyond file, corrupt JSON, unknown dtype, shape/length mismatch, overflow and negative shapes, out-of-bounds, overlapping and gapped offsets, duplicate key; index directories `missing_shard/`, `path_traversal/`, `absolute_path/`, `key_not_in_shard/`. Each has its expected error code in `expected_results.json`.
+- `compat/`: `different_ancestry` (Class S), `shape_mismatch` (Class X for one tensor), `permuted_same_function` (identical function, large raw delta), `tied_embeddings` (config evidence) vs `untied_reference`, and `missing_head_no_tie_evidence` (must be `missing`, not tied).
+- `tiny_precision_a/b.safetensors`: F64 extremes (+/-1e300, subnormal, max, min normal), signed zero, a 2^-52 difference, a finite pair whose F64 delta overflows, an F32 pair whose delta exceeds float32, I64 min/max and 2^53-1/2^53/2^53+1, U64 max, I32, BOOL, and F64 values whose sum of squares overflows.
+- `tiny_edge.safetensors`: zero-sized tensors `[0,4]` and `[3,0]`, a non-ASCII tensor key, a 256x512 F32 tensor whose L8 block holds 65,536 cells and L9 block 131,072 (beyond uint16), and a 32x32 non-finite golden matrix with single NaN/+Inf/-Inf cells, a mixed finite/non-finite block, an all-non-finite block with all three kinds and an all-NaN block.
+- `malformed/`: truncated payload, header length beyond file, corrupt JSON, unknown dtype, shape/length mismatch, overflow and negative shapes, out-of-bounds, overlapping and gapped offsets, duplicate key, boolean shape, float offsets, JSON `NaN` token, non-UTF-8 header, nested metadata, non-string metadata, nesting bomb, unknown entry field, rank above 32; index directories `missing_shard/`, `path_traversal/`, `absolute_path/`, `key_not_in_shard/`, `backslash_path/`, `windows_drive_path/`, `non_string_shard/`. Each has its expected error code in `expected_results.json`.
 - Generated per test run, not committed: symlink-escape directory (symlinks are not portable in git checkouts), the >RAM sparse file for B01/AC-002, and files truncated mid-read for AC-014.
 
 ## 4. Numerical invariants
@@ -1389,6 +1494,11 @@ Provided: `scripts/generate_demo_fixtures.py --output tests/fixtures/generated -
 - Multi-model comparison refuses impossible shapes and never silently transposes a matrix to make it fit.
 - BF16/F16 decoding of `tiny_dtypes.safetensors` is bit-exact including specials; F8 and unknown dtypes are rejected.
 - Exact pyramid levels equal an independent block aggregation of the dense fixture, including the L1/L3 edge blocks in `expected_results.json`.
+- Tile status bitfields for every golden cell/block equal `expected_results.json` in binary and JSON form; reserved bits are never set.
+- Pyramid counters exceed 65,535 (L8 of `edge.block256x512.weight`) and a synthetic merge test exceeds 2^32; F64 1e300 extrema survive in pyramid min/max; sum-of-squares overflow is flagged, never shown as Inf or finite.
+- RMS(B-A) from a delta pyramid equals the elementwise reference and differs from RMS(B)-RMS(A) (`rms_delta_vs_difference_of_rms`); two slices of `demo.cube.weight` and two LoRA multipliers never share a pyramid.
+- ROI values for `tiny_precision_*` are lossless in `auto` and `hex_bits` encodings; derived values are labeled `rounded`/`overflowed`.
+- Strict parsing: every malformed fixture fails with its listed code; WeightLab and upstream agree except for the recorded permitted differences.
 
 ## 5. File format and security tests
 
@@ -1396,10 +1506,11 @@ Provided: `scripts/generate_demo_fixtures.py --output tests/fixtures/generated -
 
 ## 6. API contract tests
 
-- OpenAPI schema validation + generated client test where practical.
+- `scripts/check_contracts.py`: OpenAPI valid, references resolve, every positive example in `contracts/examples/` accepted and every negative example rejected, experiment manifest invariants enforced.
+- A client generated from `contracts/openapi.yaml` completes every first-run E2E journey using only documented routes (doc 09 section 9).
 - 400/401/403/404/409/413/422/429 exact error cases.
 - No cross-origin unauthenticated sensitive requests; random token is required by all non-public endpoints.
-- JSON responses contain no NaN/Infinity literals. Binary tile body is exactly `rows*cols*5` bytes: `rows*cols` float32 little-endian values followed by `rows*cols` uint8 status codes; status values are within 0-5; status 1-4 cells carry the finite aggregate; status 5 cells are never drawn as numbers; header row/col ranges match the body shape. The JSON form of the same tile carries identical values and statuses (null only for status 5).
+- JSON responses contain no NaN/Infinity literals. Binary tile body is exactly `rows*cols*5` bytes: `rows*cols` float32 little-endian display values followed by `rows*cols` uint8 status bitfields (bits 1 NO_FINITE, 2 HAS_NAN, 4 HAS_POS_INF, 8 HAS_NEG_INF, 16 NOT_REPRESENTABLE; reserved bits 0); a cell is drawn iff `(status & 17) == 0`; header row/col ranges match the body shape; the JSON form of the same tile carries identical values (null exactly for non-drawable cells) and statuses.
 - Job cancel idempotency and state machine transitions; no canceled job marked completed.
 - Projects persist and survive process restart, cache recomputes safely after version change.
 
@@ -1427,7 +1538,7 @@ Playwright steps:
 
 ## 9. Release gates
 
-**G0 Reader correctness:** parse, exact ROI, security, bounded huge-file proof.  
+**G0 Reader correctness:** WeightLab's own reader (not the fixture self-check) passes: every fixture value and ROI exact, BF16/F16/F64/I64/U64 lossless, every malformed fixture rejected with its code, measured RSS on the oversized sparse file (AC-002), mutation and replacement cases (AC-014, B11) with the backend alive. Evidence is dated command output plus the benchmark report.  
 **G1 API/math:** golden stats/delta/tile, error schema and limits, no unbounded read path.  
 **G2 UX:** complete offline demo walkthrough, error and accessibility flows.  
 **G3 Cross-platform:** clean install and smoke on all supported OS, builds reproduce from lockfiles.  
@@ -1450,6 +1561,11 @@ npm --prefix frontend run test
 npm --prefix frontend run build
 npm --prefix frontend run e2e
 uv run python scripts/run_benchmarks.py --profile laptop8g
+# specification checks (run in CI on every change, see .github/workflows/spec-checks.yml)
+uv run --with-requirements scripts/requirements-spec-tools.txt python scripts/check_demo_fixtures.py --root examples/fixtures
+uv run --with-requirements scripts/requirements-spec-tools.txt python scripts/check_contracts.py
+python scripts/check_spec.py
+python scripts/manifest.py --check
 ```
 
 Adjust commands only after implementation while keeping equivalent quality coverage.
@@ -1464,7 +1580,7 @@ This is an effort-based scope plan, **not a time promise**. The ambition is high
 
 ## Phase 0 — Decide and prove the reader
 
-**Deliverables:** Repo skeleton, dependency lockfiles, provided synthetic fixtures wired into tests, SafeTensors reader (positioned reads, own BF16/F16 decoding), shape/ROI tests, first memory benchmark.
+**Deliverables:** Repo skeleton, dependency lockfiles and CI, provided synthetic fixtures wired into tests, strict SafeTensors reader (positioned reads, own BF16/F16 decoding, lossless typed values), sharded index validation, exact ROI behind a Python interface, first memory benchmark, mutation/replacement tests. **No tiles, API or UI in Phase 0.**
 
 **Ordered tasks:**
 
@@ -1472,10 +1588,10 @@ This is an effort-based scope plan, **not a time promise**. The ambition is high
 2. Wire the provided fixtures (`scripts/generate_demo_fixtures.py`, `check_demo_fixtures.py`) into `tests/`; add the ephemeral large sparse file and mid-read truncation helpers.
 3. Implement SafeTensors catalog, range verification and BF16/F16 decoding; fail all malicious fixtures with the expected error codes; agree with upstream on accept/reject.
 4. Implement independent exact ROI proof and print known values.
-5. Test on oversized synthetic file without copying full data into RAM.
-6. Publish G0 report including measured memory and known limitations.
+5. Test on oversized synthetic file without copying full data into RAM; run the mutation/replacement cases (truncate, append, same-size rewrite, atomic replace/rename, symlink swap, concurrent Windows handles).
+6. Publish the G0 report: WeightLab's own test results, measured RSS, mutation results per OS available, supported dtypes, format errors and known limitations. Fixture self-checks are listed separately and are not G0 evidence.
 
-**Gate:** Every selected cell correct (including BF16/F16), invalid files blocked, no full tensor RAM materialization, truncation mid-read yields `FILE_CHANGED` without crashing.
+**Gate:** G0 (doc 13 section 9): every ROI value correct and lossless (including BF16/F16/F64/I64/U64), invalid files blocked with the expected codes, no full tensor RAM materialization, detected mutations yield `FILE_CHANGED` without crashing.
 
 ## Phase 0.5 — Change report CLI and user validation
 
@@ -1485,7 +1601,7 @@ This is an effort-based scope plan, **not a time promise**. The ambition is high
 
 1. Compatibility analyzer core (V/L/S/X, tied parameters) shared with Phase 2.
 2. Single-pass streaming delta statistics over matched tensor pairs, bounded memory, cancel.
-3. LoRA effective-delta norms per module without materializing full `B@A` beyond budget.
+3. LoRA effective-delta norms per module without materializing full `B@A` beyond budget; per-module cost estimate (rows x cols x rank) against `max_lora_scan_gmac`; unsupported or over-budget modules are listed and the report carries `complete: false` with modules analyzed/unsupported/skipped, never claiming a complete model change.
 4. Report writers and golden tests on `tiny_base`/`tiny_ft`, `tiny_lora`, `compat/`.
 5. Run on at least two real small public checkpoints (e.g. a 0.5B base and an instruct derivative) and record time, bytes read, RSS.
 6. Put the CLI in front of 5-10 practitioners; record which questions it did not answer.
@@ -1592,12 +1708,12 @@ Tickets ordered for a solo developer/coding agent. Estimates are **relative comp
 
 | Ticket | Priority | Requirement refs | Deliverable | Complexity | Done when |
 |---|---|---|---|---|---|
-| WL-001 | P0 | FR-063 | Repo, CI, offline build, lockfiles | M | Clean install without internet after deps installed |
+| WL-001 | P0 | FR-063 | Repo, CI, offline build, lockfiles | M | Runs offline once dependencies are installed (installation itself may need network or a local wheelhouse); spec checks green |
 | WL-002 | P0 | FR-003,005 | Validated SafeTensors parser, positioned-read reader, BF16/F16 decode | L | Malformed fixtures fail with expected codes; AC-013, AC-014 |
 | WL-003 | P0 | FR-002,005 | Sharded model index support | M | Missing/path traversal shard errors |
 | WL-004 | P0 | FR-016,017,018 | ROI reader 0D-4D with explicit axes | L | Exact fixture parity |
 | WL-005 | P0 | FR-019,020 | Streaming statistics engine | L | Exact independent ref and cancellation |
-| WL-024 | P0 | FR-023,030 | `weightlab diff` change report CLI (R0.5) | M | Golden reports on fixtures; real-checkpoint run in budget; practitioner feedback recorded |
+| WL-024 | P0 | FR-023,030 | `weightlab diff` change report CLI (R0.5) | M | Golden reports on fixtures; LoRA budget and completeness flag; real-checkpoint run in budget; practitioner feedback recorded |
 | WL-006 | P0 | FR-011,012,013 | Tile engine: direct L0-L3, exact pyramid, row-sampled preview above limit | XL | Odd-edge aggregations, pyramid parity and resource budget correct |
 | WL-007 | P0 | FR-001,008 | SQLite project/import persistence | M | Relink/restart and migrations pass |
 | WL-008 | P0 | FR-065,066 | Job queue, budget enforcement | L | Saturation, cancel, resource errors pass |
@@ -1616,6 +1732,7 @@ Tickets ordered for a solo developer/coding agent. Estimates are **relative comp
 | WL-021 | P1 | FR-056,067 | Reproducible research report | M | Provenance, warnings, precise evidence |
 | WL-022 | P2 | FR-057-059 | Activation capture and patching plugin | XL | Small-model causal study and memory bound |
 | WL-023 | P1 | FR-010 | GGUF float reader, then quantized | XL | Golden decoder for each block type |
+| WL-025 | P0 | all | Specification checks in CI (`check_demo_fixtures`, `check_contracts`, `check_spec`, `manifest --check`, doc build reproducibility, 3-OS fixture hashes) | S | Green on a clean clone |
 
 ## One example story broken into acceptance tests
 
@@ -1675,7 +1792,7 @@ Each ticket commits minimal vertical slice, proves its own acceptance and does n
 **Trade-off:** BF16 and exotic dtype handling must be explicitly implemented and tested; no arbitrary model execution by default.
 
 ### ADR-004: Streaming, tile-first not eager checkpoint load
-**Decision:** Read-only mapped and chunked access, exact ROI and sampled aggregates distinguished.  
+**Decision:** Read-only, chunked access by bounded positioned reads (ADR-011); mmap only as an opt-in backend inside an isolated worker. Exact ROI and sampled aggregates distinguished.  
 **Why:** Avoid RAM proportional to model size.  
 **Trade-off:** Exact summary still requires scanning bytes; users choose expensive operations.
 
@@ -1715,9 +1832,9 @@ Each ticket commits minimal vertical slice, proves its own acceptance and does n
 **Trade-off:** We own a small amount of low-level code, so it needs property and security tests and must agree with upstream on accept/reject.
 
 ### ADR-012: Exact pyramid first; row sampling only for very large tensors
-**Decision:** L0-L3 tiles from direct reads, L>=4 from an exact one-pass pyramid; row-sampled previews only above `pyramid_exact_max_mib`. Separate budgets for tiles (65,536 cells) and the ROI table (4,096 cells).
+**Decision:** Direct reads when covered bytes <= `direct_tile_max_mib` (all L0-L3), otherwise an exact one-pass pyramid per source and view; row-sampled previews only above `pyramid_exact_max_mib`; cold requests get a deduplicated 202 job, never a silent sample. Separate budgets for tiles (65,536 cells) and the ROI table (4,096 cells).  
 **Why:** Most weight matrices are 30-250 MiB; one sequential pass is cheaper than scattered per-cell sampling, and results are exact.
-**Trade-off:** A background build per tensor and a pyramid cache of 40 B per 16x16 block (~8% of BF16 tensor size), including `sum_abs` for mean-absolute.
+**Trade-off:** A background build per source and view, and pyramid storage of 0.323 B per cell for all levels (versioned 56 B base / 80 B coarse records with uint64 counters and float64 extrema): ~16.1% of BF16 tensor size.
 
 ### ADR-013: Change report CLI before the UI
 **Decision:** Ship `weightlab diff` (R0.5) after the reader gate and validate it with practitioners before building the R1 UI.
@@ -1738,6 +1855,21 @@ Each ticket commits minimal vertical slice, proves its own acceptance and does n
 **Decision:** `weightlab start` prints `http://127.0.0.1:PORT/#token=...`; the UI moves the token to `sessionStorage` and sends it as a bearer header. The HTML shell holds no secret.
 **Why:** Fragments are never sent to servers or written to access logs; a proven pattern (Jupyter). Combined with the Host allowlist this covers DNS rebinding.
 **Trade-off:** A user who closes the tab needs the printed URL again (or `weightlab start` reprints it).
+
+### ADR-017: Lossless typed exact values; tiles are labeled lossy
+**Decision:** The ROI API is lossless for every supported dtype (floats as exact float64 JSON numbers or raw bits, I64/U64 as decimal strings); tiles are float32 visualizations with a status bitfield; every metric carries `coverage` and `numeric_precision`.
+**Why:** JSON numbers and float32 cannot carry 64-bit integers or F64 exactly, and "exact coverage" is not "exact arithmetic".
+**Trade-off:** Clients must handle typed encodings; tables show rounded digits with full values on demand.
+
+### ADR-018: Base file identity is separate from training lineage
+**Decision:** `LineageAssessment` records `base_file_identity_verified`, `lineage_claim_source` and `lineage_trust_level`; Class V means the base file is the one named, and T1 transfer additionally needs a trusted lineage statement.
+**Why:** A genuine base hash can be written into a fabricated derivative; hashes prove identity, not ancestry.
+**Trade-off:** Real-world pairs rarely reach T1 without the user's own training manifest.
+
+### ADR-019: Specification freeze (1.2-final)
+**Decision:** The blueprint is frozen at 1.2-final (tag `spec-v1.2-final`). Further changes require a demonstrated implementation correctness or security blocker, a versioned ADR, updated contracts/fixtures/tests and a changelog entry (section 5). Implementation discoveries are tracked as issues, not silent contract drift.
+**Why:** Implementation must start against a stable, testable contract.
+**Trade-off:** Some refinements wait for evidence from Phase 0.
 
 ## 2. Risk register
 
@@ -1779,6 +1911,8 @@ Each ticket commits minimal vertical slice, proves its own acceptance and does n
 
 - Resolved 2026-11-05: safetensors 0.8.0's NumPy backend rejects BF16, so WeightLab owns dtype decoding (ADR-011). Remaining: positioned-read throughput for row stripes vs mmap on Windows and macOS.
 - Real 8GB macOS and Windows memory pressure with large mapped files.
+- Cross-OS byte identity of generated fixtures (pinned toolchain; verified by the spec CI matrix, not yet run).
+- Native directory dialog helpers per OS (optional capability).
 - Resolved: launch token via URL fragment (ADR-016). Remaining: verify on Chrome, Firefox and Safari that the fragment is removed from history after the UI reads it.
 - Optional inference support for arbitrary adapter intervention without writing full merged model.
 - Licensing and source of any real math training/eval dataset.
@@ -1812,7 +1946,7 @@ Changing a formula, API field, coordinate convention, cache key semantics, compa
 9. Ilharco et al., **Editing Models with Task Arithmetic**, ICLR 2023. Fine-tuned minus original weights yields a task vector that may steer certain behaviors when applied in aligned models. https://arxiv.org/abs/2212.04089
 10. Yadav et al., **TIES-Merging: Resolving Interference When Merging Models**, NeurIPS 2023. Parameter sign conflict and interference complicate merging. https://arxiv.org/abs/2306.01708
 11. Ainsworth, Hayase & Srinivasa, **Git Re-Basin: Merging Models modulo Permutation Symmetries**, ICLR 2023. Raw parameter coordinate comparisons may be misleading across independently trained models. https://arxiv.org/abs/2209.04836
-12. Klabunde & Lemmerich, **Localizing Reasoning Training-Induced Changes in Large Language Models**, OpenReview 2025. https://openreview.net/forum?id=WDlhBhceGZ — **Citation not verified:** a web search on 2026-11-05 found no paper with this title and these authors. Confirm title, authors and venue before relying on it; until then, do not cite its findings.
+12. Max Klabunde and Florian Lemmerich, **Localizing Reasoning Training-Induced Changes in Large Language Models**, Mechanistic Interpretability Workshop at NeurIPS 2025. https://openreview.net/forum?id=WDlhBhceGZ ; author page https://mklabunde.github.io/publications/. Compares weight-space differences with representation similarity (CKA) between Qwen-derived base and reasoning-trained models. Its results are descriptive comparisons, not causal attributions of reasoning to specific weights. (Revision 1.1 wrongly marked this reference unverified; corrected in 1.2.)
 13. Hugging Face evaluation guidebook (benchmark examples and cautions). https://github.com/huggingface/evaluation-guidebook
 
 ## C. Design implications
@@ -1843,7 +1977,7 @@ Every generated research report should cite original model identifier/revision, 
 
 **Primary:** Python wheel with bundled React static distribution. User installs via `uv tool install weightlab` / `pipx install weightlab` once published, then launches `weightlab start`. For source developer install, `uv sync --locked --extra dev` and `npm ci` per root/frontend lockfiles. Package name and CLI examples are *design targets*, not released package claims. Do not promise a PyPI URL before package release.
 
-**Requirements:** Python 3.11+, user-writable config directory, modern browser, read access to model directory, localhost binding. No root/admin permission. No Docker prerequisite. GPU, CUDA, PyTorch, HF token, internet are not required for R1 offline work after dependency installation.
+**Requirements:** Python 3.11+, user-writable config directory, modern browser, read access to model directory, localhost binding. No root/admin permission. No Docker prerequisite. GPU, CUDA, PyTorch, HF token and internet are not required at runtime for R1. Installation itself may need network access (or a pre-downloaded wheelhouse); the offline guarantee starts once dependencies are installed.
 
 ## 2. Development environment
 
@@ -1905,6 +2039,8 @@ Require stable DB migration/version files and bounded cache deletion. Model weig
   "max_heavy_jobs": 1,
   "roi_max_cells": 4096,
   "max_tile_cells": 65536,
+  "direct_tile_max_mib": 64,
+  "max_lora_scan_gmac": 50,
   "pyramid_exact_max_mib": 1024,
   "pyramid_base_level": 4,
   "tile_size": 256,
@@ -1929,10 +2065,14 @@ Versioned DB schema; transactional migrations with pre-upgrade backup. On incomp
 
 ## 8. CI/CD proposal
 
-- PR: lint, formatting, static typing, unit/property/integration/security, frontend component tests, OpenAPI schema validation.
+- PR: lint, formatting, static typing, unit/property/integration/security, frontend component tests, OpenAPI schema validation, and the specification checks of `.github/workflows/spec-checks.yml` (fixture self-check, contract examples, cross-reference check, documentation build reproducibility, manifest check, fixture hashes on Linux/macOS/Windows).
 - Nightly: OS/browser matrix, randomized formats, large-sparse and I/O benchmarks.
 - Release: reproducible wheel, SBOM, dependency/license report, SHA-256 checksums, changelog, known limitations, tagged version, signed artifact where tooling available.
 - R1 first release is beta until one tested clean install each macOS/Windows/Linux and a real 8GB laptop performance report.
+
+## 8a. Source manifest
+
+`MANIFEST.sha256` lists SHA-256 for every file tracked by git (or added and not ignored), excluding the manifest itself. Generate with `python scripts/manifest.py --write`, verify with `python scripts/manifest.py --check`; the spec CI verifies it on a clean clone. Local caches and build products (`.ruff_cache/`, `__pycache__/`, `.venv/`, `node_modules/`, `dist/`, PDFs) are ignored by `.gitignore` and never listed.
 
 ## 9. Troubleshooting decisions
 

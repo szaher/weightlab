@@ -1,0 +1,963 @@
+{
+  "schema": "contracts/experiment.schema.json",
+  "examples": [
+    {
+      "valid": true,
+      "why": "repository demo manifest",
+      "instance": {
+        "schema_version": 2,
+        "experiment_id": "demo-virtual-lora-001",
+        "created_at": "2026-11-05T18:00:00Z",
+        "objective": "Demonstrate a synthetic virtual LoRA update and its exact per-tensor delta, not a reasoning improvement",
+        "source_models": [
+          {
+            "id": "tiny-base-fixture",
+            "format": "safetensors",
+            "fingerprint_method": "sha256",
+            "sha256": "a701e77f066883608beb2a1fc080d52f06ebffca227c1d6fd12de2d484e81133",
+            "lineage_evidence": "cryptographically_verified",
+            "lineage_verified": true,
+            "base_file_identity_verified": true,
+            "lineage_claim_source": "synthetic_fixture_generator",
+            "lineage_trust_level": "proven_by_construction",
+            "base_id": "tiny-base-fixture"
+          }
+        ],
+        "experiment": {
+          "mode": "virtual_lora",
+          "compatibility_class": "V",
+          "operation": "delta = (alpha/rank) * B @ A",
+          "parameters": {
+            "rank": 2,
+            "alpha": 4,
+            "native_scale": 2,
+            "experiment_multiplier": 1.0
+          },
+          "warnings": [
+            "Synthetic numerical fixture. No model was trained and no behavior was evaluated."
+          ]
+        },
+        "evaluation": {
+          "enabled": false
+        },
+        "provenance": {
+          "tool_version": "design-1.2-final",
+          "numerics_version": "draft-v2",
+          "coverage": "complete",
+          "numeric_precision": "rounded",
+          "device": {
+            "mode": "cpu_only"
+          },
+          "seed": 7
+        },
+        "interpretation_status": "descriptive"
+      }
+    },
+    {
+      "valid": true,
+      "why": "declared-only lineage is class L",
+      "instance": {
+        "schema_version": 2,
+        "experiment_id": "demo-virtual-lora-001",
+        "created_at": "2026-11-05T18:00:00Z",
+        "objective": "Demonstrate a synthetic virtual LoRA update and its exact per-tensor delta, not a reasoning improvement",
+        "source_models": [
+          {
+            "id": "base-x",
+            "format": "safetensors",
+            "fingerprint_method": "size_mtime",
+            "sha256": null,
+            "lineage_evidence": "declared",
+            "lineage_verified": false,
+            "base_file_identity_verified": false,
+            "lineage_claim_source": "adapter_config",
+            "lineage_trust_level": "unverified_claim",
+            "base_id": "org/base"
+          }
+        ],
+        "experiment": {
+          "mode": "virtual_lora",
+          "compatibility_class": "L",
+          "operation": "delta = (alpha/rank) * B @ A",
+          "parameters": {
+            "rank": 2,
+            "alpha": 4,
+            "native_scale": 2,
+            "experiment_multiplier": 1.0
+          },
+          "warnings": [
+            "Synthetic numerical fixture. No model was trained and no behavior was evaluated."
+          ]
+        },
+        "evaluation": {
+          "enabled": false
+        },
+        "provenance": {
+          "tool_version": "design-1.2-final",
+          "numerics_version": "draft-v2",
+          "coverage": "complete",
+          "numeric_precision": "rounded",
+          "device": {
+            "mode": "cpu_only"
+          },
+          "seed": 7
+        },
+        "interpretation_status": "descriptive"
+      }
+    },
+    {
+      "valid": true,
+      "why": "fully specified enabled evaluation",
+      "instance": {
+        "schema_version": 2,
+        "experiment_id": "demo-virtual-lora-001",
+        "created_at": "2026-11-05T18:00:00Z",
+        "objective": "Demonstrate a synthetic virtual LoRA update and its exact per-tensor delta, not a reasoning improvement",
+        "source_models": [
+          {
+            "id": "tiny-base-fixture",
+            "format": "safetensors",
+            "fingerprint_method": "sha256",
+            "sha256": "a701e77f066883608beb2a1fc080d52f06ebffca227c1d6fd12de2d484e81133",
+            "lineage_evidence": "cryptographically_verified",
+            "lineage_verified": true,
+            "base_file_identity_verified": true,
+            "lineage_claim_source": "synthetic_fixture_generator",
+            "lineage_trust_level": "proven_by_construction",
+            "base_id": "tiny-base-fixture"
+          }
+        ],
+        "experiment": {
+          "mode": "virtual_lora",
+          "compatibility_class": "V",
+          "operation": "delta = (alpha/rank) * B @ A",
+          "parameters": {
+            "rank": 2,
+            "alpha": 4,
+            "native_scale": 2,
+            "experiment_multiplier": 1.0
+          },
+          "warnings": [
+            "Synthetic numerical fixture. No model was trained and no behavior was evaluated."
+          ]
+        },
+        "evaluation": {
+          "enabled": true,
+          "dataset": {
+            "id": "toy-arith",
+            "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "license": "CC-BY-4.0",
+            "split": "test"
+          },
+          "prompt_template_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "answer_parser_version": "1.0.0",
+          "model_revision": "abc123",
+          "tokenizer_revision": "abc123",
+          "backend": {
+            "name": "transformers_peft_cpu",
+            "version": "4.50.0",
+            "weights_match_viewer": true,
+            "quantization": null
+          },
+          "generation": {
+            "temperature": 0,
+            "max_new_tokens": 256,
+            "seed": 7
+          },
+          "arms": [
+            {
+              "arm_id": "base",
+              "role": "baseline",
+              "results_path": "runs/base.jsonl",
+              "results_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+            },
+            {
+              "arm_id": "lora",
+              "role": "treatment",
+              "results_path": "runs/treatment.jsonl",
+              "results_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+            },
+            {
+              "arm_id": "rand",
+              "role": "negative_control",
+              "results_path": "runs/control.jsonl",
+              "results_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+            }
+          ],
+          "metrics": {
+            "paired_accuracy_delta": 0.0
+          }
+        },
+        "provenance": {
+          "tool_version": "design-1.2-final",
+          "numerics_version": "draft-v2",
+          "coverage": "complete",
+          "numeric_precision": "rounded",
+          "device": {
+            "mode": "cpu_only"
+          },
+          "seed": 7
+        },
+        "interpretation_status": "interventional"
+      }
+    },
+    {
+      "valid": false,
+      "why": "lineage_verified=true with user_attested",
+      "instance": {
+        "schema_version": 2,
+        "experiment_id": "demo-virtual-lora-001",
+        "created_at": "2026-11-05T18:00:00Z",
+        "objective": "Demonstrate a synthetic virtual LoRA update and its exact per-tensor delta, not a reasoning improvement",
+        "source_models": [
+          {
+            "id": "tiny-base-fixture",
+            "format": "safetensors",
+            "fingerprint_method": "sha256",
+            "sha256": "a701e77f066883608beb2a1fc080d52f06ebffca227c1d6fd12de2d484e81133",
+            "lineage_evidence": "user_attested",
+            "lineage_verified": true,
+            "base_file_identity_verified": true,
+            "lineage_claim_source": "user_attestation",
+            "lineage_trust_level": "unverified_claim",
+            "base_id": "tiny-base-fixture"
+          }
+        ],
+        "experiment": {
+          "mode": "virtual_lora",
+          "compatibility_class": "V",
+          "operation": "delta = (alpha/rank) * B @ A",
+          "parameters": {
+            "rank": 2,
+            "alpha": 4,
+            "native_scale": 2,
+            "experiment_multiplier": 1.0
+          },
+          "warnings": [
+            "Synthetic numerical fixture. No model was trained and no behavior was evaluated."
+          ]
+        },
+        "evaluation": {
+          "enabled": false
+        },
+        "provenance": {
+          "tool_version": "design-1.2-final",
+          "numerics_version": "draft-v2",
+          "coverage": "complete",
+          "numeric_precision": "rounded",
+          "device": {
+            "mode": "cpu_only"
+          },
+          "seed": 7
+        },
+        "interpretation_status": "descriptive"
+      }
+    },
+    {
+      "valid": false,
+      "why": "lineage_evidence missing",
+      "instance": {
+        "schema_version": 2,
+        "experiment_id": "demo-virtual-lora-001",
+        "created_at": "2026-11-05T18:00:00Z",
+        "objective": "Demonstrate a synthetic virtual LoRA update and its exact per-tensor delta, not a reasoning improvement",
+        "source_models": [
+          {
+            "id": "tiny-base-fixture",
+            "format": "safetensors",
+            "fingerprint_method": "sha256",
+            "sha256": "a701e77f066883608beb2a1fc080d52f06ebffca227c1d6fd12de2d484e81133",
+            "lineage_verified": true,
+            "base_file_identity_verified": true,
+            "lineage_claim_source": "synthetic_fixture_generator",
+            "lineage_trust_level": "proven_by_construction",
+            "base_id": "tiny-base-fixture"
+          }
+        ],
+        "experiment": {
+          "mode": "virtual_lora",
+          "compatibility_class": "V",
+          "operation": "delta = (alpha/rank) * B @ A",
+          "parameters": {
+            "rank": 2,
+            "alpha": 4,
+            "native_scale": 2,
+            "experiment_multiplier": 1.0
+          },
+          "warnings": [
+            "Synthetic numerical fixture. No model was trained and no behavior was evaluated."
+          ]
+        },
+        "evaluation": {
+          "enabled": false
+        },
+        "provenance": {
+          "tool_version": "design-1.2-final",
+          "numerics_version": "draft-v2",
+          "coverage": "complete",
+          "numeric_precision": "rounded",
+          "device": {
+            "mode": "cpu_only"
+          },
+          "seed": 7
+        },
+        "interpretation_status": "descriptive"
+      }
+    },
+    {
+      "valid": false,
+      "why": "cryptographic evidence with fingerprint_method none",
+      "instance": {
+        "schema_version": 2,
+        "experiment_id": "demo-virtual-lora-001",
+        "created_at": "2026-11-05T18:00:00Z",
+        "objective": "Demonstrate a synthetic virtual LoRA update and its exact per-tensor delta, not a reasoning improvement",
+        "source_models": [
+          {
+            "id": "tiny-base-fixture",
+            "format": "safetensors",
+            "fingerprint_method": "none",
+            "sha256": "a701e77f066883608beb2a1fc080d52f06ebffca227c1d6fd12de2d484e81133",
+            "lineage_evidence": "cryptographically_verified",
+            "lineage_verified": true,
+            "base_file_identity_verified": true,
+            "lineage_claim_source": "synthetic_fixture_generator",
+            "lineage_trust_level": "proven_by_construction",
+            "base_id": "tiny-base-fixture"
+          }
+        ],
+        "experiment": {
+          "mode": "virtual_lora",
+          "compatibility_class": "V",
+          "operation": "delta = (alpha/rank) * B @ A",
+          "parameters": {
+            "rank": 2,
+            "alpha": 4,
+            "native_scale": 2,
+            "experiment_multiplier": 1.0
+          },
+          "warnings": [
+            "Synthetic numerical fixture. No model was trained and no behavior was evaluated."
+          ]
+        },
+        "evaluation": {
+          "enabled": false
+        },
+        "provenance": {
+          "tool_version": "design-1.2-final",
+          "numerics_version": "draft-v2",
+          "coverage": "complete",
+          "numeric_precision": "rounded",
+          "device": {
+            "mode": "cpu_only"
+          },
+          "seed": 7
+        },
+        "interpretation_status": "descriptive"
+      }
+    },
+    {
+      "valid": false,
+      "why": "cryptographic evidence without digest",
+      "instance": {
+        "schema_version": 2,
+        "experiment_id": "demo-virtual-lora-001",
+        "created_at": "2026-11-05T18:00:00Z",
+        "objective": "Demonstrate a synthetic virtual LoRA update and its exact per-tensor delta, not a reasoning improvement",
+        "source_models": [
+          {
+            "id": "tiny-base-fixture",
+            "format": "safetensors",
+            "fingerprint_method": "sha256",
+            "sha256": null,
+            "lineage_evidence": "cryptographically_verified",
+            "lineage_verified": true,
+            "base_file_identity_verified": true,
+            "lineage_claim_source": "synthetic_fixture_generator",
+            "lineage_trust_level": "proven_by_construction",
+            "base_id": "tiny-base-fixture"
+          }
+        ],
+        "experiment": {
+          "mode": "virtual_lora",
+          "compatibility_class": "V",
+          "operation": "delta = (alpha/rank) * B @ A",
+          "parameters": {
+            "rank": 2,
+            "alpha": 4,
+            "native_scale": 2,
+            "experiment_multiplier": 1.0
+          },
+          "warnings": [
+            "Synthetic numerical fixture. No model was trained and no behavior was evaluated."
+          ]
+        },
+        "evaluation": {
+          "enabled": false
+        },
+        "provenance": {
+          "tool_version": "design-1.2-final",
+          "numerics_version": "draft-v2",
+          "coverage": "complete",
+          "numeric_precision": "rounded",
+          "device": {
+            "mode": "cpu_only"
+          },
+          "seed": 7
+        },
+        "interpretation_status": "descriptive"
+      }
+    },
+    {
+      "valid": false,
+      "why": "bad hash length",
+      "instance": {
+        "schema_version": 2,
+        "experiment_id": "demo-virtual-lora-001",
+        "created_at": "2026-11-05T18:00:00Z",
+        "objective": "Demonstrate a synthetic virtual LoRA update and its exact per-tensor delta, not a reasoning improvement",
+        "source_models": [
+          {
+            "id": "tiny-base-fixture",
+            "format": "safetensors",
+            "fingerprint_method": "sha256",
+            "sha256": "abc",
+            "lineage_evidence": "cryptographically_verified",
+            "lineage_verified": true,
+            "base_file_identity_verified": true,
+            "lineage_claim_source": "synthetic_fixture_generator",
+            "lineage_trust_level": "proven_by_construction",
+            "base_id": "tiny-base-fixture"
+          }
+        ],
+        "experiment": {
+          "mode": "virtual_lora",
+          "compatibility_class": "V",
+          "operation": "delta = (alpha/rank) * B @ A",
+          "parameters": {
+            "rank": 2,
+            "alpha": 4,
+            "native_scale": 2,
+            "experiment_multiplier": 1.0
+          },
+          "warnings": [
+            "Synthetic numerical fixture. No model was trained and no behavior was evaluated."
+          ]
+        },
+        "evaluation": {
+          "enabled": false
+        },
+        "provenance": {
+          "tool_version": "design-1.2-final",
+          "numerics_version": "draft-v2",
+          "coverage": "complete",
+          "numeric_precision": "rounded",
+          "device": {
+            "mode": "cpu_only"
+          },
+          "seed": 7
+        },
+        "interpretation_status": "descriptive"
+      }
+    },
+    {
+      "valid": false,
+      "why": "class V experiment with declared-only source",
+      "instance": {
+        "schema_version": 2,
+        "experiment_id": "demo-virtual-lora-001",
+        "created_at": "2026-11-05T18:00:00Z",
+        "objective": "Demonstrate a synthetic virtual LoRA update and its exact per-tensor delta, not a reasoning improvement",
+        "source_models": [
+          {
+            "id": "base-x",
+            "format": "safetensors",
+            "fingerprint_method": "size_mtime",
+            "sha256": null,
+            "lineage_evidence": "declared",
+            "lineage_verified": false,
+            "base_file_identity_verified": false,
+            "lineage_claim_source": "adapter_config",
+            "lineage_trust_level": "unverified_claim",
+            "base_id": "org/base"
+          }
+        ],
+        "experiment": {
+          "mode": "virtual_lora",
+          "compatibility_class": "V",
+          "operation": "delta = (alpha/rank) * B @ A",
+          "parameters": {
+            "rank": 2,
+            "alpha": 4,
+            "native_scale": 2,
+            "experiment_multiplier": 1.0
+          },
+          "warnings": [
+            "Synthetic numerical fixture. No model was trained and no behavior was evaluated."
+          ]
+        },
+        "evaluation": {
+          "enabled": false
+        },
+        "provenance": {
+          "tool_version": "design-1.2-final",
+          "numerics_version": "draft-v2",
+          "coverage": "complete",
+          "numeric_precision": "rounded",
+          "device": {
+            "mode": "cpu_only"
+          },
+          "seed": 7
+        },
+        "interpretation_status": "descriptive"
+      }
+    },
+    {
+      "valid": false,
+      "why": "proven_by_construction claimed by an adapter config",
+      "instance": {
+        "schema_version": 2,
+        "experiment_id": "demo-virtual-lora-001",
+        "created_at": "2026-11-05T18:00:00Z",
+        "objective": "Demonstrate a synthetic virtual LoRA update and its exact per-tensor delta, not a reasoning improvement",
+        "source_models": [
+          {
+            "id": "tiny-base-fixture",
+            "format": "safetensors",
+            "fingerprint_method": "sha256",
+            "sha256": "a701e77f066883608beb2a1fc080d52f06ebffca227c1d6fd12de2d484e81133",
+            "lineage_evidence": "cryptographically_verified",
+            "lineage_verified": true,
+            "base_file_identity_verified": true,
+            "lineage_claim_source": "adapter_config",
+            "lineage_trust_level": "proven_by_construction",
+            "base_id": "tiny-base-fixture"
+          }
+        ],
+        "experiment": {
+          "mode": "virtual_lora",
+          "compatibility_class": "V",
+          "operation": "delta = (alpha/rank) * B @ A",
+          "parameters": {
+            "rank": 2,
+            "alpha": 4,
+            "native_scale": 2,
+            "experiment_multiplier": 1.0
+          },
+          "warnings": [
+            "Synthetic numerical fixture. No model was trained and no behavior was evaluated."
+          ]
+        },
+        "evaluation": {
+          "enabled": false
+        },
+        "provenance": {
+          "tool_version": "design-1.2-final",
+          "numerics_version": "draft-v2",
+          "coverage": "complete",
+          "numeric_precision": "rounded",
+          "device": {
+            "mode": "cpu_only"
+          },
+          "seed": 7
+        },
+        "interpretation_status": "descriptive"
+      }
+    },
+    {
+      "valid": false,
+      "why": "evaluation enabled without dataset",
+      "instance": {
+        "schema_version": 2,
+        "experiment_id": "demo-virtual-lora-001",
+        "created_at": "2026-11-05T18:00:00Z",
+        "objective": "Demonstrate a synthetic virtual LoRA update and its exact per-tensor delta, not a reasoning improvement",
+        "source_models": [
+          {
+            "id": "tiny-base-fixture",
+            "format": "safetensors",
+            "fingerprint_method": "sha256",
+            "sha256": "a701e77f066883608beb2a1fc080d52f06ebffca227c1d6fd12de2d484e81133",
+            "lineage_evidence": "cryptographically_verified",
+            "lineage_verified": true,
+            "base_file_identity_verified": true,
+            "lineage_claim_source": "synthetic_fixture_generator",
+            "lineage_trust_level": "proven_by_construction",
+            "base_id": "tiny-base-fixture"
+          }
+        ],
+        "experiment": {
+          "mode": "virtual_lora",
+          "compatibility_class": "V",
+          "operation": "delta = (alpha/rank) * B @ A",
+          "parameters": {
+            "rank": 2,
+            "alpha": 4,
+            "native_scale": 2,
+            "experiment_multiplier": 1.0
+          },
+          "warnings": [
+            "Synthetic numerical fixture. No model was trained and no behavior was evaluated."
+          ]
+        },
+        "evaluation": {
+          "enabled": true,
+          "prompt_template_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "answer_parser_version": "1.0.0",
+          "model_revision": "abc123",
+          "tokenizer_revision": "abc123",
+          "backend": {
+            "name": "transformers_peft_cpu",
+            "version": "4.50.0",
+            "weights_match_viewer": true,
+            "quantization": null
+          },
+          "generation": {
+            "temperature": 0,
+            "max_new_tokens": 256,
+            "seed": 7
+          },
+          "arms": [
+            {
+              "arm_id": "base",
+              "role": "baseline",
+              "results_path": "runs/base.jsonl",
+              "results_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+            },
+            {
+              "arm_id": "lora",
+              "role": "treatment",
+              "results_path": "runs/treatment.jsonl",
+              "results_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+            },
+            {
+              "arm_id": "rand",
+              "role": "negative_control",
+              "results_path": "runs/control.jsonl",
+              "results_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+            }
+          ],
+          "metrics": {
+            "paired_accuracy_delta": 0.0
+          }
+        },
+        "provenance": {
+          "tool_version": "design-1.2-final",
+          "numerics_version": "draft-v2",
+          "coverage": "complete",
+          "numeric_precision": "rounded",
+          "device": {
+            "mode": "cpu_only"
+          },
+          "seed": 7
+        },
+        "interpretation_status": "descriptive"
+      }
+    },
+    {
+      "valid": false,
+      "why": "evaluation enabled without negative control arm",
+      "instance": {
+        "schema_version": 2,
+        "experiment_id": "demo-virtual-lora-001",
+        "created_at": "2026-11-05T18:00:00Z",
+        "objective": "Demonstrate a synthetic virtual LoRA update and its exact per-tensor delta, not a reasoning improvement",
+        "source_models": [
+          {
+            "id": "tiny-base-fixture",
+            "format": "safetensors",
+            "fingerprint_method": "sha256",
+            "sha256": "a701e77f066883608beb2a1fc080d52f06ebffca227c1d6fd12de2d484e81133",
+            "lineage_evidence": "cryptographically_verified",
+            "lineage_verified": true,
+            "base_file_identity_verified": true,
+            "lineage_claim_source": "synthetic_fixture_generator",
+            "lineage_trust_level": "proven_by_construction",
+            "base_id": "tiny-base-fixture"
+          }
+        ],
+        "experiment": {
+          "mode": "virtual_lora",
+          "compatibility_class": "V",
+          "operation": "delta = (alpha/rank) * B @ A",
+          "parameters": {
+            "rank": 2,
+            "alpha": 4,
+            "native_scale": 2,
+            "experiment_multiplier": 1.0
+          },
+          "warnings": [
+            "Synthetic numerical fixture. No model was trained and no behavior was evaluated."
+          ]
+        },
+        "evaluation": {
+          "enabled": true,
+          "dataset": {
+            "id": "toy-arith",
+            "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "license": "CC-BY-4.0",
+            "split": "test"
+          },
+          "prompt_template_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "answer_parser_version": "1.0.0",
+          "model_revision": "abc123",
+          "tokenizer_revision": "abc123",
+          "backend": {
+            "name": "transformers_peft_cpu",
+            "version": "4.50.0",
+            "weights_match_viewer": true,
+            "quantization": null
+          },
+          "generation": {
+            "temperature": 0,
+            "max_new_tokens": 256,
+            "seed": 7
+          },
+          "arms": [
+            {
+              "arm_id": "base",
+              "role": "baseline",
+              "results_path": "runs/base.jsonl",
+              "results_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+            },
+            {
+              "arm_id": "lora",
+              "role": "treatment",
+              "results_path": "runs/treatment.jsonl",
+              "results_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+            }
+          ],
+          "metrics": {
+            "paired_accuracy_delta": 0.0
+          }
+        },
+        "provenance": {
+          "tool_version": "design-1.2-final",
+          "numerics_version": "draft-v2",
+          "coverage": "complete",
+          "numeric_precision": "rounded",
+          "device": {
+            "mode": "cpu_only"
+          },
+          "seed": 7
+        },
+        "interpretation_status": "descriptive"
+      }
+    },
+    {
+      "valid": false,
+      "why": "evaluation disabled but carries a backend",
+      "instance": {
+        "schema_version": 2,
+        "experiment_id": "demo-virtual-lora-001",
+        "created_at": "2026-11-05T18:00:00Z",
+        "objective": "Demonstrate a synthetic virtual LoRA update and its exact per-tensor delta, not a reasoning improvement",
+        "source_models": [
+          {
+            "id": "tiny-base-fixture",
+            "format": "safetensors",
+            "fingerprint_method": "sha256",
+            "sha256": "a701e77f066883608beb2a1fc080d52f06ebffca227c1d6fd12de2d484e81133",
+            "lineage_evidence": "cryptographically_verified",
+            "lineage_verified": true,
+            "base_file_identity_verified": true,
+            "lineage_claim_source": "synthetic_fixture_generator",
+            "lineage_trust_level": "proven_by_construction",
+            "base_id": "tiny-base-fixture"
+          }
+        ],
+        "experiment": {
+          "mode": "virtual_lora",
+          "compatibility_class": "V",
+          "operation": "delta = (alpha/rank) * B @ A",
+          "parameters": {
+            "rank": 2,
+            "alpha": 4,
+            "native_scale": 2,
+            "experiment_multiplier": 1.0
+          },
+          "warnings": [
+            "Synthetic numerical fixture. No model was trained and no behavior was evaluated."
+          ]
+        },
+        "evaluation": {
+          "enabled": false,
+          "backend": {
+            "name": "transformers_peft_cpu",
+            "version": "4.50.0",
+            "weights_match_viewer": true,
+            "quantization": null
+          }
+        },
+        "provenance": {
+          "tool_version": "design-1.2-final",
+          "numerics_version": "draft-v2",
+          "coverage": "complete",
+          "numeric_precision": "rounded",
+          "device": {
+            "mode": "cpu_only"
+          },
+          "seed": 7
+        },
+        "interpretation_status": "descriptive"
+      }
+    },
+    {
+      "valid": false,
+      "why": "interventional claim without evaluation",
+      "instance": {
+        "schema_version": 2,
+        "experiment_id": "demo-virtual-lora-001",
+        "created_at": "2026-11-05T18:00:00Z",
+        "objective": "Demonstrate a synthetic virtual LoRA update and its exact per-tensor delta, not a reasoning improvement",
+        "source_models": [
+          {
+            "id": "tiny-base-fixture",
+            "format": "safetensors",
+            "fingerprint_method": "sha256",
+            "sha256": "a701e77f066883608beb2a1fc080d52f06ebffca227c1d6fd12de2d484e81133",
+            "lineage_evidence": "cryptographically_verified",
+            "lineage_verified": true,
+            "base_file_identity_verified": true,
+            "lineage_claim_source": "synthetic_fixture_generator",
+            "lineage_trust_level": "proven_by_construction",
+            "base_id": "tiny-base-fixture"
+          }
+        ],
+        "experiment": {
+          "mode": "virtual_lora",
+          "compatibility_class": "V",
+          "operation": "delta = (alpha/rank) * B @ A",
+          "parameters": {
+            "rank": 2,
+            "alpha": 4,
+            "native_scale": 2,
+            "experiment_multiplier": 1.0
+          },
+          "warnings": [
+            "Synthetic numerical fixture. No model was trained and no behavior was evaluated."
+          ]
+        },
+        "evaluation": {
+          "enabled": false
+        },
+        "provenance": {
+          "tool_version": "design-1.2-final",
+          "numerics_version": "draft-v2",
+          "coverage": "complete",
+          "numeric_precision": "rounded",
+          "device": {
+            "mode": "cpu_only"
+          },
+          "seed": 7
+        },
+        "interpretation_status": "interventional"
+      }
+    },
+    {
+      "valid": false,
+      "why": "unknown top-level field",
+      "instance": {
+        "schema_version": 2,
+        "experiment_id": "demo-virtual-lora-001",
+        "created_at": "2026-11-05T18:00:00Z",
+        "objective": "Demonstrate a synthetic virtual LoRA update and its exact per-tensor delta, not a reasoning improvement",
+        "source_models": [
+          {
+            "id": "tiny-base-fixture",
+            "format": "safetensors",
+            "fingerprint_method": "sha256",
+            "sha256": "a701e77f066883608beb2a1fc080d52f06ebffca227c1d6fd12de2d484e81133",
+            "lineage_evidence": "cryptographically_verified",
+            "lineage_verified": true,
+            "base_file_identity_verified": true,
+            "lineage_claim_source": "synthetic_fixture_generator",
+            "lineage_trust_level": "proven_by_construction",
+            "base_id": "tiny-base-fixture"
+          }
+        ],
+        "experiment": {
+          "mode": "virtual_lora",
+          "compatibility_class": "V",
+          "operation": "delta = (alpha/rank) * B @ A",
+          "parameters": {
+            "rank": 2,
+            "alpha": 4,
+            "native_scale": 2,
+            "experiment_multiplier": 1.0
+          },
+          "warnings": [
+            "Synthetic numerical fixture. No model was trained and no behavior was evaluated."
+          ]
+        },
+        "evaluation": {
+          "enabled": false
+        },
+        "provenance": {
+          "tool_version": "design-1.2-final",
+          "numerics_version": "draft-v2",
+          "coverage": "complete",
+          "numeric_precision": "rounded",
+          "device": {
+            "mode": "cpu_only"
+          },
+          "seed": 7
+        },
+        "interpretation_status": "descriptive",
+        "extra": 1
+      }
+    },
+    {
+      "valid": false,
+      "why": "v1 manifest",
+      "instance": {
+        "schema_version": 1,
+        "experiment_id": "demo-virtual-lora-001",
+        "created_at": "2026-11-05T18:00:00Z",
+        "objective": "Demonstrate a synthetic virtual LoRA update and its exact per-tensor delta, not a reasoning improvement",
+        "source_models": [
+          {
+            "id": "tiny-base-fixture",
+            "format": "safetensors",
+            "fingerprint_method": "sha256",
+            "sha256": "a701e77f066883608beb2a1fc080d52f06ebffca227c1d6fd12de2d484e81133",
+            "lineage_evidence": "cryptographically_verified",
+            "lineage_verified": true,
+            "base_file_identity_verified": true,
+            "lineage_claim_source": "synthetic_fixture_generator",
+            "lineage_trust_level": "proven_by_construction",
+            "base_id": "tiny-base-fixture"
+          }
+        ],
+        "experiment": {
+          "mode": "virtual_lora",
+          "compatibility_class": "V",
+          "operation": "delta = (alpha/rank) * B @ A",
+          "parameters": {
+            "rank": 2,
+            "alpha": 4,
+            "native_scale": 2,
+            "experiment_multiplier": 1.0
+          },
+          "warnings": [
+            "Synthetic numerical fixture. No model was trained and no behavior was evaluated."
+          ]
+        },
+        "evaluation": {
+          "enabled": false
+        },
+        "provenance": {
+          "tool_version": "design-1.2-final",
+          "numerics_version": "draft-v2",
+          "coverage": "complete",
+          "numeric_precision": "rounded",
+          "device": {
+            "mode": "cpu_only"
+          },
+          "seed": 7
+        },
+        "interpretation_status": "descriptive"
+      }
+    }
+  ]
+}

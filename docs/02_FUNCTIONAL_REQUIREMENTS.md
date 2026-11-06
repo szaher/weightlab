@@ -5,7 +5,7 @@ Conventions: **P0** mandatory R1, **P1** R2/R3, **P2** optional R4. Every requir
 ## A. Project and import
 
 - **FR-001 [P0]:** Create/open local project with project name, timestamp, app/schema version and references to paths, not duplicates of checkpoint bytes.
-- **FR-002 [P0]:** Import one `.safetensors` file or a local model directory with `model.safetensors.index.json` and referenced shards.
+- **FR-002 [P0]:** Import one `.safetensors` file or a local model directory with `model.safetensors.index.json` and referenced shards, by typed absolute path, read in place. No HTTP upload of model bytes; an optional native folder dialog is a convenience only (doc 09 section 1.1).
 - **FR-003 [P0]:** Safely parse tensor metadata without materializing data. List tensor name, shape, dtype, file/shard, byte extent, parameter count and estimated byte count.
 - **FR-004 [P0]:** Explicitly reject unsupported formats with an actionable explanation; no eager `torch.load`, pickle or remote code execution.
 - **FR-005 [P0]:** Detect non-regular files, symlink escapes (when project policy restricts paths), missing/duplicate shards, incorrect offsets, malformed headers, unsupported dtype, and changed files after import.
@@ -25,15 +25,15 @@ Conventions: **P0** mandatory R1, **P1** R2/R3, **P2** optional R4. Every requir
 - **FR-016 [P0]:** Show row/column coordinate ranges and actual matrix dimensions; origin top-left, row-major logical indexing for all screens. No implicit transpose.
 - **FR-017 [P0]:** Display vector as line or histogram with sorted/strided sampling warning, and 3D+ as axis slices selected by user; no semantic assumption for unknown dimensions.
 - **FR-018 [P0]:** Exact ROI table within bounded cell count. ROI larger than threshold gives download/export of chunked CSV or asks to narrow request.
-- **FR-019 [P0]:** Tensor details: dtype, finite count, zero count, range, mean, standard deviation, L1/L2/Frobenius norms (when applicable), percentiles, exact-vs-sampled and elapsed scan.
+- **FR-019 [P0]:** Tensor details: dtype, element/finite/zero/non-finite counts, min, max, mean, population standard deviation, L1/L2/Frobenius norms (when applicable), each with `coverage` (complete/sampled) and `numeric_precision` (lossless/rounded/overflowed), and elapsed scan. Exact percentiles only for an ROI (<= `roi_max_cells`, exact sort, linear interpolation between order statistics, non-finite excluded). Global tensor percentiles are **deferred to R2** (FR-021).
 - **FR-020 [P0]:** Disable or cancel expensive full scans. Data rendering must remain interactive during scans.
-- **FR-021 [P1]:** Tensor histograms, per-row/per-column profiles, outlier hotspots, sign histograms and numerical precision analysis.
+- **FR-021 [P1]:** Tensor histograms, per-row/per-column profiles, outlier hotspots, sign histograms and numerical precision analysis; global percentiles from a deterministic mergeable sketch whose algorithm, rank-error bound and golden adversarial tests are fixed by an ADR before R2.
 - **FR-022 [P1]:** Model-layer treemap or matrix overview driven by catalog and aggregate summaries.
 - **FR-023 [P0]:** Ranked change report. For a compatible A/B pair or base + adapter, compute per matched tensor in one bounded streaming pass: exact delta L2, RMS, relative L2 (denominator policy visible), cosine(A,B), max-abs delta, element/finite/non-finite counts; roll up by layer index and role (heuristic, labeled). Delivered as CLI in R0.5 and as the UI model overview in R1; JSON/CSV/Markdown export with provenance. Sorting by a metric never implies causal importance.
 
 ## C. Checkpoint comparison
 
-- **FR-030 [P0]:** Choose A and B with explicit model provenance, strict tensor key match and shape/dtype compatibility. Output matched, missing, tied, renamed-suspected and shape-mismatched tensors. A tensor absent because parameters are tied (`tie_word_embeddings` in `config.json`, or a SafeTensors save that dropped a shared alias) is reported as `tied -> <source key>`, not `missing`, and never synthesized from a guess.
+- **FR-030 [P0]:** Choose A and B with explicit model provenance, strict tensor key match and shape/dtype compatibility. Output matched, missing, tied, renamed-suspected and shape-mismatched tensors. A tensor is reported as `tied -> <source key>` only with positive evidence: `tie_word_embeddings: true` in `config.json` together with a known architecture key mapping (e.g. `lm_head.weight` <-> `model.embed_tokens.weight`), or trusted alias metadata. Absence of a key alone is `missing`. The absent tensor is never synthesized.
 - **FR-031 [P0]:** Compare same-shaped tensors using `delta=B-A` in explicitly documented promoted computation dtype; no arithmetic on packed quantized representation.
 - **FR-032 [P0]:** Modes: A, B, delta, abs(delta), ratio `abs(delta)/(abs(A)+epsilon)` with epsilon visible and configurable, masked epsilon-near-zero values.
 - **FR-033 [P0]:** Delta summary: L1, L2, max abs, RMS, relative L2 with denominator policy and dot-product/cosine with explicit degeneracy handling.
@@ -92,8 +92,11 @@ Conventions: **P0** mandatory R1, **P1** R2/R3, **P2** optional R4. Every requir
 - **AC-011:** Export filenames/manifest never contain auth tokens or source model bytes unintentionally.
 - **AC-012:** UI indicates sampled/aggregate tiles and distinguishes them from exact cell values.
 - **AC-013:** BF16 and F16 tensors in `tiny_dtypes.safetensors` decode bit-exactly to the expected float32 values, including NaN, +Inf, -Inf, -0.0 and each dtype's max finite value.
-- **AC-014:** Truncating or replacing a checkpoint file while a read or job is in progress yields `FILE_CHANGED` and never terminates the backend process (no SIGBUS).
-- **AC-015:** `compat/tied_embeddings` vs `compat/untied_reference` reports `lm_head.weight` as tied, not missing; the permuted same-function pair is Class S with a visible caveat although its function is identical.
+- **AC-014:** Truncation, append, size or mtime change, atomic replace/rename and symlink swap of a checkpoint file during a read or job yield `FILE_CHANGED` and the backend process survives. A same-size in-place rewrite that preserves mtime is detected only by `consistency=verified` jobs; this limitation is shown in the UI and docs (doc 03 section 6).
+- **AC-015:** `compat/tied_embeddings` vs `compat/untied_reference` reports `lm_head.weight` as tied (config + known mapping), `compat/missing_head_no_tie_evidence` reports it missing; the permuted same-function pair is Class S with a visible caveat although its function is identical.
+- **AC-016:** `tiny_precision_a/b` round-trip losslessly through the ROI API: U64 max, I64 min, 2^53-1, 2^53, 2^53+1, F64 extremes, the 2^-52 F64 difference and signed zero. The finite F64 pair whose delta overflows is reported `overflowed`; the F32 delta beyond float32 range is `NOT_REPRESENTABLE` in tiles. Nothing rounded is labeled lossless.
+- **AC-017:** The non-finite golden blocks of `tiny_edge.safetensors` produce the status bitfields in `expected_results.json` in both binary and JSON tiles; legend and hover show the same NaN/+Inf/-Inf kinds.
+- **AC-018:** A derivative whose metadata names a genuine base SHA-256 but was not built from it is reported with `base_file_identity_verified=true`, `lineage_trust_level=unverified_claim`; it is never shown as proven trained-from-base and is not T1-eligible without a trusted lineage statement.
 
 ## H. User stories
 

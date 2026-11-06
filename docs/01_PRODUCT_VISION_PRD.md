@@ -53,7 +53,7 @@ A heatmap is a useful interaction, not a sufficient scientific explanation. Weig
 | Objective | Metric | Release acceptance |
 |---|---|---|
 | First value | Import synthetic fixture -> interactive heatmap | First-time walkthrough works offline |
-| Weight inspection | ROI value accuracy | Bit-identical for supported integer/finite float reads, except documented float conversion |
+| Weight inspection | ROI value accuracy | Lossless for every supported dtype through typed ROI encoding (floats as exact float64 JSON numbers or raw bits, 64-bit integers as decimal strings); tiles are labeled lossy float32 visualizations; unrepresentable results return `UNSUPPORTED_PRECISION` or `overflowed`, never a silently rounded "exact" value (doc 09 section 2) |
 | Compare | Delta and norms | Match independent NumPy reference within dtype tolerances |
 | Memory | App memory footprint | R1 8 GB laptop gate under documented test profiles; backend idle RSS <= 300 MiB and peak RSS <= 1 GiB during bounded work (doc 11) |
 | User autonomy | No cloud credentials needed | Offline E2E green |
@@ -69,8 +69,8 @@ Thresholds are requirements to verify, **not results already achieved**. Track p
 
 - Synthetic SafeTensors fixture generator with known matrices (constant, ramp, pseudo-random, NaNs, infinity, rank 0, 1D, 1x1, 3D), **F16 and BF16 tensors (mandatory: most current LLM checkpoints are BF16)**, at least two shard files, LoRA pairs (rank-1 via `rank_pattern`, rank-2, rsLoRA, unsupported DoRA), compatibility sets and malformed binaries. Provided by `scripts/generate_demo_fixtures.py` and verified by `scripts/check_demo_fixtures.py`.
 - Reader proof: tensor catalog, exact rectangular ROI, bytes read evidence, bounded RAM for an oversized sparse synthetic checkpoint, using bounded positioned reads (ADR-011) with WeightLab's own BF16/F16 decoding (the safetensors NumPy backend cannot read BF16).
-- Primitive heatmap tile with agreed coordinate conventions; no model inference.
-- Scientific notebook or unit test independently verifying every displayed cell.
+- No heatmap tile, API or UI in R0: reader, catalog and exact ROI only, behind a Python interface. Tiles start in Phase 1 (doc 14).
+- Unit tests independently verifying every ROI value read, plus real G0 benchmark evidence (memory, mutation); fixture self-checks alone are not G0 evidence.
 
 ### R0.5 — change report CLI (validation release)
 
@@ -82,7 +82,7 @@ Thresholds are requirements to verify, **not results already achieved**. Track p
 
 ### R1 — minimum useful product (P0)
 
-- Local directory/file import (explicit user path or native picker), format validation, metadata preview, sharded index support.
+- Local directory/file import by typed absolute path (mandatory; browsers cannot hand local paths to the server and model bytes are never uploaded), with an optional server-side native folder dialog where available; format validation, metadata preview, sharded index support.
 - Model overview: the R0.5 ranked change table (per tensor, per layer, per role) as the entry point into heatmaps.
 - Searchable tensors by name, shape, dtype, transformer component and layer.
 - 1D vectors as line plot; 2D matrices as heatmap; 3D+ requires explicit axis/index or reduction selection.

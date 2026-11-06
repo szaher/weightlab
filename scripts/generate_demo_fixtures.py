@@ -5,10 +5,13 @@ This is supporting test material, NOT a WeightLab application implementation.
 Requires numpy and safetensors (`pip install numpy safetensors`).
 Does not download any model or connect to the network.
 
-Determinism: every pseudo-random value comes from the SplitMix64 function below
-(pure Python integer arithmetic), never from NumPy's RNG, so output bytes do not
-depend on the NumPy version. The same function is the reference for WeightLab's
-seeded sampling (docs/05 section 5).
+Determinism: every value comes from integer arithmetic followed by IEEE-754
+correctly rounded division/conversion (no transcendental functions), and every
+pseudo-random value from the SplitMix64 function below, never from NumPy's RNG.
+Byte reproducibility is claimed only under the pinned toolchain in
+scripts/requirements-spec-tools.txt, because the SafeTensors serializer is a
+third-party component; CI compares hashes on Linux, macOS and Windows.
+SplitMix64 is also the reference for WeightLab's seeded sampling (docs/05 section 5).
 
 Files that contain BF16/F16 or that are intentionally malformed are written with
 the raw writer `write_raw_safetensors`, because the safetensors NumPy backend
@@ -26,7 +29,9 @@ from pathlib import Path
 import numpy as np
 from safetensors.numpy import save_file as _upstream_save_file
 
-GENERATOR_VERSION = 2
+GENERATOR_VERSION = 3
+MASK_NO_FINITE, MASK_NAN, MASK_POS_INF, MASK_NEG_INF, MASK_NOT_REPRESENTABLE = 1, 2, 4, 8, 16
+F32_MAX = float(np.finfo(np.float32).max)
 MASK64 = (1 << 64) - 1
 
 
@@ -143,7 +148,11 @@ def generate(out: Path, seed: int) -> None:
     meta = {"source": f"WeightLab synthetic demo v{GENERATOR_VERSION}; NOT a trained model"}
 
     ramp = (np.arange(64, dtype=np.float32).reshape(8, 8) / np.float32(20) - 1).copy()
-    odd = np.sin(np.arange(257 * 263, dtype=np.float32).reshape(257, 263) * np.float32(0.02)).astype(np.float32)
+    odd = (
+        ((((np.arange(257 * 263, dtype=np.int64) * 7919 + 13) % 2001) - 1000).astype(np.float64) / 1000)
+        .astype(np.float32)
+        .reshape(257, 263)
+    )
     special = np.array([[0, 1, np.nan, np.inf], [-np.inf, -1, 2, 3]], dtype=np.float32)
     vector = np.array([1, 2, -3, 0, 0.5, 5], dtype=np.float32)
     cube = np.arange(2 * 4 * 8, dtype=np.float32).reshape(2, 4, 8)
@@ -179,6 +188,63 @@ def generate(out: Path, seed: int) -> None:
             "demo.bf16_specials": ("BF16", [8], f32_to_bf16_bits(bf16_specials).tobytes()),
             "demo.f16.weight": ("F16", [4, 4], small.astype("<f2").tobytes()),
             "demo.f16_specials": ("F16", [8], f16_specials.astype("<f2").tobytes()),
+        },
+        meta,
+    )
+
+    # Precision edge cases: F64 extremes, 64-bit integers beyond 2^53, signed zero,
+    # deltas that overflow although both inputs are finite, sum-of-squares overflow.
+    f64_a = [1.0, 1e300, -1e300, 5e-324, -0.0, 1.7976931348623157e308, -1.7976931348623157e308, 2.2250738585072014e-308]
+    f64_b = [1.0 + 2.0**-52, 1e300, -1e300, 5e-324, 0.0, 1.7976931348623157e308, 1.7976931348623157e308, 2.2250738585072014e-308]
+    i64 = [-(2**63), -1, 0, 2**53 - 1, 2**53, 2**53 + 1, 2**63 - 1]
+    u64 = [0, 2**53 + 1, 2**64 - 1]
+    precision_common = {
+        "p.i64": ("I64", [7], np.array(i64, dtype="<i8").tobytes()),
+        "p.u64": ("U64", [3], np.array(u64, dtype="<u8").tobytes()),
+        "p.i32": ("I32", [2], np.array([-(2**31), 2**31 - 1], dtype="<i4").tobytes()),
+        "p.bool": ("BOOL", [2], np.array([True, False], dtype="?").tobytes()),
+        "p.f64_sumsq_overflow": ("F64", [4], np.array([1e200] * 4, dtype="<f8").tobytes()),
+    }
+    write_raw_safetensors(
+        out / "tiny_precision_a.safetensors",
+        {
+            "p.f64": ("F64", [8], np.array(f64_a, dtype="<f8").tobytes()),
+            "p.f32_overflow_delta": ("F32", [2], np.array([-3.4e38, 1.0], dtype="<f4").tobytes()),
+            **precision_common,
+        },
+        meta,
+    )
+    write_raw_safetensors(
+        out / "tiny_precision_b.safetensors",
+        {
+            "p.f64": ("F64", [8], np.array(f64_b, dtype="<f8").tobytes()),
+            "p.f32_overflow_delta": ("F32", [2], np.array([3.4e38, 1.0], dtype="<f4").tobytes()),
+            **precision_common,
+        },
+        meta,
+    )
+
+    # Edge shapes, unicode key, >65,535-cell aggregate blocks and non-finite tile blocks.
+    nf = ((np.arange(32 * 32, dtype=np.int64) % 97) - 48).astype(np.float64).astype(np.float32).reshape(32, 32) / np.float32(64)
+    nf[3, 20] = np.nan  # block (0,1): finite + NaN + +Inf
+    nf[4, 21] = np.inf
+    nf[16:32, 0:16] = np.nan  # block (1,0): all non-finite, all three kinds
+    nf[16, 0] = np.inf
+    nf[16, 1] = -np.inf
+    nf[16:32, 16:32] = np.nan  # block (1,1): all NaN
+    big = ((np.arange(256 * 512, dtype=np.int64) % 17) - 8).astype(np.float32).reshape(256, 512) / np.float32(8)
+    write_raw_safetensors(
+        out / "tiny_edge.safetensors",
+        {
+            "edge.empty_rows": ("F32", [0, 4], b""),
+            "edge.empty_cols": ("F32", [3, 0], b""),
+            "edge.\u00fcn\u00efc\u00f8d\u00e9/\u03ba\u03bb\u03b5\u03b9\u03b4\u03af.weight": (
+                "F32",
+                [2, 2],
+                np.array([1, 2, 3, 4], dtype="<f4").tobytes(),
+            ),
+            "edge.nonfinite_blocks.weight": ("F32", [32, 32], nf.astype("<f4").tobytes()),
+            "edge.block256x512.weight": ("F32", [256, 512], big.astype("<f4").tobytes()),
         },
         meta,
     )
@@ -325,6 +391,12 @@ def generate(out: Path, seed: int) -> None:
         json.dumps({"tie_word_embeddings": False, "vocab_size": 16, "hidden_size": 8}, indent=2), encoding="utf-8"
     )
 
+    no_tie = compat / "missing_head_no_tie_evidence"
+    no_tie.mkdir(exist_ok=True)
+    save_file(
+        {"model.embed_tokens.weight": embed, "model.norm.weight": np.ones(8, dtype=np.float32)}, str(no_tie / "model.safetensors")
+    )  # deliberately no config.json: absence of lm_head is MISSING, not tied
+
     # Malformed inputs: every one must be rejected (fail closed).
     mal = out / "malformed"
     mal.mkdir(exist_ok=True)
@@ -370,7 +442,35 @@ def generate(out: Path, seed: int) -> None:
     write_raw_safetensors(mal / "duplicate_key.safetensors", {}, header_override=dup)
     (mal / "duplicate_key.safetensors").write_bytes((mal / "duplicate_key.safetensors").read_bytes() + ok16)
 
+    def raw_header(name: str, header: bytes) -> None:
+        write_raw_safetensors(mal / name, {}, header_override=header)
+        (mal / name).write_bytes((mal / name).read_bytes() + ok16)
+
+    raw_header("bool_shape.safetensors", b'{"x":{"dtype":"F32","shape":[true,4],"data_offsets":[0,16]}}')
+    raw_header("float_offsets.safetensors", b'{"x":{"dtype":"F32","shape":[2,2],"data_offsets":[0.0,16.0]}}')
+    raw_header("json_nan_token.safetensors", b'{"x":{"dtype":"F32","shape":[2,NaN],"data_offsets":[0,16]}}')
+    raw_header("non_utf8_header.safetensors", b'{"x\xff":{"dtype":"F32","shape":[2,2],"data_offsets":[0,16]}}')
+    raw_header(
+        "nested_metadata.safetensors", b'{"__metadata__":{"a":{"b":"c"}},"x":{"dtype":"F32","shape":[2,2],"data_offsets":[0,16]}}'
+    )
+    raw_header(
+        "metadata_non_string.safetensors", b'{"__metadata__":{"a":1},"x":{"dtype":"F32","shape":[2,2],"data_offsets":[0,16]}}'
+    )
+    raw_header(
+        "nesting_bomb.safetensors",
+        b'{"x":{"dtype":"F32","shape":[2,2],"data_offsets":[0,16],"z":' + b"[" * 5000 + b"]" * 5000 + b"}}",
+    )
+    raw_header("unknown_entry_field.safetensors", b'{"x":{"dtype":"F32","shape":[2,2],"data_offsets":[0,16],"extra":1}}')
+    raw_header(
+        "rank_too_high.safetensors",
+        b'{"x":{"dtype":"F32","shape":[' + b",".join([b"1"] * 40) + b'],"data_offsets":[0,4]},'
+        b'"y":{"dtype":"F32","shape":[3],"data_offsets":[4,16]}}',
+    )
+
     for name, weight_map in {
+        "backslash_path": {"demo.vector.weight": "sub\\model-00001-of-00002.safetensors"},
+        "windows_drive_path": {"demo.vector.weight": "C:\\model-00001-of-00002.safetensors"},
+        "non_string_shard": {"demo.vector.weight": 5},
         "missing_shard": {
             "demo.vector.weight": "model-00001-of-00002.safetensors",
             "demo.layers.0.mlp.up_proj.weight": "model-00002-of-00002.safetensors",
@@ -394,6 +494,34 @@ def generate(out: Path, seed: int) -> None:
         return alpha / (r**0.5) if rs_lora else alpha / r
 
     expected_delta = changed["demo.layers.0.mlp.up_proj.weight"] - ramp
+    rms = lambda a: float(np.sqrt(np.mean(np.square(a.astype(np.float64)))))  # noqa: E731
+
+    def status(block: np.ndarray, display: float | None) -> int:
+        """Tile status bitfield (docs/09 section 3) for one output cell."""
+        bits = 0
+        finite = block[np.isfinite(block)]
+        if finite.size == 0:
+            bits |= MASK_NO_FINITE
+        if np.isnan(block).any():
+            bits |= MASK_NAN
+        if np.isposinf(block).any():
+            bits |= MASK_POS_INF
+        if np.isneginf(block).any():
+            bits |= MASK_NEG_INF
+        if finite.size and (display is None or not abs(display) <= F32_MAX):
+            bits |= MASK_NOT_REPRESENTABLE
+        return bits
+
+    def block_mean(block: np.ndarray) -> float | None:
+        f = block[np.isfinite(block)].astype(np.float64)
+        return float(f.mean()) if f.size else None
+
+    nf_cells = {"3,20": nf[3:4, 20:21], "4,21": nf[4:5, 21:22], "16,1": nf[16:17, 1:2], "0,0": nf[0:1, 0:1]}
+    nf_blocks = {f"{r},{c}": nf[r * 16 : (r + 1) * 16, c * 16 : (c + 1) * 16] for r in (0, 1) for c in (0, 1)}
+    fa, fb = np.array(f64_a), np.array(f64_b)
+    with np.errstate(over="ignore", invalid="ignore"):
+        f64_delta = fb - fa
+        sumsq = float(np.sum(np.square(np.array([1e200] * 4))))
     s_up, s_down, s_rs = scale(4, 2, False), scale(4, 1, False), scale(8, 4, True)
     output = {
         "schema_version": 2,
@@ -428,6 +556,66 @@ def generate(out: Path, seed: int) -> None:
             "f16_specials_bits": [int(b) for b in f16_specials.astype("<f2").view("<u2")],
             "note": "safetensors NumPy backend cannot read BF16; WeightLab must decode BF16 bits itself.",
         },
+        "rms_delta_vs_difference_of_rms": {
+            "key": "demo.layers.0.mlp.up_proj.weight",
+            "rms_of_delta": rms(expected_delta),
+            "rms_ft_minus_rms_base": rms(changed["demo.layers.0.mlp.up_proj.weight"]) - rms(ramp),
+            "note": "Nonlinear reducers of B-A need a paired elementwise pass; they cannot be derived from A and B pyramids.",
+        },
+        "cube_slices": {
+            "key": "demo.cube.weight",
+            "view_rows_axis1_cols_axis2_fixed_axis0_0_mean": float(cube[0].astype(np.float64).mean()),
+            "view_rows_axis1_cols_axis2_fixed_axis0_1_mean": float(cube[1].astype(np.float64).mean()),
+        },
+        "precision": {
+            "files": ["tiny_precision_a.safetensors", "tiny_precision_b.safetensors"],
+            "f64_a": [repr(v) for v in f64_a],
+            "f64_b": [repr(v) for v in f64_b],
+            "f64_delta_b_minus_a": [repr(float(v)) for v in f64_delta],
+            "f64_delta_overflow_index": 6,
+            "f32_overflow_delta_b_minus_a_f64": repr(float(np.float64(np.float32(3.4e38)) - np.float64(np.float32(-3.4e38)))),
+            "f32_overflow_delta_display_status": MASK_NOT_REPRESENTABLE,
+            "i64": [str(v) for v in i64],
+            "u64": [str(v) for v in u64],
+            "i32": [str(-(2**31)), str(2**31 - 1)],
+            "bool": [True, False],
+            "f64_sumsq_overflow": {
+                "sum": repr(4e200),
+                "sum_sq_finite": bool(np.isfinite(sumsq)),
+                "expected_numeric_precision_rms": "overflowed",
+            },
+            "note": "64-bit integers are exact only as decimal strings; "
+            "F64 values exact only as float64 JSON numbers or hex bits.",
+        },
+        "edge": {
+            "file": "tiny_edge.safetensors",
+            "empty": {"edge.empty_rows": [0, 4], "edge.empty_cols": [3, 0]},
+            "unicode_key": "edge.\u00fcn\u00efc\u00f8d\u00e9/\u03ba\u03bb\u03b5\u03b9\u03b4\u03af.weight",
+            "big_block": {
+                "key": "edge.block256x512.weight",
+                "level8_block_0_0_finite_count": 65536,
+                "level8_block_0_0_sum": float(big[:256, :256].astype(np.float64).sum()),
+                "level9_block_0_0_finite_count": 131072,
+                "level9_block_0_0_sum": float(big.astype(np.float64).sum()),
+            },
+            "nonfinite_blocks": {
+                "key": "edge.nonfinite_blocks.weight",
+                "status_bits": {
+                    "NO_FINITE": MASK_NO_FINITE,
+                    "HAS_NAN": MASK_NAN,
+                    "HAS_POS_INF": MASK_POS_INF,
+                    "HAS_NEG_INF": MASK_NEG_INF,
+                    "NOT_REPRESENTABLE": MASK_NOT_REPRESENTABLE,
+                },
+                "level0_cells": {
+                    k: {"status": status(v, None if not np.isfinite(v).any() else float(v[0, 0])), "value": block_mean(v)}
+                    for k, v in nf_cells.items()
+                },
+                "level4_blocks_mean": {
+                    k: {"status": status(v, block_mean(v)), "value": block_mean(v)} for k, v in nf_blocks.items()
+                },
+            },
+        },
         "tiles_257x263": {
             "key": "demo.layers.0.self_attn.q_proj.weight",
             "level0_tile_1_1_shape": [1, 7],
@@ -456,11 +644,20 @@ def generate(out: Path, seed: int) -> None:
             "tiny_lora_dora_unsupported": {"expected": "reject: use_dora"},
         },
         "compat_expected_class": {
-            "tiny_base vs tiny_ft": "V (fixture manifest records both SHA-256 and shared base)",
+            "tiny_base vs tiny_ft": {
+                "class": "V",
+                "base_file_identity_verified": True,
+                "lineage_claim_source": "synthetic_fixture_generator",
+                "lineage_trust_level": "proven_by_construction",
+                "note": "The generator constructs tiny_ft from tiny_base, so ancestry is known by construction; "
+                "a real model whose metadata names a base hash would only get base_file_identity_verified.",
+            },
             "tiny_base vs compat/different_ancestry": "S",
             "tiny_base vs compat/shape_mismatch": "X for demo.layers.0.mlp.up_proj.weight; other tensors inspectable",
             "tiny_base vs compat/permuted_same_function": "S; identical function, large raw delta",
-            "compat/tied_embeddings vs compat/untied_reference": "lm_head absent due to tie_word_embeddings; not MISSING",
+            "compat/tied_embeddings vs compat/untied_reference": "lm_head.weight TIED (config tie_word_embeddings=true "
+            "and known embed_tokens/lm_head mapping); not MISSING",
+            "compat/missing_head_no_tie_evidence vs compat/untied_reference": "lm_head.weight MISSING (no tie evidence)",
         },
         "malformed_expected": {
             "truncated_payload.safetensors": "INVALID_FORMAT",
@@ -474,10 +671,27 @@ def generate(out: Path, seed: int) -> None:
             "overlapping_offsets.safetensors": "INVALID_FORMAT",
             "gap_in_offsets.safetensors": "INVALID_FORMAT",
             "duplicate_key.safetensors": "INVALID_FORMAT",
+            "bool_shape.safetensors": "INVALID_FORMAT",
+            "float_offsets.safetensors": "INVALID_FORMAT",
+            "json_nan_token.safetensors": "INVALID_FORMAT",
+            "non_utf8_header.safetensors": "INVALID_FORMAT",
+            "nested_metadata.safetensors": "INVALID_FORMAT",
+            "metadata_non_string.safetensors": "INVALID_FORMAT",
+            "nesting_bomb.safetensors": "INVALID_FORMAT",
+            "unknown_entry_field.safetensors": "INVALID_FORMAT",
+            "rank_too_high.safetensors": "INVALID_FORMAT",
+            "backslash_path/": "INVALID_FORMAT (backslash in shard path)",
+            "windows_drive_path/": "INVALID_FORMAT (drive-qualified shard path)",
+            "non_string_shard/": "INVALID_FORMAT (shard path not a string)",
             "missing_shard/": "MISSING_SHARD",
             "path_traversal/": "INVALID_FORMAT (path outside selected root)",
             "absolute_path/": "INVALID_FORMAT (absolute shard path)",
             "key_not_in_shard/": "INVALID_FORMAT (index key absent from shard)",
+        },
+        "upstream_permitted_differences": {
+            "rank_too_high.safetensors": "WeightLab caps rank at 32; upstream safetensors 0.8.0 accepts",
+            "unknown_entry_field.safetensors": "WeightLab rejects unknown tensor-entry fields; upstream ignores them",
+            "duplicate_key.safetensors": "both reject; upstream reports an offset error because its JSON map keeps one key",
         },
         "file_sha256": {},
     }

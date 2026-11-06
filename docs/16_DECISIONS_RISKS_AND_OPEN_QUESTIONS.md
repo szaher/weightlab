@@ -19,7 +19,7 @@
 **Trade-off:** BF16 and exotic dtype handling must be explicitly implemented and tested; no arbitrary model execution by default.
 
 ### ADR-004: Streaming, tile-first not eager checkpoint load
-**Decision:** Read-only mapped and chunked access, exact ROI and sampled aggregates distinguished.  
+**Decision:** Read-only, chunked access by bounded positioned reads (ADR-011); mmap only as an opt-in backend inside an isolated worker. Exact ROI and sampled aggregates distinguished.  
 **Why:** Avoid RAM proportional to model size.  
 **Trade-off:** Exact summary still requires scanning bytes; users choose expensive operations.
 
@@ -59,9 +59,9 @@
 **Trade-off:** We own a small amount of low-level code, so it needs property and security tests and must agree with upstream on accept/reject.
 
 ### ADR-012: Exact pyramid first; row sampling only for very large tensors
-**Decision:** L0-L3 tiles from direct reads, L>=4 from an exact one-pass pyramid; row-sampled previews only above `pyramid_exact_max_mib`. Separate budgets for tiles (65,536 cells) and the ROI table (4,096 cells).
+**Decision:** Direct reads when covered bytes <= `direct_tile_max_mib` (all L0-L3), otherwise an exact one-pass pyramid per source and view; row-sampled previews only above `pyramid_exact_max_mib`; cold requests get a deduplicated 202 job, never a silent sample. Separate budgets for tiles (65,536 cells) and the ROI table (4,096 cells).  
 **Why:** Most weight matrices are 30-250 MiB; one sequential pass is cheaper than scattered per-cell sampling, and results are exact.
-**Trade-off:** A background build per tensor and a pyramid cache of 40 B per 16x16 block (~8% of BF16 tensor size), including `sum_abs` for mean-absolute.
+**Trade-off:** A background build per source and view, and pyramid storage of 0.323 B per cell for all levels (versioned 56 B base / 80 B coarse records with uint64 counters and float64 extrema): ~16.1% of BF16 tensor size.
 
 ### ADR-013: Change report CLI before the UI
 **Decision:** Ship `weightlab diff` (R0.5) after the reader gate and validate it with practitioners before building the R1 UI.
@@ -82,6 +82,21 @@
 **Decision:** `weightlab start` prints `http://127.0.0.1:PORT/#token=...`; the UI moves the token to `sessionStorage` and sends it as a bearer header. The HTML shell holds no secret.
 **Why:** Fragments are never sent to servers or written to access logs; a proven pattern (Jupyter). Combined with the Host allowlist this covers DNS rebinding.
 **Trade-off:** A user who closes the tab needs the printed URL again (or `weightlab start` reprints it).
+
+### ADR-017: Lossless typed exact values; tiles are labeled lossy
+**Decision:** The ROI API is lossless for every supported dtype (floats as exact float64 JSON numbers or raw bits, I64/U64 as decimal strings); tiles are float32 visualizations with a status bitfield; every metric carries `coverage` and `numeric_precision`.
+**Why:** JSON numbers and float32 cannot carry 64-bit integers or F64 exactly, and "exact coverage" is not "exact arithmetic".
+**Trade-off:** Clients must handle typed encodings; tables show rounded digits with full values on demand.
+
+### ADR-018: Base file identity is separate from training lineage
+**Decision:** `LineageAssessment` records `base_file_identity_verified`, `lineage_claim_source` and `lineage_trust_level`; Class V means the base file is the one named, and T1 transfer additionally needs a trusted lineage statement.
+**Why:** A genuine base hash can be written into a fabricated derivative; hashes prove identity, not ancestry.
+**Trade-off:** Real-world pairs rarely reach T1 without the user's own training manifest.
+
+### ADR-019: Specification freeze (1.2-final)
+**Decision:** The blueprint is frozen at 1.2-final (tag `spec-v1.2-final`). Further changes require a demonstrated implementation correctness or security blocker, a versioned ADR, updated contracts/fixtures/tests and a changelog entry (section 5). Implementation discoveries are tracked as issues, not silent contract drift.
+**Why:** Implementation must start against a stable, testable contract.
+**Trade-off:** Some refinements wait for evidence from Phase 0.
 
 ## 2. Risk register
 
@@ -123,6 +138,8 @@
 
 - Resolved 2026-11-05: safetensors 0.8.0's NumPy backend rejects BF16, so WeightLab owns dtype decoding (ADR-011). Remaining: positioned-read throughput for row stripes vs mmap on Windows and macOS.
 - Real 8GB macOS and Windows memory pressure with large mapped files.
+- Cross-OS byte identity of generated fixtures (pinned toolchain; verified by the spec CI matrix, not yet run).
+- Native directory dialog helpers per OS (optional capability).
 - Resolved: launch token via URL fragment (ADR-016). Remaining: verify on Chrome, Firefox and Safari that the fragment is removed from history after the UI reads it.
 - Optional inference support for arbitrary adapter intervention without writing full merged model.
 - Licensing and source of any real math training/eval dataset.

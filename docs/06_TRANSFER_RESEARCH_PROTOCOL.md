@@ -46,9 +46,9 @@ Do not claim "better at reasoning" from math score alone; it is evidence for mea
 
 ## 6. Transfer eligibility rules
 
-**T1:** LoRA adapters whose base is Class V (`lineage_evidence = cryptographically_verified`) with compatible target names/scaling -> eligible virtual composition; note potential interference.  
-**T2:** LoRA adapter + same model architecture and base ID, lineage `declared` or `user_attested` -> require explicit user acknowledgment (a recorded attestation counts) and block export until cryptographically verified or overridden in recorded research mode.  
-**T3:** Full-task delta and second fine-tune descended from exact shared base with matching tensor keys/shapes/dtypes/tokenizer -> permitted research-mode weighted addition, never silently assumed to improve behavior.  
+**T1:** LoRA adapters whose base is Class V (base file identity verified) **and** whose lineage statement is `proven_by_construction` or `trusted_statement`, with compatible target names/scaling -> eligible virtual composition; note potential interference. Class V with `unverified_claim` falls to T2.  
+**T2:** LoRA adapter + same model architecture and base ID, where base identity is unverified (`declared`, `user_attested`) or the lineage statement is an `unverified_claim` -> require explicit user acknowledgment (a recorded attestation counts) and block export until verified and trusted, or overridden in recorded research mode.  
+**T3:** Full-task delta and second fine-tune descended from exact shared base with matching tensor keys/shapes/dtypes/tokenizer, where the shared-base claim is Class V and `trusted_statement` or better -> permitted research-mode weighted addition, never silently assumed to improve behavior.  
 **T4:** Similar model names/architectures but different training base or unverified coordinate system -> descriptive compare only; no automatic direct merge.  
 **T5:** Different shapes/families -> no direct addition; an advanced projection/alignment study is separate scope, potentially using activation matching and calibration data, and requires proof of mapping.
 

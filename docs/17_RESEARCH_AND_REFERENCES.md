@@ -18,7 +18,7 @@
 9. Ilharco et al., **Editing Models with Task Arithmetic**, ICLR 2023. Fine-tuned minus original weights yields a task vector that may steer certain behaviors when applied in aligned models. https://arxiv.org/abs/2212.04089
 10. Yadav et al., **TIES-Merging: Resolving Interference When Merging Models**, NeurIPS 2023. Parameter sign conflict and interference complicate merging. https://arxiv.org/abs/2306.01708
 11. Ainsworth, Hayase & Srinivasa, **Git Re-Basin: Merging Models modulo Permutation Symmetries**, ICLR 2023. Raw parameter coordinate comparisons may be misleading across independently trained models. https://arxiv.org/abs/2209.04836
-12. Klabunde & Lemmerich, **Localizing Reasoning Training-Induced Changes in Large Language Models**, OpenReview 2025. https://openreview.net/forum?id=WDlhBhceGZ — **Citation not verified:** a web search on 2026-11-05 found no paper with this title and these authors. Confirm title, authors and venue before relying on it; until then, do not cite its findings.
+12. Max Klabunde and Florian Lemmerich, **Localizing Reasoning Training-Induced Changes in Large Language Models**, Mechanistic Interpretability Workshop at NeurIPS 2025. https://openreview.net/forum?id=WDlhBhceGZ ; author page https://mklabunde.github.io/publications/. Compares weight-space differences with representation similarity (CKA) between Qwen-derived base and reasoning-trained models. Its results are descriptive comparisons, not causal attributions of reasoning to specific weights. (Revision 1.1 wrongly marked this reference unverified; corrected in 1.2.)
 13. Hugging Face evaluation guidebook (benchmark examples and cautions). https://github.com/huggingface/evaluation-guidebook
 
 ## C. Design implications

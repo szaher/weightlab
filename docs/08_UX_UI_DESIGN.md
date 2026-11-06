@@ -43,7 +43,7 @@ Top: Base checkpoint + Adapter directory -> mapping status. Middle: table (`modu
 
 ## 5. Interaction specifications
 
-- **Open local model:** OS file selection or user path input; progress during validation; error actionable.
+- **Open local model:** a path field (paste or type an absolute path; recent paths offered) is the mandatory method, with an optional "Browse..." button only when the server reports the `native_directory_dialog` capability. Browsers cannot reveal local paths and model bytes are never uploaded, so drag-and-drop shows how to copy a path (Finder Option-Command-C, Explorer Shift+right-click "Copy as path") instead of importing. Windows drive, long-path and UNC paths are accepted (UNC with a slow-network warning); permission errors explain the OS reason without suggesting elevation. Progress during validation; errors actionable.
 - **Tensor list:** virtualized for thousands of entries, keyboard searchable, sort shape/size/name; semantic tags heuristic.
 - **Pan/zoom:** scroll wheel + modifier with accessible zoom buttons; deterministic coordinate mapping; no approximate hover presented as exact.
 - **ROI selection:** pointer drag, display raw bounds while dragging, max preview selection limit, exact-read action for selected region.

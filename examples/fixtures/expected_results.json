@@ -1,6 +1,6 @@
 {
   "schema_version": 2,
-  "generator_version": 2,
+  "generator_version": 3,
   "seed": 7,
   "purpose": "synthetic numerical fixture; no reasoning improvement or model training implied",
   "tensor_key": "demo.layers.0.mlp.up_proj.weight",
@@ -411,6 +411,151 @@
     ],
     "note": "safetensors NumPy backend cannot read BF16; WeightLab must decode BF16 bits itself."
   },
+  "rms_delta_vs_difference_of_rms": {
+    "key": "demo.layers.0.mlp.up_proj.weight",
+    "rms_of_delta": 0.24526770366473982,
+    "rms_ft_minus_rms_base": 0.11088995549803049,
+    "note": "Nonlinear reducers of B-A need a paired elementwise pass; they cannot be derived from A and B pyramids."
+  },
+  "cube_slices": {
+    "key": "demo.cube.weight",
+    "view_rows_axis1_cols_axis2_fixed_axis0_0_mean": 15.5,
+    "view_rows_axis1_cols_axis2_fixed_axis0_1_mean": 47.5
+  },
+  "precision": {
+    "files": [
+      "tiny_precision_a.safetensors",
+      "tiny_precision_b.safetensors"
+    ],
+    "f64_a": [
+      "1.0",
+      "1e+300",
+      "-1e+300",
+      "5e-324",
+      "-0.0",
+      "1.7976931348623157e+308",
+      "-1.7976931348623157e+308",
+      "2.2250738585072014e-308"
+    ],
+    "f64_b": [
+      "1.0000000000000002",
+      "1e+300",
+      "-1e+300",
+      "5e-324",
+      "0.0",
+      "1.7976931348623157e+308",
+      "1.7976931348623157e+308",
+      "2.2250738585072014e-308"
+    ],
+    "f64_delta_b_minus_a": [
+      "2.220446049250313e-16",
+      "0.0",
+      "0.0",
+      "0.0",
+      "0.0",
+      "0.0",
+      "inf",
+      "0.0"
+    ],
+    "f64_delta_overflow_index": 6,
+    "f32_overflow_delta_b_minus_a_f64": "6.7999999042887285e+38",
+    "f32_overflow_delta_display_status": 16,
+    "i64": [
+      "-9223372036854775808",
+      "-1",
+      "0",
+      "9007199254740991",
+      "9007199254740992",
+      "9007199254740993",
+      "9223372036854775807"
+    ],
+    "u64": [
+      "0",
+      "9007199254740993",
+      "18446744073709551615"
+    ],
+    "i32": [
+      "-2147483648",
+      "2147483647"
+    ],
+    "bool": [
+      true,
+      false
+    ],
+    "f64_sumsq_overflow": {
+      "sum": "4e+200",
+      "sum_sq_finite": false,
+      "expected_numeric_precision_rms": "overflowed"
+    },
+    "note": "64-bit integers are exact only as decimal strings; F64 values exact only as float64 JSON numbers or hex bits."
+  },
+  "edge": {
+    "file": "tiny_edge.safetensors",
+    "empty": {
+      "edge.empty_rows": [
+        0,
+        4
+      ],
+      "edge.empty_cols": [
+        3,
+        0
+      ]
+    },
+    "unicode_key": "edge.\u00fcn\u00efc\u00f8d\u00e9/\u03ba\u03bb\u03b5\u03b9\u03b4\u03af.weight",
+    "big_block": {
+      "key": "edge.block256x512.weight",
+      "level8_block_0_0_finite_count": 65536,
+      "level8_block_0_0_sum": -1.0,
+      "level9_block_0_0_finite_count": 131072,
+      "level9_block_0_0_sum": -1.875
+    },
+    "nonfinite_blocks": {
+      "key": "edge.nonfinite_blocks.weight",
+      "status_bits": {
+        "NO_FINITE": 1,
+        "HAS_NAN": 2,
+        "HAS_POS_INF": 4,
+        "HAS_NEG_INF": 8,
+        "NOT_REPRESENTABLE": 16
+      },
+      "level0_cells": {
+        "3,20": {
+          "status": 3,
+          "value": null
+        },
+        "4,21": {
+          "status": 5,
+          "value": null
+        },
+        "16,1": {
+          "status": 9,
+          "value": null
+        },
+        "0,0": {
+          "status": 0,
+          "value": -0.75
+        }
+      },
+      "level4_blocks_mean": {
+        "0,0": {
+          "status": 0,
+          "value": -0.10943603515625
+        },
+        "0,1": {
+          "status": 6,
+          "value": 0.053703248031496065
+        },
+        "1,0": {
+          "status": 15,
+          "value": null
+        },
+        "1,1": {
+          "status": 3,
+          "value": null
+        }
+      }
+    }
+  },
   "tiles_257x263": {
     "key": "demo.layers.0.self_attn.q_proj.weight",
     "level0_tile_1_1_shape": [
@@ -424,8 +569,8 @@
         132
       ],
       "last_block_count": 1,
-      "last_block_mean": 0.7926148176193237,
-      "first_block_mean": -0.4192400285974145
+      "last_block_mean": 0.7350000143051147,
+      "first_block_mean": 0.2992500066757202
     },
     "level3": {
       "block": 8,
@@ -434,8 +579,8 @@
         33
       ],
       "last_block_count": 7,
-      "last_block_mean": 0.7540533712932042,
-      "first_block_mean": -0.0749999352847226
+      "last_block_mean": 0.1324285694531032,
+      "first_block_mean": 0.10654687689384446
     }
   },
   "lora": {
@@ -710,11 +855,18 @@
     }
   },
   "compat_expected_class": {
-    "tiny_base vs tiny_ft": "V (fixture manifest records both SHA-256 and shared base)",
+    "tiny_base vs tiny_ft": {
+      "class": "V",
+      "base_file_identity_verified": true,
+      "lineage_claim_source": "synthetic_fixture_generator",
+      "lineage_trust_level": "proven_by_construction",
+      "note": "The generator constructs tiny_ft from tiny_base, so ancestry is known by construction; a real model whose metadata names a base hash would only get base_file_identity_verified."
+    },
     "tiny_base vs compat/different_ancestry": "S",
     "tiny_base vs compat/shape_mismatch": "X for demo.layers.0.mlp.up_proj.weight; other tensors inspectable",
     "tiny_base vs compat/permuted_same_function": "S; identical function, large raw delta",
-    "compat/tied_embeddings vs compat/untied_reference": "lm_head absent due to tie_word_embeddings; not MISSING"
+    "compat/tied_embeddings vs compat/untied_reference": "lm_head.weight TIED (config tie_word_embeddings=true and known embed_tokens/lm_head mapping); not MISSING",
+    "compat/missing_head_no_tie_evidence vs compat/untied_reference": "lm_head.weight MISSING (no tie evidence)"
   },
   "malformed_expected": {
     "truncated_payload.safetensors": "INVALID_FORMAT",
@@ -728,38 +880,71 @@
     "overlapping_offsets.safetensors": "INVALID_FORMAT",
     "gap_in_offsets.safetensors": "INVALID_FORMAT",
     "duplicate_key.safetensors": "INVALID_FORMAT",
+    "bool_shape.safetensors": "INVALID_FORMAT",
+    "float_offsets.safetensors": "INVALID_FORMAT",
+    "json_nan_token.safetensors": "INVALID_FORMAT",
+    "non_utf8_header.safetensors": "INVALID_FORMAT",
+    "nested_metadata.safetensors": "INVALID_FORMAT",
+    "metadata_non_string.safetensors": "INVALID_FORMAT",
+    "nesting_bomb.safetensors": "INVALID_FORMAT",
+    "unknown_entry_field.safetensors": "INVALID_FORMAT",
+    "rank_too_high.safetensors": "INVALID_FORMAT",
+    "backslash_path/": "INVALID_FORMAT (backslash in shard path)",
+    "windows_drive_path/": "INVALID_FORMAT (drive-qualified shard path)",
+    "non_string_shard/": "INVALID_FORMAT (shard path not a string)",
     "missing_shard/": "MISSING_SHARD",
     "path_traversal/": "INVALID_FORMAT (path outside selected root)",
     "absolute_path/": "INVALID_FORMAT (absolute shard path)",
     "key_not_in_shard/": "INVALID_FORMAT (index key absent from shard)"
   },
+  "upstream_permitted_differences": {
+    "rank_too_high.safetensors": "WeightLab caps rank at 32; upstream safetensors 0.8.0 accepts",
+    "unknown_entry_field.safetensors": "WeightLab rejects unknown tensor-entry fields; upstream ignores them",
+    "duplicate_key.safetensors": "both reject; upstream reports an offset error because its JSON map keeps one key"
+  },
   "file_sha256": {
-    "compat/different_ancestry.safetensors": "fd8a6b1f25a4f9f2bb58aee1e54bde4a568b2c5f09ade2565af6b534785b54a1",
-    "compat/permuted_same_function.safetensors": "2bda6cb9ed5c5f769011d57575506a10eef7b76551766556f9a63ad3ded52adc",
-    "compat/shape_mismatch.safetensors": "28c5df686a172348fdb31f310ea1614001e0d8b4f1bbd4f8997e429585e748d5",
+    "compat/different_ancestry.safetensors": "a72be6c95d4221af4c3f3e17f33f8884a66fda02909655a5a35c955320077a2b",
+    "compat/missing_head_no_tie_evidence/model.safetensors": "2e397e9abda513e0c82abd8e0020f7e7861d08b0c4b237ef982134e02b62352a",
+    "compat/permuted_same_function.safetensors": "c9e6d7bdbcac9e6b5ae395e44e876626679c00fd5aa76f7b8677eab9b9262f22",
+    "compat/shape_mismatch.safetensors": "d44de4c6deda2601a1644d0c8bb370dbb9ad82b2e2b3262451e3c59e490819ab",
     "compat/tied_embeddings/model.safetensors": "2e397e9abda513e0c82abd8e0020f7e7861d08b0c4b237ef982134e02b62352a",
     "compat/untied_reference/model.safetensors": "8b04d170667fce80a04cf84c98f36912c73e873c65f754cff9c06009bb365726",
     "malformed/absolute_path/model-00001-of-00002.safetensors": "86fc914f5a859886b662d73febad76e6f257e03507c8a47864ac9acec1a39259",
+    "malformed/backslash_path/model-00001-of-00002.safetensors": "86fc914f5a859886b662d73febad76e6f257e03507c8a47864ac9acec1a39259",
+    "malformed/bool_shape.safetensors": "86d28ae3d330015da274e29618eacae619dd1e712f6123e68a7ba857c807a9d9",
     "malformed/corrupt_json.safetensors": "a9d10ae3ddd5ca47addf3e2c37c448a97175d5cf591ab7c573463e4b3ed370c0",
     "malformed/duplicate_key.safetensors": "afed72d4b0d5e65baa635c363036a433ea0004e62ba0200bc103dd7b16c2188f",
+    "malformed/float_offsets.safetensors": "a8880a1df593e4032066094d1e6e892d862478a2e145f51ab7ab6e91f4c51ed3",
     "malformed/gap_in_offsets.safetensors": "0ca1bdb8939648a3cd57ef3d0e75767b0b8d22d25ac81697c32ac9b1e7aba55f",
     "malformed/header_length_exceeds_file.safetensors": "07f001f30d7007d59ae8aef07012ceb609aa3b1bc93f77ad6d9af10fe1fc9f2a",
+    "malformed/json_nan_token.safetensors": "a6992d2289ceeed6f8867364031e9cd72537800a252a5ec51b0752e56d77e4bd",
     "malformed/key_not_in_shard/model-00001-of-00002.safetensors": "86fc914f5a859886b662d73febad76e6f257e03507c8a47864ac9acec1a39259",
+    "malformed/metadata_non_string.safetensors": "97142abcd42b242b00dbc93bc08ccaf03cd35abb087315f84bf2c98d1608f6a4",
     "malformed/missing_shard/model-00001-of-00002.safetensors": "86fc914f5a859886b662d73febad76e6f257e03507c8a47864ac9acec1a39259",
     "malformed/negative_shape.safetensors": "67c853f1f2d85acebd9de9d73eec613030d7523f2dd35a519e0bcd4eec9ba89b",
+    "malformed/nested_metadata.safetensors": "d5196fabdc508d575ada3dbad015b976a62eef45ce0a1891d2ee03abb07e896c",
+    "malformed/nesting_bomb.safetensors": "8e140a81d686d168054e8e2c1b350de1c375d93fbc18356279579bf22e7bb601",
+    "malformed/non_string_shard/model-00001-of-00002.safetensors": "86fc914f5a859886b662d73febad76e6f257e03507c8a47864ac9acec1a39259",
+    "malformed/non_utf8_header.safetensors": "d84cbf322cadf2e7cfba786559717fb2cd9819303a02503ed0ada832102b9e98",
     "malformed/offset_out_of_bounds.safetensors": "b40937893a8a21d19ad05feac62a6deaea074db93c74c6d07a60ed62524f78cf",
     "malformed/overflow_shape.safetensors": "2ca3d5063b41ba3e2cfbcae9e765ac2269324ca3e4971d8121c15ec313a41604",
     "malformed/overlapping_offsets.safetensors": "7c60f178556e4c4d32f31de2f9bf4108b49ad4a539220cbf950c5ff8b3af0157",
     "malformed/path_traversal/model-00001-of-00002.safetensors": "86fc914f5a859886b662d73febad76e6f257e03507c8a47864ac9acec1a39259",
+    "malformed/rank_too_high.safetensors": "e67e2c206bf3cf946c3d558da3911dccb17fff7bb227b025a556f4ba0921e934",
     "malformed/shape_length_mismatch.safetensors": "051cd5ca02ce6ac9c9f74fa20a07061d61454628e99aa9d5c77a9e2c7cb2137b",
     "malformed/truncated_payload.safetensors": "d1bf15cf3bacce1f0e43367ea3b3e0941f8a313969ccec6e77fdea14ed22d28d",
     "malformed/unknown_dtype.safetensors": "9c81fe19c64226ff8fe41f74695b7e7d9abf3f55d2b4403d557a2899b2adabd7",
-    "tiny_base.safetensors": "8c7df989958a448e7ed6baa9dd4f49a59824045f14fe0a48882e792a36138ced",
-    "tiny_dtypes.safetensors": "f01de6627d8f8f770ce8a72881be75209c3276f16fb2f1bfd3d3d9224f8cdb0b",
-    "tiny_ft.safetensors": "0c2d7ffca3ecc994231141b48c3aacdb9ae6dd5cb0b164c8bd9853dd653d1071",
+    "malformed/unknown_entry_field.safetensors": "8a09e73a175955b4721d39bcacc73919faec46cbc7b82298de808fd0d3d1fe47",
+    "malformed/windows_drive_path/model-00001-of-00002.safetensors": "86fc914f5a859886b662d73febad76e6f257e03507c8a47864ac9acec1a39259",
+    "tiny_base.safetensors": "a701e77f066883608beb2a1fc080d52f06ebffca227c1d6fd12de2d484e81133",
+    "tiny_dtypes.safetensors": "5fd74a487bea13c1ff4b854569e64b71202be7e56e9482c68cdd0963a0440cb4",
+    "tiny_edge.safetensors": "8fd519809539359bde9ece9a65aa4b0b66cd5760190a00801fa3142633521be2",
+    "tiny_ft.safetensors": "16bbefa9b14f910c751a476ae4a0570100f4589f03f498f242ae3700639c1452",
     "tiny_lora/adapter_model.safetensors": "5ea2c555103e23d55a8ea35ae3b862ce5a786d6c6475cf00ae180f764d00a30c",
     "tiny_lora_dora_unsupported/adapter_model.safetensors": "abb0af27897cd5b483546c941f4552e287d8011fbb577c1b50df4a636552b879",
     "tiny_lora_rslora/adapter_model.safetensors": "284d457788ddcb1a3e937a74bdcd08ea28db164fce5006d60c2bfa8676d670da",
+    "tiny_precision_a.safetensors": "1e95f2c5068ff9525a9fb51ec78434b75baea94d455f5de172e7839bc4292569",
+    "tiny_precision_b.safetensors": "b75549228b77a639a1aa0c9fa609bde82e5b5cd9d74e37b13822a346e36d88fd",
     "tiny_sharded/model-00001-of-00002.safetensors": "2d21b46fbda254bd51e5f3693a339c20794674f9ef0fc4e2e3cc98421f7d4c0b",
     "tiny_sharded/model-00002-of-00002.safetensors": "86fc914f5a859886b662d73febad76e6f257e03507c8a47864ac9acec1a39259"
   }

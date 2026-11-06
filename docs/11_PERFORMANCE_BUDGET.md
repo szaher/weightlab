@@ -17,7 +17,9 @@ Memory targets to **verify**, not guaranteed present-day benchmarks:
 | Frontend decoded tile cache | 64 MiB target | evict |
 | Exact ROI table (`roi_max_cells`) | <= 4096 cells initial | prompt to narrow/export as stream |
 | Tile payload (`max_tile_cells`) | <= 256x256 = 65,536 cells (320 KiB binary incl. status) | no oversized tile responses |
-| Exact pyramid (`pyramid_exact_max_mib`) | auto-build for tensors <= 1024 MiB on disk; storage 40 B per 16x16 block incl. `sum_abs` (~8% of BF16, ~4% of F32 tensor bytes) | larger tensors: row-sampled preview + queued exact job |
+| Exact pyramid (`pyramid_exact_max_mib`) | auto-built on demand per source/view up to 1024 MiB on disk; all levels cost 0.323 B per cell (56 B base + 80 B coarse records): ~16.1% of BF16, 8.1% of F32, 4.0% of F64 tensor bytes | larger sources: row-sampled preview + explicit job; pyramids that do not fit the disk cache stay in memory for the session or are refused |
+| Direct tile read (`direct_tile_max_mib`) | 64 MiB covered bytes | above it: pyramid |
+| LoRA scan (`max_lora_scan_gmac`) | 50 GMAC per module (rows x cols x rank) | reject with estimate; report module as not analyzed |
 | Active tile jobs | 2 | queue/cancel stale |
 | Heavy full-scan jobs | 1 | queue |
 | CPU workers | max 2 by default | config controls |
@@ -33,8 +35,8 @@ RSS alone cannot certify absence of memory pressure from mmap/page cache or brow
 |---|---|---|---|
 | Metadata catalog | O(number of tensor headers/shards) | immediate | cap header size and count |
 | Exact ROI | O(selected rows/columns + page accesses) | immediate | 4096 cells, I/O estimate cap |
-| Tile L0-L3 | O(covered cells), sequential row stripes, <= 8 MiB BF16 per tile | interactive | max bytes read |
-| Tile L>=4 | O(output cells) from cached pyramid | interactive | needs pyramid |
+| Tile, covered bytes <= `direct_tile_max_mib` (all L0-L3) | O(covered cells), sequential row stripes | interactive | max bytes read |
+| Tile from ready pyramid | O(output cells) | interactive | 202 + deduplicated build job when not ready |
 | Exact pyramid build | O(N) sequential, once per tensor version | background, automatic up to limit | cancel, progress |
 | Row-sampled tile (above limit) | O(sampled rows x cols), sequential | interactive | fixed row count, max bytes read |
 | Exact aggregate | O(underlying elements) | background | explicit approval; bounded chunking |
@@ -42,6 +44,7 @@ RSS alone cannot certify absence of memory pressure from mmap/page cache or brow
 | Pairwise row cosine all rows | O(n²d) | unavailable R1 | selected/sample only |
 | Full SVD | superlinear, high RAM | unavailable R1 | only bounded optional R2 |
 | LoRA ROI | O((rows+cols)r + rows*cols*r) | interactive bounded | r and dimensions capped |
+| LoRA full-module change report (FR-023) | O(out*in*r) multiply-adds per module; Frobenius norm via `s^2 * tr((B^T B)(A A^T))` in O((in+out)r^2) only if independently tested against the direct product | background | `max_lora_scan_gmac`, cancel, completeness flag |
 | Full model evaluation | model load + decoding | optional R3 | separate subprocess and preflight |
 
 ## 3. I/O estimates
@@ -60,6 +63,8 @@ To compute a mean/RMS over every cell in a 2D tensor, the system must read every
 - **B08 Adversarial:** malformed header, huge declared dimensions, zip/path traversal, cancel/restart, changed file.
 - **B09 Slow disk:** rate limited reads, UI remains interactive; task cancel works.
 - **B10 Windows/Linux/macOS:** same numeric fixture hashes and no OS-only file-mapping failures.
+- **B11 Mutation:** truncate, append, same-size rewrite, atomic replace/rename and symlink swap during a running job on each OS; backend alive, `FILE_CHANGED` or verified-snapshot result, never a stale result.
+- **B12 Pyramid footprint:** actual pyramid bytes vs the 0.323 B/cell estimate for BF16/F32/F64 tensors; cache admission and eviction under `tile_cache_disk_mib`.
 
 ## 5. Performance definition of done
 

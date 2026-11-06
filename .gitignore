@@ -1,1 +1,26 @@
 .serena/
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.hypothesis/
+.coverage
+htmlcov/
+build/
+dist/
+*.egg-info/
+# Frontend
+node_modules/
+frontend/dist/
+playwright-report/
+test-results/
+# Generated, not source
+WeightLab_Complete_Blueprint.pdf
+tests/fixtures/generated/
+# OS
+.DS_Store
+Thumbs.db

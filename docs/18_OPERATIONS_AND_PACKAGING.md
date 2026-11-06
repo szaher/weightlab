@@ -4,7 +4,7 @@
 
 **Primary:** Python wheel with bundled React static distribution. User installs via `uv tool install weightlab` / `pipx install weightlab` once published, then launches `weightlab start`. For source developer install, `uv sync --locked --extra dev` and `npm ci` per root/frontend lockfiles. Package name and CLI examples are *design targets*, not released package claims. Do not promise a PyPI URL before package release.
 
-**Requirements:** Python 3.11+, user-writable config directory, modern browser, read access to model directory, localhost binding. No root/admin permission. No Docker prerequisite. GPU, CUDA, PyTorch, HF token, internet are not required for R1 offline work after dependency installation.
+**Requirements:** Python 3.11+, user-writable config directory, modern browser, read access to model directory, localhost binding. No root/admin permission. No Docker prerequisite. GPU, CUDA, PyTorch, HF token and internet are not required at runtime for R1. Installation itself may need network access (or a pre-downloaded wheelhouse); the offline guarantee starts once dependencies are installed.
 
 ## 2. Development environment
 
@@ -66,6 +66,8 @@ Require stable DB migration/version files and bounded cache deletion. Model weig
   "max_heavy_jobs": 1,
   "roi_max_cells": 4096,
   "max_tile_cells": 65536,
+  "direct_tile_max_mib": 64,
+  "max_lora_scan_gmac": 50,
   "pyramid_exact_max_mib": 1024,
   "pyramid_base_level": 4,
   "tile_size": 256,
@@ -90,10 +92,14 @@ Versioned DB schema; transactional migrations with pre-upgrade backup. On incomp
 
 ## 8. CI/CD proposal
 
-- PR: lint, formatting, static typing, unit/property/integration/security, frontend component tests, OpenAPI schema validation.
+- PR: lint, formatting, static typing, unit/property/integration/security, frontend component tests, OpenAPI schema validation, and the specification checks of `.github/workflows/spec-checks.yml` (fixture self-check, contract examples, cross-reference check, documentation build reproducibility, manifest check, fixture hashes on Linux/macOS/Windows).
 - Nightly: OS/browser matrix, randomized formats, large-sparse and I/O benchmarks.
 - Release: reproducible wheel, SBOM, dependency/license report, SHA-256 checksums, changelog, known limitations, tagged version, signed artifact where tooling available.
 - R1 first release is beta until one tested clean install each macOS/Windows/Linux and a real 8GB laptop performance report.
+
+## 8a. Source manifest
+
+`MANIFEST.sha256` lists SHA-256 for every file tracked by git (or added and not ignored), excluding the manifest itself. Generate with `python scripts/manifest.py --write`, verify with `python scripts/manifest.py --check`; the spec CI verifies it on a clean clone. Local caches and build products (`.ruff_cache/`, `__pycache__/`, `.venv/`, `node_modules/`, `dist/`, PDFs) are ignored by `.gitignore` and never listed.
 
 ## 9. Troubleshooting decisions
 

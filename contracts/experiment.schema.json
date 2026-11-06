@@ -1,66 +1,636 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://weightlab.local/schemas/experiment/v1",
-  "title": "WeightLab Experiment Manifest v1",
+  "$id": "https://weightlab.local/schemas/experiment/v2",
+  "title": "WeightLab Experiment Manifest v2",
+  "description": "v2 (blueprint 1.2-final): lineage fields are required and mutually consistent; evaluation fields are required when evaluation.enabled is true. Migration from v1: set lineage_evidence from lineage_verified (true -> cryptographically_verified only if a sha256 is present, otherwise declared), add lineage_claim_source/lineage_trust_level, and drop user_attested from fingerprint_method.",
   "type": "object",
   "additionalProperties": false,
-  "required": ["schema_version", "experiment_id", "created_at", "objective", "source_models", "experiment", "evaluation", "provenance", "interpretation_status"],
+  "required": [
+    "schema_version",
+    "experiment_id",
+    "created_at",
+    "objective",
+    "source_models",
+    "experiment",
+    "evaluation",
+    "provenance",
+    "interpretation_status"
+  ],
   "properties": {
-    "schema_version": {"const": 1},
-    "experiment_id": {"type": "string", "minLength": 1},
-    "created_at": {"type": "string", "format": "date-time"},
-    "objective": {"type": "string", "minLength": 1},
-    "source_models": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/model"}},
+    "schema_version": {
+      "const": 2
+    },
+    "experiment_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128,
+      "pattern": "^[A-Za-z0-9._-]+$"
+    },
+    "created_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "objective": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 2000
+    },
+    "source_models": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 16,
+      "items": {
+        "$ref": "#/$defs/model"
+      }
+    },
     "experiment": {
       "type": "object",
-      "required": ["mode", "compatibility_class", "operation", "parameters"],
+      "additionalProperties": false,
+      "required": [
+        "mode",
+        "compatibility_class",
+        "operation",
+        "parameters"
+      ],
       "properties": {
-        "mode": {"enum": ["descriptive", "virtual_lora", "task_vector", "layer_ablation", "activation_patch"]},
-        "compatibility_class": {"enum": ["V", "L", "S", "X"]},
-        "operation": {"type": "string"},
-        "parameters": {"type": "object"},
-        "warnings": {"type": "array", "items": {"type": "string"}}
+        "mode": {
+          "enum": [
+            "descriptive",
+            "virtual_lora",
+            "task_vector",
+            "layer_ablation",
+            "activation_patch"
+          ]
+        },
+        "compatibility_class": {
+          "enum": [
+            "V",
+            "L",
+            "S",
+            "X"
+          ]
+        },
+        "operation": {
+          "type": "string",
+          "maxLength": 500
+        },
+        "parameters": {
+          "type": "object",
+          "maxProperties": 64,
+          "additionalProperties": {
+            "type": [
+              "string",
+              "number",
+              "integer",
+              "boolean",
+              "null"
+            ]
+          }
+        },
+        "warnings": {
+          "type": "array",
+          "maxItems": 50,
+          "items": {
+            "type": "string",
+            "maxLength": 500
+          }
+        }
       }
     },
     "evaluation": {
       "type": "object",
-      "required": ["enabled"],
+      "additionalProperties": false,
+      "required": [
+        "enabled"
+      ],
       "properties": {
-        "enabled": {"type": "boolean"},
-        "dataset_id": {"type": ["string", "null"]},
-        "dataset_sha256": {"type": ["string", "null"]},
-        "backend": {"type": ["string", "null"]},
-        "generation": {"type": "object"},
-        "metrics": {"type": "object"},
-        "negative_control": {"type": ["string", "null"]}
+        "enabled": {
+          "type": "boolean"
+        },
+        "dataset": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "id",
+            "sha256",
+            "license",
+            "split"
+          ],
+          "properties": {
+            "id": {
+              "type": "string",
+              "maxLength": 256
+            },
+            "sha256": {
+              "$ref": "#/$defs/sha256"
+            },
+            "license": {
+              "type": "string",
+              "maxLength": 128
+            },
+            "split": {
+              "type": "string",
+              "maxLength": 64
+            },
+            "contamination_notes": {
+              "type": "string",
+              "maxLength": 2000
+            }
+          }
+        },
+        "prompt_template_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "answer_parser_version": {
+          "type": "string",
+          "maxLength": 64
+        },
+        "model_revision": {
+          "type": "string",
+          "maxLength": 128
+        },
+        "tokenizer_revision": {
+          "type": "string",
+          "maxLength": 128
+        },
+        "backend": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "name",
+            "version",
+            "weights_match_viewer"
+          ],
+          "properties": {
+            "name": {
+              "enum": [
+                "transformers_peft_cpu",
+                "llama_cpp"
+              ]
+            },
+            "version": {
+              "type": "string",
+              "maxLength": 64
+            },
+            "weights_match_viewer": {
+              "type": "boolean"
+            },
+            "quantization": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "maxLength": 32
+            }
+          }
+        },
+        "generation": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "temperature",
+            "max_new_tokens",
+            "seed"
+          ],
+          "properties": {
+            "temperature": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 2
+            },
+            "top_p": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            },
+            "max_new_tokens": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 32768
+            },
+            "seed": {
+              "type": "integer",
+              "minimum": 0
+            }
+          }
+        },
+        "arms": {
+          "type": "array",
+          "minItems": 2,
+          "maxItems": 32,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "arm_id",
+              "role",
+              "results_path",
+              "results_sha256"
+            ],
+            "properties": {
+              "arm_id": {
+                "type": "string",
+                "maxLength": 64
+              },
+              "role": {
+                "enum": [
+                  "baseline",
+                  "treatment",
+                  "negative_control",
+                  "retention_control",
+                  "ablation"
+                ]
+              },
+              "results_path": {
+                "type": "string",
+                "maxLength": 512,
+                "pattern": "^runs/[A-Za-z0-9._-]+\\.jsonl$"
+              },
+              "results_sha256": {
+                "$ref": "#/$defs/sha256"
+              }
+            }
+          }
+        },
+        "metrics": {
+          "type": "object",
+          "maxProperties": 64,
+          "additionalProperties": {
+            "type": [
+              "number",
+              "string",
+              "null"
+            ]
+          }
+        }
+      },
+      "if": {
+        "properties": {
+          "enabled": {
+            "const": true
+          }
+        }
+      },
+      "then": {
+        "required": [
+          "dataset",
+          "prompt_template_sha256",
+          "answer_parser_version",
+          "model_revision",
+          "tokenizer_revision",
+          "backend",
+          "generation",
+          "arms"
+        ],
+        "properties": {
+          "arms": {
+            "allOf": [
+              {
+                "contains": {
+                  "properties": {
+                    "role": {
+                      "const": "baseline"
+                    }
+                  }
+                }
+              },
+              {
+                "contains": {
+                  "properties": {
+                    "role": {
+                      "const": "treatment"
+                    }
+                  }
+                }
+              },
+              {
+                "contains": {
+                  "properties": {
+                    "role": {
+                      "const": "negative_control"
+                    }
+                  }
+                }
+              }
+            ]
+          }
+        }
+      },
+      "else": {
+        "properties": {
+          "dataset": false,
+          "prompt_template_sha256": false,
+          "answer_parser_version": false,
+          "backend": false,
+          "generation": false,
+          "arms": false,
+          "metrics": false
+        }
       }
     },
     "provenance": {
       "type": "object",
-      "required": ["tool_version", "numerics_version", "quality"],
+      "additionalProperties": false,
+      "required": [
+        "tool_version",
+        "numerics_version",
+        "coverage",
+        "numeric_precision"
+      ],
       "properties": {
-        "tool_version": {"type": "string"},
-        "numerics_version": {"type": "string"},
-        "quality": {"enum": ["exact", "sampled", "mixed"]},
-        "device": {"type": "object"},
-        "seed": {"type": ["integer", "null"]}
+        "tool_version": {
+          "type": "string",
+          "maxLength": 64
+        },
+        "numerics_version": {
+          "type": "string",
+          "maxLength": 64
+        },
+        "coverage": {
+          "enum": [
+            "complete",
+            "sampled",
+            "mixed"
+          ]
+        },
+        "numeric_precision": {
+          "enum": [
+            "lossless",
+            "rounded",
+            "overflowed",
+            "mixed"
+          ]
+        },
+        "device": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "mode": {
+              "enum": [
+                "cpu_only"
+              ]
+            },
+            "os": {
+              "type": "string",
+              "maxLength": 64
+            },
+            "ram_gib": {
+              "type": "number",
+              "minimum": 0
+            }
+          }
+        },
+        "seed": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 0
+        }
       }
     },
-    "interpretation_status": {"enum": ["descriptive", "correlational", "interventional", "unverified"]}
+    "interpretation_status": {
+      "enum": [
+        "descriptive",
+        "correlational",
+        "interventional",
+        "unverified"
+      ]
+    }
   },
   "$defs": {
+    "sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
     "model": {
       "type": "object",
-      "required": ["id", "format", "fingerprint_method", "lineage_verified"],
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "format",
+        "fingerprint_method",
+        "sha256",
+        "lineage_evidence",
+        "lineage_verified",
+        "base_file_identity_verified",
+        "lineage_claim_source",
+        "lineage_trust_level",
+        "base_id"
+      ],
       "properties": {
-        "id": {"type": "string"},
-        "format": {"type": "string"},
-        "fingerprint_method": {"enum": ["sha256", "hf_cache_blob_sha256", "size_mtime", "none"]},
-        "lineage_evidence": {"enum": ["cryptographically_verified", "user_attested", "declared", "none"], "description": "Only cryptographically_verified permits compatibility class V; user_attested and declared are class L."},
-        "sha256": {"type": ["string", "null"]},
-        "lineage_verified": {"type": "boolean"},
-        "base_id": {"type": ["string", "null"]}
+        "id": {
+          "type": "string",
+          "maxLength": 256
+        },
+        "format": {
+          "enum": [
+            "safetensors",
+            "sharded_safetensors",
+            "peft_lora"
+          ]
+        },
+        "fingerprint_method": {
+          "enum": [
+            "sha256",
+            "hf_cache_blob_sha256",
+            "size_mtime",
+            "none"
+          ]
+        },
+        "sha256": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "#/$defs/sha256"
+            }
+          ]
+        },
+        "lineage_evidence": {
+          "enum": [
+            "cryptographically_verified",
+            "user_attested",
+            "declared",
+            "none"
+          ]
+        },
+        "lineage_verified": {
+          "type": "boolean",
+          "description": "Derived: true iff lineage_evidence is cryptographically_verified. Means base FILE identity is verified, not that training ancestry is proven."
+        },
+        "base_file_identity_verified": {
+          "type": "boolean"
+        },
+        "lineage_claim_source": {
+          "enum": [
+            "none",
+            "adapter_config",
+            "model_card",
+            "weightlab_manifest",
+            "synthetic_fixture_generator",
+            "user_attestation"
+          ]
+        },
+        "lineage_trust_level": {
+          "enum": [
+            "proven_by_construction",
+            "trusted_statement",
+            "unverified_claim",
+            "none"
+          ]
+        },
+        "base_id": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "maxLength": 256
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "lineage_evidence": {
+                "const": "cryptographically_verified"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "lineage_verified": {
+                "const": true
+              },
+              "base_file_identity_verified": {
+                "const": true
+              },
+              "fingerprint_method": {
+                "enum": [
+                  "sha256",
+                  "hf_cache_blob_sha256"
+                ]
+              },
+              "sha256": {
+                "$ref": "#/$defs/sha256"
+              }
+            }
+          },
+          "else": {
+            "properties": {
+              "lineage_verified": {
+                "const": false
+              },
+              "base_file_identity_verified": {
+                "const": false
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "lineage_evidence": {
+                "const": "user_attested"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "lineage_claim_source": {
+                "const": "user_attestation"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "lineage_trust_level": {
+                "const": "proven_by_construction"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "lineage_claim_source": {
+                "const": "synthetic_fixture_generator"
+              },
+              "lineage_evidence": {
+                "const": "cryptographically_verified"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "lineage_evidence": {
+                "const": "none"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "lineage_claim_source": {
+                "const": "none"
+              },
+              "lineage_trust_level": {
+                "const": "none"
+              }
+            }
+          }
+        }
+      ]
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "experiment": {
+            "properties": {
+              "compatibility_class": {
+                "const": "V"
+              }
+            }
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "source_models": {
+            "items": {
+              "properties": {
+                "lineage_evidence": {
+                  "const": "cryptographically_verified"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "interpretation_status": {
+            "const": "interventional"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "evaluation": {
+            "properties": {
+              "enabled": {
+                "const": true
+              }
+            }
+          }
+        }
       }
     }
-  }
+  ]
 }

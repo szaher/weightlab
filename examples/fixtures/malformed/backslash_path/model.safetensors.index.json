@@ -1,0 +1,8 @@
+{
+  "metadata": {
+    "total_size": 24
+  },
+  "weight_map": {
+    "demo.vector.weight": "sub\\model-00001-of-00002.safetensors"
+  }
+}

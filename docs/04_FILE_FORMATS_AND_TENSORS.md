@@ -16,23 +16,24 @@
 
 ## 2. SafeTensors structural contract
 
-The format stores an 8-byte little-endian header byte length, JSON metadata (may be right-padded with spaces), and a tensor data region. Each tensor definition has dtype, shape and `[begin,end)` byte offsets relative to the start of the tensor data region. Supported core dtypes: F64, F32, F16, BF16, I64, I32, I16, I8, U64, U32, U16, U8, BOOL where a safe numerical conversion exists. **F16 and BF16 are mandatory from R0**; BF16 is decoded by WeightLab because the safetensors NumPy backend cannot represent it (doc 03 section 6). F8 variants, complex and any unknown dtype string are rejected with `UNSUPPORTED_DTYPE` until explicitly tested. Dtypes with limited browser precision require output conversion disclosure; do not convert 64-bit integer values to JavaScript Number silently.
+The format stores an 8-byte little-endian header byte length, JSON metadata (may be right-padded with spaces), and a tensor data region. Each tensor definition has dtype, shape and `[begin,end)` byte offsets relative to the start of the tensor data region. Supported core dtypes: F64, F32, F16, BF16, I64, I32, I16, I8, U64, U32, U16, U8, BOOL where a safe numerical conversion exists. **F16 and BF16 are mandatory from R0**; BF16 is decoded by WeightLab because the safetensors NumPy backend cannot represent it (doc 03 section 6). F8 variants, complex and any unknown dtype string are rejected with `UNSUPPORTED_DTYPE` until explicitly tested. Exact inspection is lossless for every listed dtype through the typed ROI encodings of doc 09 section 2 (64-bit integers as decimal strings, floats as exact float64 JSON numbers or raw bits); tiles are float32 visualizations and are labeled as such. 64-bit integers are never converted to JavaScript Number.
 
 Mandatory validation:
 
-1. Header byte length sane and accepted by format library limits; full file must accommodate header.
-2. Header JSON well-formed and no duplicate tensor keys. Python's `json` silently keeps the last duplicate, so WeightLab parses with `object_pairs_hook` and rejects duplicates itself.
-3. Shapes non-negative integers, product checked for integer overflow, and byte length exactly `product(shape)*dtype_size` for fixed-width tensors.
+1. Header byte length N: 8-byte little-endian prefix, `N <= 100,000,000` (the upstream safetensors cap) and `8 + N <= file size`. The header may be right-padded with spaces.
+2. **Strict JSON:** valid UTF-8; standard JSON only, so `NaN`, `Infinity` and `-Infinity` tokens are rejected (Python `json.loads` accepts them by default: pass `parse_constant` that raises); duplicate keys rejected at every level (`object_pairs_hook`); nesting depth bounded (parse failure or `RecursionError` -> `INVALID_FORMAT`). The top level is an object; `__metadata__`, if present, maps strings to strings only (no nesting, numbers or null).
+3. **Strict entries:** every other key is a tensor name (UTF-8, <= 4096 bytes, compared byte-for-byte, no Unicode normalization) whose value has exactly the fields `dtype`, `shape`, `data_offsets`. `dtype` is a known string; `shape` is a list of at most 32 non-negative JSON integers (booleans and floats rejected; in Python `bool` is an `int` subclass, so test `type(v) is int`); `data_offsets` is two JSON integers. Element count and byte length use exact integer arithmetic (`math.prod`), and `end - begin == numel * dtype_size`. Zero-sized dimensions are legal (`numel = 0`, `begin == end`): such tensors appear in the catalog with an "empty tensor" state, have no heatmap, and report statistics with `count = 0` and null values.
 4. Offsets non-negative and within payload, and the ranges of all tensors, sorted by `begin`, must tile the data region exactly: no overlap, no gap, no trailing bytes. This matches what the upstream safetensors validator enforces (fixtures `overlapping_offsets`, `gap_in_offsets`).
-5. No out-of-bound reads; file size and stat identity revalidated before each job.
-6. Any file mutations during analysis cause job to fail with `FILE_CHANGED`; do not continue against stale offsets.
+   WeightLab is deliberately stricter than upstream in two places, recorded as permitted differences in `expected_results.json`: rank above 32 and unknown fields in a tensor entry are rejected by WeightLab but accepted by safetensors 0.8.0. For all other fixtures, upstream acceptance is the compatibility oracle.
+5. No out-of-bound reads; handle and path identity revalidated before, during and after each job (doc 03 section 6).
+6. Detected file changes during analysis fail the job with `FILE_CHANGED`; do not continue against stale offsets. Detection is best-effort unless the job runs with `consistency=verified`.
 7. JSON metadata strings are treated as data, not executable code.
 
 Prefer mature official library for parsing and validation; supplemental low-level mmap must use validated ranges only.
 
 ## 3. Sharded index contract
 
-Expected `model.safetensors.index.json` with `weight_map`: exact tensor name -> relative `.safetensors` shard. Validate all referenced shard names are ordinary relative paths, normalize against selected root, disallow `..` or absolute paths and symlink escapes, check every key exists once in referenced shard, and do not treat catalog from incomplete shards as complete. Track missing/extra keys and report them. Path traversal rejected even if underlying OS would permit it. No automatic downloads.
+Expected `model.safetensors.index.json` with `weight_map`: exact tensor name -> relative `.safetensors` shard, parsed with the same strict JSON rules as headers. Every value must be a string holding a relative POSIX-style path: no backslashes, no drive letter or UNC prefix, not absolute, no `..` component; it is normalized against the selected root and must not escape it through symlinks or reparse points. Keys are compared byte-for-byte. Check every key exists once in its referenced shard and do not treat a catalog from incomplete shards as complete. `metadata.total_size`, if present, must be an integer; a mismatch with the shards is a warning, not an error. Track missing/extra keys and report them. Path traversal is rejected even if the OS would permit it. No automatic downloads.
 
 ## 4. Reader interface
 
@@ -92,13 +93,16 @@ Allow output ROI only if intermediate arrays fit budget. If user chooses a large
 
 ## 7. Model comparability classification
 
-**Class V (verified same base):** WeightLab can establish *cryptographically* that A's files are byte-identical to the base the derivative declares (`lineage_evidence = cryptographically_verified`), by one of:
-1. SHA-256 of every referenced base file equals a hash recorded in the derivative's provenance (a WeightLab manifest, a model card hash list, or `expected_results.json` for fixtures).
-2. Offline Hugging Face hub cache: both repos resolve in the local cache, the derivative declares the base repo **and revision**, the base snapshot is that revision, and each LFS blob's filename (the hub cache names LFS blobs by the file's SHA-256) matches a fresh hash of the file. No download.
+Two questions are kept apart in every compatibility decision (`LineageAssessment` in `contracts/openapi.yaml`):
 
-Plus the same architecture, tensor names/shapes and tokenizer/config where behavioral interpretation requires it. Real-world adapters usually record only `base_model_name_or_path` without a revision or hash; those are Class L, not V. Weight similarity (for example per-tensor cosine(A,B) > 0.99 across all matched tensors) is recorded as supporting evidence for Class L, never as proof of V.  
+1. **Is the base file the one the derivative names?** `base_file_identity_verified` is true when the base files are byte-identical to a reference the derivative's record names, established by (a) SHA-256 of every referenced base file equal to a hash recorded in the derivative's provenance (`base_identity_method=sha256_recorded`), or (b) the offline Hugging Face hub cache: the derivative declares the base repo **and revision**, the base snapshot is that revision, and each LFS blob's filename (the hub cache names LFS blobs by the file's SHA-256) matches a fresh hash (`hf_cache_blob_sha256`). No download.
+2. **Was the derivative actually trained from that base?** A hash match cannot prove this: anyone can write a genuine base hash into a fabricated derivative's metadata, and model cards are unsigned claims. `lineage_claim_source` records where the ancestry statement comes from (`adapter_config`, `model_card`, `weightlab_manifest`, `synthetic_fixture_generator`, `user_attestation`, `none`) and `lineage_trust_level` how far it is trusted: `proven_by_construction` (only fixtures built by WeightLab's generator), `trusted_statement` (a manifest the user explicitly marks as trusted, e.g. from their own training run), `unverified_claim`, or `none`.
 
-User attestation is **not** a route to Class V. When the user states that these exact files were the training base, the hashes are recorded and the pair stays Class L with `lineage_evidence = user_attested`; that attestation satisfies the T2 acknowledgment (doc 06 section 6) but never unlocks behavior reserved for cryptographically verified lineage. Every compatibility decision records `lineage_evidence` as one of `cryptographically_verified`, `user_attested`, `declared` (name/ID only) or `none`.
+**Class V (base identity verified):** `base_file_identity_verified=true` plus the same architecture, tensor names/shapes and tokenizer/config where behavioral interpretation requires it. Class V means "the base file is the one named", **not** "training ancestry proven". `lineage_evidence` is `cryptographically_verified`.
+
+User attestation is not a route to Class V. When the user states that these exact files were the training base, the hashes are recorded and the pair stays Class L with `lineage_evidence = user_attested`, `lineage_claim_source = user_attestation`; it satisfies the T2 acknowledgment (doc 06 section 6) and nothing more. Real-world adapters usually record only `base_model_name_or_path` without a revision or hash: Class L with `lineage_evidence = declared`. Weight similarity (for example per-tensor cosine(A,B) > 0.99 across all matched tensors) is recorded as supporting evidence for Class L, never as proof.
+
+Transfer eligibility (doc 06 section 6) needs both: T1 requires Class V **and** `lineage_trust_level` in {`proven_by_construction`, `trusted_statement`}; Class V with `unverified_claim` is research-mode only. The generated fixture pair `tiny_base`/`tiny_ft` is Class V with `proven_by_construction` because the generator builds one from the other, and the UI says so ("synthetic: ancestry known by construction").
 
 **Class L (lineage declared or attested, not cryptographically verified):** Metadata references same base ID (`declared`) or the user attested it (`user_attested`), but no cryptographic proof; side-by-side descriptive comparisons allowed; transfer behind acknowledgment, default disabled; the evidence kind is shown wherever the class is shown.  
 **Class S (shape-compatible only):** Exact names/shapes but unknown or different origin; difference may be meaningless due to parameter permutation/alignment; display with prominent caveat; transfer disabled.  
@@ -106,7 +110,7 @@ User attestation is **not** a route to Class V. When the user states that these 
 
 File content hash can establish identity, not functional equivalence or shared optimization trajectory. Naming equal tensors is never proof of semantic alignment.
 
-**Tied parameters.** When `config.json` declares `tie_word_embeddings: true`, or a SafeTensors save dropped an alias of a shared tensor, the absent key (typically `lm_head.weight`) is reported as `tied -> model.embed_tokens.weight` and does not make the pair Class X. A comparison against an untied model compares the source tensor once and states that the tie differs.
+**Tied parameters.** A missing key is reported as `tied -> <source key>` only with positive evidence: `tie_word_embeddings: true` in `config.json` together with a known architecture mapping (`lm_head.weight` <-> `model.embed_tokens.weight` for Llama/Qwen-style keys, `lm_head.weight` <-> `transformer.wte.weight` for GPT-2-style keys), or trusted alias metadata. Without such evidence the key is `missing` (fixture `compat/missing_head_no_tie_evidence`). A comparison against an untied model compares the source tensor once and states that the tie differs. Missing values are never invented.
 
 ## 8. GGUF specific later considerations
 

@@ -16,7 +16,14 @@ Numerical methods are products, not implementation details. Every metric include
 
 ## 3. Numerical promotion / accumulation
 
-Default arithmetic conversion: F16/BF16 -> float32, F32 -> float32 for tiles and float64 accumulator for reductions; F64 -> float64. Integer comparisons promote to float64 only when exact range representable; otherwise require Python int or separate exact integer math to avoid silent precision loss. Arithmetic overflow/underflow safeguards; return `nonfinite_count`. Stable online Welford for mean/variance and compensated summation for sums when feasible. Use `np.isfinite` policy by default: finite-only stats with separate nonfinite counters. Norms on very large magnitude use scaled sum-of-squares algorithm to avoid overflow.
+Default arithmetic conversion: raw values are never converted for exact inspection (the ROI API encodes them losslessly, doc 09 section 2). For computation, F16/BF16/F32 are promoted to float64 (exact), F64 stays float64, and deltas and LoRA products are computed in float64; tiles convert the final aggregate to float32 for display only. Integers up to 32 bits promote exactly to float64; I64/U64 statistics use Python integers for counts, min and max and float64 (marked `rounded`) for sums and means. Stable online Welford for mean/variance (Chan et al. merge for chunks) and scaled sum of squares for norms (LAPACK `dnrm2`-style), so finite inputs never overflow an L2 norm.
+
+**Coverage vs precision.** Streaming every element makes *coverage* complete; it does not make float64 arithmetic exact. Every metric therefore carries two independent labels:
+
+- `coverage`: `complete` (every element in scope was read) or `sampled`.
+- `numeric_precision`: `lossless` (the value is a source value, e.g. min/max of a float tensor, a count, or an ROI value), `rounded` (result of float64 arithmetic within the stated tolerance), `overflowed` (an intermediate or the result left the float64 or float32-display range although inputs were finite; the value is withheld), or `unsupported`.
+
+The UI's "exact" badge means `coverage=complete`; precision is shown next to it. Overflowed values are never displayed as source NaN/Inf or as finite statistics. Fixture `tiny_precision_a/b` covers F64 1e300 extremes, a finite pair with an overflowing delta, and a sum of squares that overflows.
 
 **R1 tolerance:** Tests state per-dtype tolerances, e.g. for float32 direct deltas `atol=1e-6, rtol=1e-5`; LoRA matmul float32 `atol=2e-5,rtol=1e-4` for fixture shapes; refine based on BLAS cross-platform numerical behavior. Do not set blanket tolerance for every tensor scale/dtype.
 
@@ -31,7 +38,7 @@ For finite elements `x1...xn`:
 - `relative_L2 = ||B-A||_2 / max(||A||_2, epsilon_norm)`; expose denominator and a `near_zero_reference` flag.
 - cosine similarity `dot(A,B)/(||A||*||B||)`; null for zero norms or no overlapping finite pairs.
 - Pearson correlation requires enough nonconstant finite pairs; null for zero variance or `n<2`.
-- Percentiles exact requires memory-heavy sorting or external algorithm; R1 use bounded deterministic approximate quantile sketch/mergeable histogram with stated error policy, or offer offline exact selected ROI only. Never label global percentiles exact without proof.
+- Percentiles: R1 offers exact percentiles only for an ROI (<= `roi_max_cells` values, exact sort, linear interpolation between order statistics, non-finite excluded and counted). Global tensor percentiles are deferred to R2 (FR-021): an ADR will fix a deterministic mergeable sketch, its rank-error bound and adversarial golden distributions before they ship. Never label global percentiles exact without proof.
 
 For deltas, pairs with non-finite in either input excluded from finite pair metrics but counted in `invalid_pair_count`. All metrics declare total tensor elements vs analyzed finite elements.
 
@@ -56,9 +63,9 @@ For a block `S` of original tensor elements:
 - RMS: `sqrt(sum x_i^2 / count_finite)`
 - min / max: min or max over finite values
 - non-finite mask: show if any NaN/Inf; optionally show fraction overlay
-- empty/all-nonfinite: return null and status, never fabricate zero
+- empty/all-nonfinite: return null with the status bitfield (`NO_FINITE` plus the kinds present, doc 09 section 3), never fabricate zero
 
-For a *difference heatmap* compute elementwise difference then aggregate; subtracting independently aggregated RMS or absolute values is **not** the same operation. For signed mean, `mean(B-A)=mean(B)-mean(A)` with identical finite pair support only. For a LoRA overlay, compute each needed block/ROI without allocating the full effective weight.
+For a *difference heatmap* compute elementwise difference then aggregate, in a dedicated paired streaming pass (doc 03 section 5); subtracting independently aggregated RMS or absolute values is **not** the same operation (fixture expectation `rms_delta_vs_difference_of_rms`). For signed mean, `mean(B-A)=mean(B)-mean(A)` with identical finite pair support only. For a LoRA overlay, compute each needed block/ROI without allocating the full effective weight.
 
 ## 7. Color/legend
 
@@ -105,4 +112,4 @@ Fixture family:
 
 ## 11. Exported metric schema
 
-Every metric object includes `name`, `value`, `units`, `method`, `source_dtype`, `compute_dtype`, `element_count`, `finite_count`, `sample_count`, `exact`, `seed` (if any), `epsilon` (if any), `numerical_warnings`, `tool_version`, and model fingerprint references.
+Every metric object includes `name`, `value`, `units`, `method`, `source_dtype`, `compute_dtype`, `element_count`, `finite_count`, `sample_count`, `coverage`, `numeric_precision`, `seed` (if any), `epsilon` (if any), `numerical_warnings`, `tool_version`, and model fingerprint references (`Metric` in `contracts/openapi.yaml`). 64-bit integer counts and extrema are decimal strings.

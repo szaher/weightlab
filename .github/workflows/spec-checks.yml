@@ -1,0 +1,51 @@
+# Specification checks for the frozen blueprint (docs/13 section 10, WL-025).
+name: spec-checks
+on:
+  push:
+  pull_request:
+permissions:
+  contents: read
+jobs:
+  spec:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: python -m pip install -r scripts/requirements-spec-tools.txt
+      - name: Fixture self-check (not application conformance)
+        run: python scripts/check_demo_fixtures.py --root examples/fixtures
+      - name: Contracts and examples
+        run: python scripts/check_contracts.py
+      - name: Cross-file sweep and documentation reproducibility
+        run: python scripts/check_spec.py
+      - name: Source manifest on a clean clone
+        run: python scripts/manifest.py --check
+
+  fixture-hashes:
+    # Byte identity is claimed only under the pinned toolchain; this verifies it per OS.
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: python -m pip install -r scripts/requirements-spec-tools.txt
+      - name: Regenerate fixtures and compare SHA-256 with the committed values
+        shell: bash
+        run: |
+          python scripts/generate_demo_fixtures.py --output "$RUNNER_TEMP/fixtures" --seed 7
+          python - "$RUNNER_TEMP/fixtures/expected_results.json" examples/fixtures/expected_results.json <<'PY'
+          import json, sys
+          new, old = (json.load(open(p, encoding="utf-8"))["file_sha256"] for p in sys.argv[1:])
+          diff = sorted(k for k in set(new) | set(old) if new.get(k) != old.get(k))
+          print("\n".join(f"DIFFERS {k}" for k in diff) or f"all {len(old)} fixture hashes identical")
+          sys.exit(1 if diff else 0)
+          PY
+      - name: Self-check on this OS
+        run: python scripts/check_demo_fixtures.py --root examples/fixtures

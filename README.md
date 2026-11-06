@@ -1,9 +1,13 @@
 # WeightLab — Build-Ready Product & Engineering Blueprint
 
-**Version:** 1.1 (planning baseline with review revisions, see `DELIVERY_NOTES.md`)  
+**Version:** 1.2-final (frozen specification; see `CHANGELOG.md` and ADR-019)  
 **Date:** 2026-11-05  
 **Status:** Design specification; NOT an implementation and NOT a tested production application  
 **Default product:** Local-first, CPU-only, resource-bounded LLM weight exploration, comparison, and eventually scientific experimentation.
+
+## Specification freeze
+
+This blueprint is frozen at **1.2-final**. Changes require a demonstrated implementation correctness or security blocker, a versioned ADR, updated contracts/fixtures/tests and a `CHANGELOG.md` entry (ADR-019). Run the specification checks with the commands in `docs/13_TEST_STRATEGY.md` section 10; CI runs them in `.github/workflows/spec-checks.yml`.
 
 ## Read this first
 
@@ -30,7 +34,7 @@ This package is designed to hand to an engineer or coding agent without leaving 
 17. `docs/17_RESEARCH_AND_REFERENCES.md` — evidence and technical citations.
 18. `docs/18_OPERATIONS_AND_PACKAGING.md` — install, release, observability and support.
 19. `agent/IMPLEMENTATION_AGENT_HANDOFF.md` — directly usable coding-agent instruction sequence.
-20. `contracts/*.json` — canonical example payloads and dataset manifests.
+20. `contracts/*.json` and `contracts/examples/*.json` — experiment schema, sample manifest, positive and negative contract examples (validated by `scripts/check_contracts.py`).
 21. `examples/*.md` — user-facing walkthroughs and acceptance scenarios.
 
 ### Product scope at a glance

@@ -12,7 +12,7 @@ Click `demo.layers.0.mlp.up_proj.weight` and see an 8x8 heatmap with a scale leg
 
 ## 3. Compare checkpoints
 
-Select `tiny_base.safetensors` and `tiny_ft.safetensors`. Compatibility appears as `Class V: SHA-256 of both files match the fixture manifest`. The overview ranks `demo.layers.0.mlp.up_proj.weight` first and every other tensor at zero change. Delta panel highlights exactly 10 cells changed, all others delta zero. Swap A/B and signs reverse. UI states: "These are known synthetic parameter changes; they are not evidence of improved reasoning." Export JSON and PNG with legend and provenance.
+Select `tiny_base.safetensors` and `tiny_ft.safetensors`. Compatibility appears as `Class V: base file identity verified (SHA-256); synthetic pair, ancestry known by construction`. The overview ranks `demo.layers.0.mlp.up_proj.weight` first and every other tensor at zero change. Delta panel highlights exactly 10 cells changed, all others delta zero. Swap A/B and signs reverse. UI states: "These are known synthetic parameter changes; they are not evidence of improved reasoning." Export JSON and PNG with legend and provenance.
 
 ## 4. Explore a LoRA update
 

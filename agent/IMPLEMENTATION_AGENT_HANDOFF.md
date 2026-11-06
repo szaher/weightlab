@@ -8,10 +8,10 @@ Build **WeightLab**, a cross-platform, local-first, CPU-only LLM checkpoint visu
 
 ## Instruction hierarchy
 
-1. Security, scientific correctness and explicit resource budget requirements in `README.md`, `docs/03...`, `docs/04...`, `docs/05...`, `docs/11...`, `docs/12...`.
-2. R1 acceptance and negative requirements in `docs/01...` and `docs/02...`.
-3. `docs/09...` and `contracts/openapi.yaml` for API shapes.
-4. `docs/13...` and `docs/14...` for release gates and milestone sequencing.
+1. Security, scientific correctness and explicit resource budget requirements in `README.md`, `docs/03_SYSTEM_ARCHITECTURE.md`, `docs/04_FILE_FORMATS_AND_TENSORS.md`, `docs/05_NUMERICAL_METHODS.md`, `docs/11_PERFORMANCE_BUDGET.md`, `docs/12_SECURITY_AND_PRIVACY.md`.
+2. R1 acceptance and negative requirements in `docs/01_PRODUCT_VISION_PRD.md` and `docs/02_FUNCTIONAL_REQUIREMENTS.md`.
+3. `docs/09_API_CONTRACT.md` and `contracts/openapi.yaml` for API shapes.
+4. `docs/13_TEST_STRATEGY.md` and `docs/14_DELIVERY_ROADMAP.md` for release gates and milestone sequencing.
 5. This handoff for working process.
 
 When documents disagree, propose a brief explicit ADR change, do not choose silently. Never mark feature done because tests were skipped or because a heatmap image looks plausible.
@@ -33,7 +33,7 @@ When documents disagree, propose a brief explicit ADR change, do not choose sile
 4. Implement SafeTensors metadata catalog with WeightLab's own header validation and sharded index validation (positioned-read reader, ADR-011), no full model loading.
 5. Implement independent direct ROI reads with exact half-open coordinate convention.
 6. Implement and test BF16/F16/F32 decoding (safetensors' NumPy backend cannot read BF16), nonfinite and 3D slicing; ensure all invalid/malicious fixtures fail closed with the expected error codes.
-7. Implement memory measurement, huge synthetic file ROI proof and mid-read truncation test; publish G0 report.
+7. Implement memory measurement, huge synthetic file ROI proof and the mutation/replacement tests (truncate, append, same-size rewrite, atomic replace/rename, symlink swap); publish the G0 report from WeightLab's own tests (fixture self-checks are not G0 evidence).
 8. Ship the R0.5 `weightlab diff` change report (FR-023, ADR-013) and collect practitioner feedback; then build local API auth (URL-fragment token, ADR-016), request validation, budget enforcement and project DB.
 9. Implement numerics, ROI, tiles (direct L0-L3, exact pyramid, row-sampled above limit, ADR-012), job queue and cancellation.
 10. Build Explore UI, offline demo, axes/legend/tooltip/ROI, keyboard and export.
@@ -74,4 +74,4 @@ Prove `AC-001` through `AC-015`, `SEC-01` through `SEC-12`, benchmark B01-B10 wh
 
 ## First prompt to execute
 
-> Implement Phase 0 of WeightLab only, using the attached blueprint as the source of truth. Create repository skeleton and locked development tools; wire the provided fixtures and `check_demo_fixtures.py` into pytest; implement a safe, read-only tensor catalog and exact ROI reader using positioned reads with WeightLab's own BF16/F16 decoding (ADR-011). Include golden reference tests, the oversized-file memory benchmark and the mid-read truncation test. Do not build the change report CLI, React UI, inference or transfer features yet. Run tests and return a G0 evidence report with measured RSS, supported dtypes, format errors and the next single ticket (WL-024, the change report).
+> Implement Phase 0 of WeightLab only, against the frozen blueprint 1.2-final. Create repository skeleton, dependency locks and CI; wire the provided fixtures into pytest and keep `check_demo_fixtures.py` as a separate self-check. Implement a strict, read-only SafeTensors catalog and sharded index validation (doc 04 section 2-3), and an exact ROI reader behind a Python interface using positioned reads with WeightLab's own BF16/F16 decoding and lossless typed values (ADR-011, ADR-017). Add parameterized tests asserting the expected error code for every malformed fixture, golden value tests, the oversized-file RSS benchmark and the mutation/replacement tests. Do not build tiles, the API, the change report CLI, the UI, inference or transfer features. Run tests and return a G0 evidence report with measured RSS, mutation results, supported dtypes, format errors and the next single ticket (WL-024, the change report).

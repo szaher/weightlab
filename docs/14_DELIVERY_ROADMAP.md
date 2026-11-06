@@ -4,7 +4,7 @@ This is an effort-based scope plan, **not a time promise**. The ambition is high
 
 ## Phase 0 — Decide and prove the reader
 
-**Deliverables:** Repo skeleton, dependency lockfiles, provided synthetic fixtures wired into tests, SafeTensors reader (positioned reads, own BF16/F16 decoding), shape/ROI tests, first memory benchmark.
+**Deliverables:** Repo skeleton, dependency lockfiles and CI, provided synthetic fixtures wired into tests, strict SafeTensors reader (positioned reads, own BF16/F16 decoding, lossless typed values), sharded index validation, exact ROI behind a Python interface, first memory benchmark, mutation/replacement tests. **No tiles, API or UI in Phase 0.**
 
 **Ordered tasks:**
 
@@ -12,10 +12,10 @@ This is an effort-based scope plan, **not a time promise**. The ambition is high
 2. Wire the provided fixtures (`scripts/generate_demo_fixtures.py`, `check_demo_fixtures.py`) into `tests/`; add the ephemeral large sparse file and mid-read truncation helpers.
 3. Implement SafeTensors catalog, range verification and BF16/F16 decoding; fail all malicious fixtures with the expected error codes; agree with upstream on accept/reject.
 4. Implement independent exact ROI proof and print known values.
-5. Test on oversized synthetic file without copying full data into RAM.
-6. Publish G0 report including measured memory and known limitations.
+5. Test on oversized synthetic file without copying full data into RAM; run the mutation/replacement cases (truncate, append, same-size rewrite, atomic replace/rename, symlink swap, concurrent Windows handles).
+6. Publish the G0 report: WeightLab's own test results, measured RSS, mutation results per OS available, supported dtypes, format errors and known limitations. Fixture self-checks are listed separately and are not G0 evidence.
 
-**Gate:** Every selected cell correct (including BF16/F16), invalid files blocked, no full tensor RAM materialization, truncation mid-read yields `FILE_CHANGED` without crashing.
+**Gate:** G0 (doc 13 section 9): every ROI value correct and lossless (including BF16/F16/F64/I64/U64), invalid files blocked with the expected codes, no full tensor RAM materialization, detected mutations yield `FILE_CHANGED` without crashing.
 
 ## Phase 0.5 — Change report CLI and user validation
 
@@ -25,7 +25,7 @@ This is an effort-based scope plan, **not a time promise**. The ambition is high
 
 1. Compatibility analyzer core (V/L/S/X, tied parameters) shared with Phase 2.
 2. Single-pass streaming delta statistics over matched tensor pairs, bounded memory, cancel.
-3. LoRA effective-delta norms per module without materializing full `B@A` beyond budget.
+3. LoRA effective-delta norms per module without materializing full `B@A` beyond budget; per-module cost estimate (rows x cols x rank) against `max_lora_scan_gmac`; unsupported or over-budget modules are listed and the report carries `complete: false` with modules analyzed/unsupported/skipped, never claiming a complete model change.
 4. Report writers and golden tests on `tiny_base`/`tiny_ft`, `tiny_lora`, `compat/`.
 5. Run on at least two real small public checkpoints (e.g. a 0.5B base and an instruct derivative) and record time, bytes read, RSS.
 6. Put the CLI in front of 5-10 practitioners; record which questions it did not answer.

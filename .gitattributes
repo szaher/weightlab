@@ -1,0 +1,4 @@
+# Fixture and manifest bytes are hashed; never let line-ending conversion touch them.
+*.safetensors binary
+examples/fixtures/** -text
+MANIFEST.sha256 -text
