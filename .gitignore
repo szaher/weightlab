@@ -23,6 +23,8 @@ WeightLab_Complete_Blueprint.pdf
 tests/fixtures/generated/
 # CI and local evidence runs: only the curated G0 report and benchmark JSON are committed
 evidence/ci/
+evidence/ci-g0.5/
+evidence/**/.work/
 evidence/**/junit.xml
 # OS
 .DS_Store

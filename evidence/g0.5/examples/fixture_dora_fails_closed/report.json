@@ -1,0 +1,172 @@
+{
+  "schema_version": 1,
+  "report_kind": "weightlab_change_report",
+  "mode": "adapter",
+  "orientation": "B_minus_A",
+  "compatibility": {
+    "lineage": {
+      "compatibility_class": "V",
+      "base_file_identity_verified": true,
+      "base_identity_method": "sha256_recorded",
+      "lineage_claim_source": "synthetic_fixture_generator",
+      "lineage_trust_level": "proven_by_construction",
+      "lineage_evidence": "cryptographically_verified",
+      "transfer_eligibility": "T1",
+      "reasons": [
+        "synthetic fixture pair (tiny_lora_dora_unsupported built from tiny_base by the generator): ancestry known by construction"
+      ]
+    },
+    "counts": {
+      "modules": 1,
+      "analyzed": 0,
+      "over_budget_norm_only": 0,
+      "unsupported": 1,
+      "skipped": 0
+    },
+    "not_compared": [
+      {
+        "raw_key": "base_model.model.demo.layers.0.mlp.up_proj.lora_magnitude_vector",
+        "status": "unsupported_key",
+        "reasons": [
+          "DoRA magnitude vector"
+        ]
+      }
+    ]
+  },
+  "provenance": {
+    "schema_version": 1,
+    "tool": {
+      "name": "weightlab",
+      "version": "0.0.1.dev0",
+      "parser_version": 1,
+      "numerics_version": 2
+    },
+    "created_at": "2026-11-06T00:00:00Z",
+    "inputs": {
+      "base": {
+        "format": "safetensors",
+        "entry": "tiny_base.safetensors",
+        "files": [
+          {
+            "name": "tiny_base.safetensors",
+            "size": 272076,
+            "mtime_ns": 1793923540523435127,
+            "sha256": "a701e77f066883608beb2a1fc080d52f06ebffca227c1d6fd12de2d484e81133"
+          }
+        ],
+        "fingerprint_kind": "sha256",
+        "strong_hash_verified": true,
+        "tensor_count": 9,
+        "tensor_bytes": 271220
+      },
+      "adapter": {
+        "format": "peft_lora",
+        "entry": "tiny_lora_dora_unsupported",
+        "files": [
+          {
+            "name": "adapter_model.safetensors",
+            "sha256": "abb0af27897cd5b483546c941f4552e287d8011fbb577c1b50df4a636552b879"
+          }
+        ],
+        "declared_base": "tiny-base-fixture",
+        "declared_revision": null,
+        "config": {
+          "peft_type": "LORA",
+          "r": 2,
+          "lora_alpha": 4,
+          "use_rslora": false,
+          "use_dora": true,
+          "fan_in_fan_out": false,
+          "rank_pattern": {},
+          "alpha_pattern": {},
+          "layers_to_transform": null,
+          "target_modules": [
+            "up_proj"
+          ],
+          "bias": "none"
+        }
+      }
+    },
+    "operation": {
+      "kind": "lora_effective_delta",
+      "orientation": "B_minus_A",
+      "definition": "A = base W, B = W + s * (B_lora @ A_lora); delta computed directly",
+      "compute_dtype": "float64",
+      "max_lora_scan_gmac": 50.0
+    },
+    "quality": {
+      "coverage": "complete",
+      "sampling_method": null
+    },
+    "privacy": {
+      "paths_included": false
+    },
+    "read_only": true
+  },
+  "caveats": [
+    "Incomplete: some adapter modules or keys were not analyzed; this report does not describe the whole model change.",
+    "Ranking by change magnitude describes how much parameters moved; it does not show that a tensor matters for any behavior (doc 05 section 9).",
+    "Layer and role labels are heuristics from tensor key names, not identity."
+  ],
+  "settings": {
+    "sort": "relative_l2",
+    "epsilon_norm": 1e-12,
+    "chunk_elements": 262144,
+    "consistency": "best_effort"
+  },
+  "complete": false,
+  "completeness": {
+    "modules_analyzed": 0,
+    "modules_withheld": 0,
+    "rollups_withheld": 0,
+    "modules_norm_only": 0,
+    "modules_unsupported": 1,
+    "modules_skipped": 0,
+    "unsupported_adapter_keys": 1,
+    "base_tensors_without_adapter": 8
+  },
+  "tensors": [
+    {
+      "rank": 1,
+      "key": "demo.layers.0.mlp.up_proj.weight",
+      "module": "demo.layers.0.mlp.up_proj",
+      "layer": 0,
+      "role": "mlp.up",
+      "status": "unsupported",
+      "shape": [
+        8,
+        8
+      ],
+      "lora": {
+        "rank": null,
+        "alpha": null,
+        "scale": null,
+        "scale_formula": null,
+        "rank_from": null,
+        "transpose": false,
+        "gmac": null
+      },
+      "counts": null,
+      "metrics": {},
+      "caveat": "use_dora=true (DoRA magnitude vectors are not supported)",
+      "withheld_metrics": []
+    }
+  ],
+  "layers": [],
+  "roles": [],
+  "totals": {
+    "scope": "all_analyzed_tensors",
+    "tensors": 0,
+    "elements": 0,
+    "finite_pairs": 0,
+    "invalid_pairs": 0,
+    "withheld_tensors": 0,
+    "delta_l2": 0.0,
+    "delta_rms": null,
+    "relative_l2": null,
+    "max_abs_delta": null,
+    "near_zero_reference": true,
+    "withheld_metrics": []
+  },
+  "warnings": []
+}

@@ -1,5 +1,5 @@
-# Phase 0 application CI: format, lint, typecheck and the full test suite on all three desktop OSes,
-# then the G0 evidence report per OS as a build artifact (doc 13 section 9, doc 14 Phase 0).
+# Phase 0/0.5 application CI: format, lint, typecheck and the full test suite on all three desktop OSes,
+# then the G0 and G0.5 evidence reports per OS as build artifacts (doc 13 section 9, doc 14 Phases 0 and 0.5).
 name: ci
 on:
   push:
@@ -36,3 +36,11 @@ jobs:
         with:
           name: g0-evidence-${{ matrix.os }}
           path: evidence/ci
+      - name: G0.5 evidence (full suite again plus `weightlab diff` benchmark on 0.5-8 GiB sparse pairs)
+        if: always()
+        run: uv run python scripts/g05_evidence.py --out evidence/ci-g0.5 --sizes-gib 0.25,1,4 --work "${{ runner.temp }}/wl-diff-bench"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: g0.5-evidence-${{ matrix.os }}
+          path: evidence/ci-g0.5

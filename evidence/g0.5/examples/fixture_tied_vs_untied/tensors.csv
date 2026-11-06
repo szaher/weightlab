@@ -1,0 +1,3 @@
+rank,key,layer,role,status,shape,dtype_a,dtype_b,elements,finite_pairs,invalid_pairs,nan_a,pos_inf_a,neg_inf_a,nan_b,pos_inf_b,neg_inf_b,delta_overflow,b_overflow,changed,delta_l2,delta_rms,relative_l2,cosine,max_abs_delta,norm_a,norm_b,numeric_precision,withheld_metrics,caveat
+1,model.embed_tokens.weight,,embedding,matched,16x8,F32,F32,128,128,0,0,0,0,0,0,0,0,0,0,0.0,0.0,0.0,1.0,0.0,6.626624861776606,6.626624861776606,rounded,,Class S: no lineage evidence; raw deltas may be meaningless (parameter permutation/alignment).
+2,model.norm.weight,,norm,matched,8,F32,F32,8,8,0,0,0,0,0,0,0,0,0,0,0.0,0.0,0.0,1.0,0.0,2.8284271247461903,2.8284271247461903,rounded,,Class S: no lineage evidence; raw deltas may be meaningless (parameter permutation/alignment).

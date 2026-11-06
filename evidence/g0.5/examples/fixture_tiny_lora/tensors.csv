@@ -1,0 +1,3 @@
+rank,key,layer,role,status,shape,lora_rank,lora_scale,gmac,elements,finite_pairs,invalid_pairs,nan_a,pos_inf_a,neg_inf_a,nan_b,pos_inf_b,neg_inf_b,delta_overflow,b_overflow,changed,delta_l2,delta_rms,relative_l2,cosine,max_abs_delta,norm_a,norm_b,numeric_precision,withheld_metrics,caveat
+1,demo.layers.0.mlp.down_proj.weight,0,mlp.down,analyzed,8x8,1,4.0,6.4e-08,64,64,0,0,0,0,0,0,0,0,0,9,11.224972160321824,1.403121520040228,2.4315076155889845,0.5439573786034094,8.0,4.616465968831768,13.046537803815303,rounded,,
+2,demo.layers.0.mlp.up_proj.weight,0,mlp.up,analyzed,8x8,2,2.0,1.28e-07,64,64,0,0,0,0,0,0,0,0,0,22,6.500000002292486,0.8125000002865608,0.746781196238801,0.8131470235754374,2.0,8.704022054960737,11.149887874198804,rounded,,

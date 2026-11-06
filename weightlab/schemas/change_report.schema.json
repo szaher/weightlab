@@ -1,0 +1,101 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://weightlab.local/schemas/change_report.schema.json",
+  "title": "WeightLab change report (R0.5, FR-023)",
+  "description": "Metric objects follow components.schemas.Metric and compatibility.lineage follows components.schemas.LineageAssessment in contracts/openapi.yaml; tests validate both against the frozen contract.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "report_kind", "mode", "orientation", "compatibility", "provenance", "caveats",
+               "settings", "complete", "completeness", "tensors", "layers", "roles", "totals", "warnings"],
+  "properties": {
+    "schema_version": {"const": 1},
+    "report_kind": {"const": "weightlab_change_report"},
+    "mode": {"enum": ["checkpoint_pair", "adapter"]},
+    "orientation": {"const": "B_minus_A"},
+    "complete": {"type": "boolean"},
+    "compatibility": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["lineage", "counts", "not_compared"],
+      "properties": {
+        "lineage": {"type": "object"},
+        "counts": {"type": "object", "additionalProperties": {"type": "integer", "minimum": 0}},
+        "not_compared": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["raw_key", "status", "reasons"],
+            "properties": {
+              "raw_key": {"type": "string"},
+              "status": {"enum": ["missing_in_a", "missing_in_b", "tied", "shape_mismatch", "dtype_mismatch", "unsupported_key"]},
+              "reasons": {"type": "array", "items": {"type": "string"}}
+            }
+          }
+        }
+      }
+    },
+    "completeness": {"type": "object", "additionalProperties": {"type": "integer", "minimum": 0}},
+    "caveats": {"type": "array", "items": {"type": "string"}},
+    "warnings": {"type": "array", "items": {"type": "string"}},
+    "settings": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["sort", "epsilon_norm", "chunk_elements", "consistency"],
+      "properties": {
+        "sort": {"enum": ["relative_l2", "delta_l2", "delta_rms", "max_abs_delta", "cosine"]},
+        "epsilon_norm": {"type": "number", "exclusiveMinimum": 0},
+        "chunk_elements": {"type": "integer", "minimum": 1},
+        "consistency": {"enum": ["best_effort", "verified"]}
+      }
+    },
+    "provenance": {
+      "type": "object",
+      "required": ["schema_version", "tool", "created_at", "inputs", "operation", "quality", "privacy", "read_only"],
+      "properties": {
+        "schema_version": {"const": 1},
+        "read_only": {"const": true},
+        "quality": {"type": "object", "properties": {"coverage": {"const": "complete"}, "sampling_method": {"type": "null"}}},
+        "inputs": {
+          "type": "object",
+          "required": ["base"],
+          "additionalProperties": {"type": "object", "required": ["format", "entry", "files"]}
+        }
+      }
+    },
+    "tensors": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["rank", "key", "layer", "role", "status", "shape", "counts", "metrics", "withheld_metrics", "caveat"],
+        "properties": {
+          "rank": {"type": "integer", "minimum": 1},
+          "key": {"type": "string"},
+          "layer": {"type": ["integer", "null"]},
+          "role": {"type": "string"},
+          "status": {"enum": ["matched", "dtype_mismatch", "analyzed", "over_budget_norm_only", "unsupported", "skipped"]},
+          "metrics": {"type": "object", "additionalProperties": {"type": "object"}},
+          "withheld_metrics": {"type": "array", "items": {"type": "string"}},
+          "caveat": {"type": ["string", "null"]}
+        }
+      }
+    },
+    "layers": {"type": "array", "items": {"$ref": "#/$defs/rollup"}},
+    "roles": {"type": "array", "items": {"$ref": "#/$defs/rollup"}},
+    "totals": {"$ref": "#/$defs/rollup"}
+  },
+  "$defs": {
+    "rollup": {
+      "type": "object",
+      "required": ["tensors", "elements", "finite_pairs", "invalid_pairs", "withheld_tensors", "delta_l2", "delta_rms",
+                   "relative_l2", "max_abs_delta", "withheld_metrics"],
+      "properties": {
+        "delta_l2": {"type": ["number", "null"], "minimum": 0},
+        "delta_rms": {"type": ["number", "null"], "minimum": 0},
+        "relative_l2": {"type": ["number", "null"], "minimum": 0},
+        "max_abs_delta": {"type": ["number", "null"], "minimum": 0},
+        "near_zero_reference": {"type": "boolean", "description": "||A|| < epsilon_norm: relative_l2 divides by epsilon_norm"},
+        "withheld_metrics": {"type": "array", "items": {"type": "string"}, "description": "defined but unreportable (overflow / withheld member)"}
+      }
+    }
+  }
+}

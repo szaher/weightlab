@@ -22,7 +22,7 @@ import numpy.typing as npt
 
 from weightlab.core.errors import ErrorCode, fail
 from weightlab.core.limits import DEFAULT_LIMITS, Limits
-from weightlab.formats.base import Consistency, TensorMeta
+from weightlab.formats.base import Consistency, TensorMeta, strict_json
 from weightlab.formats.dtypes import DType, decode
 from weightlab.formats.fileio import PositionedFile
 from weightlab.formats.safetensors_reader import Header, read_header
@@ -39,6 +39,18 @@ from weightlab.formats.shards import INDEX_SUFFIX, is_within, parse_index, resol
 
 SINGLE_FILE_NAME = "model.safetensors"
 INDEX_FILE_NAME = "model" + INDEX_SUFFIX
+
+
+CONFIG_MAX_BYTES = 16 * 1024 * 1024
+
+
+@dataclass(frozen=True)
+class FileInfo:
+    shard_id: str
+    path: Path
+    size: int
+    mtime_ns: int
+    sha256: str | None
 
 
 @dataclass
@@ -69,12 +81,14 @@ class Checkpoint:
     def __init__(
         self,
         root: Path,
+        entry: Path,
         shards: dict[str, _Shard],
         tensors: dict[str, TensorMeta],
         warnings: list[str],
         limits: Limits,
     ) -> None:
         self.root = root
+        self.entry = entry
         self._shards = shards
         self._tensors = tensors
         self.warnings = warnings
@@ -96,6 +110,40 @@ class Checkpoint:
 
     def file_metadata(self, shard_id: str) -> dict[str, str] | None:
         return self._shards[shard_id].header.metadata
+
+    @property
+    def entry_dir(self) -> Path:
+        return self.entry.parent
+
+    def file_info(self) -> list[FileInfo]:
+        """Per-file fingerprint for provenance (sizes and times recorded at open)."""
+        return [
+            FileInfo(s.shard_id, s.file.path, s.file.identity.size, s.file.identity.mtime_ns, s.digest)
+            for s in self._shards.values()
+        ]
+
+    def digests(self) -> dict[str, str]:
+        """SHA-256 of every shard, computed once (bounded streaming reads) and cached."""
+        for s in self._shards.values():
+            if s.digest is None:
+                s.digest = s.file.sha256(self.limits.read_chunk_bytes)
+        return {s.shard_id: s.digest for s in self._shards.values() if s.digest is not None}
+
+    def verify_digests(self) -> None:
+        """Recompute every recorded digest; FILE_CHANGED if any differs (verified consistency)."""
+        for s in self._shards.values():
+            if s.digest is not None and s.file.sha256(self.limits.read_chunk_bytes) != s.digest:
+                raise fail(ErrorCode.FILE_CHANGED, f"{s.shard_id} content changed during the job")
+
+    def shard_path(self, shard_id: str) -> Path:
+        return self._shards[shard_id].file.path
+
+    def config(self) -> dict[str, object] | None:
+        """`config.json` next to the entry, parsed strictly; None when absent. Only data, never code."""
+        path = self.entry_dir / "config.json"
+        if not path.is_file():
+            return None
+        return read_json_object(path, self.root, "config.json")
 
     @property
     def bytes_read(self) -> int:
@@ -222,6 +270,32 @@ class Checkpoint:
         self.close()
 
 
+def hub_cache_root(path: str | os.PathLike[str]) -> Path | None:
+    """Hugging Face hub cache snapshots link files into ../../blobs; the repo directory
+    (models--org--name) is then the natural containment root. None for any other layout."""
+    p = Path(os.path.abspath(path))
+    snap = p if p.is_dir() else p.parent
+    if snap.parent.name == "snapshots" and snap.parent.parent.name.startswith("models--"):
+        return snap.parent.parent
+    return None
+
+
+def read_json_object(path: Path, root: Path, what: str, max_bytes: int = CONFIG_MAX_BYTES) -> dict[str, object]:
+    """Small JSON side file (config, adapter config): contained in `root`, size-capped, strict JSON."""
+    if not is_within(os.path.realpath(path), os.path.realpath(root)):
+        raise fail(ErrorCode.PATH_OUTSIDE_ROOT, f"{what} resolves outside the selected root")
+    f = PositionedFile(path)
+    try:
+        if f.identity.size > max_bytes:
+            raise fail(ErrorCode.INVALID_FORMAT, f"{what} above the size cap")
+        doc = strict_json(f.read(0, f.identity.size), what)
+    finally:
+        f.close()
+    if not isinstance(doc, dict):
+        raise fail(ErrorCode.INVALID_FORMAT, f"{what} is not a JSON object")
+    return doc
+
+
 def _open_shard(path: Path, shard_id: str, limits: Limits, hash_files: bool) -> _Shard:
     f = PositionedFile(path)
     try:
@@ -272,7 +346,7 @@ def open_checkpoint(
 
     if not entry.name.endswith(INDEX_SUFFIX):
         shard = _open_shard(entry, entry.name, limits, hash_files)
-        return Checkpoint(root, {shard.shard_id: shard}, _metas(shard), [], limits)
+        return Checkpoint(root, entry, {shard.shard_id: shard}, _metas(shard), [], limits)
 
     index_file = PositionedFile(entry)
     try:
@@ -306,7 +380,7 @@ def open_checkpoint(
             actual = sum(m.byte_length for m in tensors.values())
             if actual != doc.total_size:
                 warnings.append(f"metadata.total_size {doc.total_size} differs from tensor bytes {actual}")
-        return Checkpoint(root, shards, {k: tensors[k] for k in doc.weight_map}, warnings, limits)
+        return Checkpoint(root, entry, shards, {k: tensors[k] for k in doc.weight_map}, warnings, limits)
     except BaseException:
         for s in shards.values():
             s.file.close()
