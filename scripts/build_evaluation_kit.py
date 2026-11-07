@@ -132,9 +132,26 @@ def _get(port: int, path: str, token: str | None = None) -> tuple[int, bytes]:
         conn.close()
 
 
+def _ui_smoke_test(port: int, token: str) -> tuple[bool, str]:
+    status, html = _get(port, "/")
+    if status != 200 or b'<div id="root">' not in html:
+        return False, f"shell HTTP {status}"
+    if token.encode() in html:
+        return False, "token in served HTML"
+    refs = re.findall(rb'(?:src|href)="(/[^"]+)"', html)
+    for ref in refs:
+        if _get(port, ref.decode())[0] != 200:
+            return False, f"asset {ref.decode()} missing"
+    if not any(r.endswith(b".js") for r in refs):
+        return False, "no script in shell"
+    return True, f"shell + {len(refs)} assets served"
+
+
 def api_smoke_test(cli: Path, work: Path, env: dict[str, str]) -> bool:
     """`weightlab start` from the installed wheel: the packaged migrations create and migrate a new database,
-    and the API answers /health and an authenticated route. Checks the wheel's package data, not the repo's."""
+    the API answers /health and an authenticated route (and refuses it without the token), and the packaged
+    browser UI is served on the same origin: the shell at / without the token in it, and every asset it
+    references. Checks the wheel's package data, not the repo's."""
     data = work / "api-data"
     # Windows: own process group, stopped with CTRL_BREAK_EVENT (CTRL_C_EVENT would reach this script too).
     stop: int
@@ -168,12 +185,21 @@ def api_smoke_test(cli: Path, work: Path, env: dict[str, str]) -> bool:
             return False
         health = json.loads(body)
         projects = _get(port, "/api/v1/projects", token)
+        unauthenticated = _get(port, "/api/v1/projects")[0]
         db = data / "weightlab.sqlite3"
-        ok = status == 200 and health.get("status") == "ok" and projects == (200, b"[]") and db.is_file()
+        ui_ok, ui_note = _ui_smoke_test(port, token)
+        ok = (
+            status == 200
+            and health.get("status") == "ok"
+            and projects == (200, b"[]")
+            and unauthenticated == 401
+            and db.is_file()
+            and ui_ok
+        )
         print(f"self-test: weightlab start -> health {status} {health.get('status')}, projects {projects[0]}, "
-              f"database created: {db.is_file()}")  # fmt: skip
+              f"without token {unauthenticated}, database created: {db.is_file()}, UI: {ui_note}")  # fmt: skip
         if not ok:
-            print(f"API smoke test failed: health={body!r} projects={projects!r}", file=sys.stderr)
+            print(f"API smoke test failed: health={body!r} projects={projects!r} ui={ui_note}", file=sys.stderr)
         return ok
     finally:
         proc.send_signal(stop)

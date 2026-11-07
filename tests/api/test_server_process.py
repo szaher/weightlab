@@ -70,6 +70,10 @@ def test_start_serves_loopback_with_a_fresh_token(tmp_path: Path) -> None:
                 _get(port, "/api/v1/projects", {"Host": "evil.example", "Authorization": f"Bearer {token}"})[0] == 403
             )
             assert _get(port, f"/api/v1/projects?token={token}", host)[0] == 401  # query-string tokens are not a thing
+            shell_status, shell = _get(port, "/", host)  # the UI shell: public, from the packaged build
+            assert shell_status == 200
+            assert b'<div id="root">' in shell
+            assert token.encode() not in shell  # the token is never in served HTML (doc 12 section 8)
         finally:
             proc.send_signal(STOP)
             try:

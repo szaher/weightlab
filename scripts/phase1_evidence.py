@@ -63,6 +63,10 @@ AREAS = [
         "tests/api/test_review_pr3.py",
         "PR #3 review: adapter config and shard index changes -> FILE_CHANGED, atomic relink, admission before body, cheap health",
     ),
+    (
+        "tests/api/test_ui_static.py",
+        "Task 3: UI shell served token-free from memory; API auth, Host/Origin intact; traversal and unknown paths 404",
+    ),
     ("tests/security/test_special_files.py", "Reader hardening: FIFOs/devices/directories refused without blocking"),
     (
         "tests/integration/test_evaluation_kit.py",

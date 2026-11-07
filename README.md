@@ -40,14 +40,17 @@ uv run weightlab diff base/ --adapter lora/ --json lora.json     # LoRA effectiv
 uv run python scripts/g05_evidence.py --out evidence/g0.5        # tests + diff benchmark -> G0.5_<os>.md
 ```
 
-## Implementation status: Phase 1 foundation (Tasks 1–2) and practitioner evaluation kit
+## Implementation status: Phase 1 (Tasks 1–3) and practitioner evaluation kit
 
-Two pieces are built:
+Three pieces are built:
 
 - **Database (`weightlab/db/`):** the SQLite project database with checksummed migrations (Phase 1 task 1).
-- **Local API (`weightlab/api/`):** the FastAPI routes of `contracts/openapi.yaml` 0.3.0, with strict request schemas, a loopback-only security boundary and generated contract tests (task 2). `weightlab start` serves it on 127.0.0.1 and prints the URL with a fresh access token.
+- **Local API (`weightlab/api/`):** the FastAPI routes of `contracts/openapi.yaml` 0.3.0, with strict request schemas, a loopback-only security boundary and generated contract tests (task 2).
+- **Browser UI (`frontend/`, served from `weightlab/ui/static`):** the first usable application (task 3). Create projects, import a local SafeTensors checkpoint by absolute path (read in place, never uploaded), relink moved models, and search, filter, sort and page the tensor catalog on the server, with a metadata inspector.
 
-Tiles, jobs, exports and the UI are not built yet. Their routes answer 404 `deferred`.
+`weightlab start` serves the API and the UI on the same loopback origin. It prints `http://127.0.0.1:<port>/#token=...`, and the page moves the per-launch token into `sessionStorage` and removes it from the address bar. The wheel ships the production build, so Node.js is needed only to rebuild the UI, never to run it.
+
+Heatmaps, ROI views, stats jobs, exports, Compare and Adapters are not built yet. Their routes answer 404 `deferred`, and their navigation entries are marked "planned".
 
 The Phase 0.5 practitioner evaluation (doc 14, Phase 0.5 task 6) has a self-contained kit in `evaluation-kit/`:
 
@@ -56,13 +59,23 @@ The Phase 0.5 practitioner evaluation (doc 14, Phase 0.5 task 6) has a self-cont
 - a 10-minute questionnaire;
 - a structured feedback-summary template.
 
-No feedback has been collected yet, and the G0.5 practitioner item stays open. Review guide, spec gaps and limitations: `evidence/phase1/README.md`.
+No feedback has been collected yet, and the G0.5 practitioner item stays open.
+
+Further reading:
+
+- review guide, spec gaps and limitations: `evidence/phase1/README.md`;
+- UI evidence, screenshots and limitations: `evidence/phase1-ui/README.md`.
 
 ```bash
-uv run weightlab start                                   # http://127.0.0.1:<port>/#token=...
+uv run weightlab start                                   # open the printed http://127.0.0.1:<port>/#token=... link
 uv run python evaluation-kit/run_examples.py             # the kit's three examples, self-checking
 uv run python scripts/build_evaluation_kit.py            # -> dist/weightlab-evaluation-kit-<version>.zip
 uv run python scripts/phase1_evidence.py --out evidence/phase1
+
+cd frontend && npm ci                                    # UI development (Node 22+; build-time only)
+npm run lint && npm run typecheck && npm test            # ESLint, strict tsc, Vitest
+npm run build                                            # -> weightlab/ui/static (committed; CI checks it is current)
+npx playwright install chromium && npm run e2e           # browser E2E against a real `weightlab start`
 ```
 
 ## Read this first

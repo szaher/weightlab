@@ -3,8 +3,9 @@
 Order of checks, each failing closed with the error envelope:
 1. Host is exactly 127.0.0.1:PORT, localhost:PORT or [::1]:PORT (DNS rebinding) -> 403 FORBIDDEN_ORIGIN.
 2. Origin, when present (including "null"), equals http://<Host> -> otherwise 403 FORBIDDEN_ORIGIN.
-3. Only /api/v1/* is served (no UI in Task 2) -> otherwise 404.
-4. Bearer token on every route except GET /api/v1/health, compared in constant time -> 401 UNAUTHORIZED.
+3. Outside /api/v1, only GET/HEAD of the built UI shell (exact paths of `weightlab.ui.load_assets`, answered
+   from memory, no token: the shell holds no secret) -> anything else 404. Static paths never reach the API.
+4. Bearer token on every API route except GET /api/v1/health, compared in constant time -> 401 UNAUTHORIZED.
 5. Body at most max_body_bytes (Content-Length and actual bytes) -> 413 RESOURCE_LIMIT.
 6. At most max_in_flight concurrent requests -> 429 RATE_LIMITED.
 Every response gets no-store caching, no-referrer, nosniff, frame denial and the doc 12 CSP; no CORS
@@ -21,6 +22,7 @@ from typing import Any
 from weightlab.api.config import API_PREFIX, ServerConfig
 from weightlab.api.errors import ApiError, envelope_bytes, request_id
 from weightlab.core.errors import ErrorCode
+from weightlab.ui import Asset
 
 Scope = MutableMapping[str, Any]
 Message = MutableMapping[str, Any]
@@ -53,9 +55,10 @@ HEALTH = f"{API_PREFIX}/health"
 
 
 class Guard:
-    def __init__(self, app: ASGIApp, config: ServerConfig) -> None:
+    def __init__(self, app: ASGIApp, config: ServerConfig, assets: dict[str, Asset] | None = None) -> None:
         self.app = app
         self.config = config
+        self.assets = assets or {}
         self._token = f"Bearer {config.token}".encode()
         self._lock = threading.Lock()
         self._in_flight = 0
@@ -70,9 +73,12 @@ class Guard:
             return
         headers = _headers(scope)
         try:
-            self._check(scope, headers)  # headers only: no I/O before admission
+            asset = self._check(scope, headers)  # headers only: no I/O before admission
         except ApiError as err:
             await _reply(send, err, rid)
+            return
+        if asset is not None:  # UI shell: from memory, no body read, never forwarded to the API app
+            await _send_asset(send, asset, rid, head=scope.get("method") == "HEAD")
             return
         # Admission before the body is read: a slow or stalled body stream occupies a slot like any other
         # request, so it counts towards max_in_flight (PR #3 review). Released on every exit path below.
@@ -95,7 +101,7 @@ class Guard:
             with self._lock:
                 self._in_flight -= 1
 
-    def _check(self, scope: Scope, headers: dict[bytes, list[bytes]]) -> None:
+    def _check(self, scope: Scope, headers: dict[bytes, list[bytes]]) -> Asset | None:
         hosts = headers.get(b"host", [])
         host = hosts[0].decode("latin-1") if len(hosts) == 1 else ""
         if host not in self.config.allowed_hosts:
@@ -105,12 +111,18 @@ class Guard:
             raise ApiError(ErrorCode.FORBIDDEN_ORIGIN, "cross-origin requests are not accepted")
         path = scope.get("path", "")
         if path != API_PREFIX and not path.startswith(API_PREFIX + "/"):
-            raise ApiError(ErrorCode.NOT_FOUND, "not found")
+            asset = self.assets.get(path) if scope.get("method") in ("GET", "HEAD") else None
+            if asset is None:
+                if path == "/" and not self.assets:
+                    raise ApiError(ErrorCode.NOT_FOUND, "the browser UI is not part of this build (frontend not built)")
+                raise ApiError(ErrorCode.NOT_FOUND, "not found")
+            return asset
         if path == HEALTH and scope.get("method") == "GET":
-            return
+            return None
         auth = headers.get(b"authorization", [])
         if len(auth) != 1 or not hmac.compare_digest(auth[0], self._token):
             raise ApiError(ErrorCode.UNAUTHORIZED, "missing or invalid bearer token")
+        return None
 
     async def _read_body(self, receive: Receive, headers: dict[bytes, list[bytes]]) -> bytes:
         limit = self.config.max_body_bytes
@@ -174,6 +186,12 @@ def _secured(send: Send, rid: str) -> Send:
         await send(message)
 
     return wrapped
+
+
+async def _send_asset(send: Send, asset: Asset, rid: str, *, head: bool) -> None:
+    headers = [(b"content-type", asset.content_type.encode()), (b"content-length", str(len(asset.body)).encode())]
+    await _secured(send, rid)({"type": "http.response.start", "status": 200, "headers": headers})
+    await send({"type": "http.response.body", "body": b"" if head else asset.body})
 
 
 async def _reply(send: Send, err: ApiError, rid: str) -> None:
