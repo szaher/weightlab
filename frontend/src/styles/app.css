@@ -18,6 +18,8 @@
   --err-bg: #fbe8e6;
   --info-bg: #e7eef8;
   --selected: #dbe8f7;
+  --nf-bg: #d9d9d9;
+  --nf-fg: #1a1a1a;
   --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
   --sans: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
   --radius: 6px;
@@ -43,6 +45,8 @@
     --err-bg: #3a1a18;
     --info-bg: #1b2738;
     --selected: #223a55;
+    --nf-bg: #4a4a4a;
+    --nf-fg: #f2f2f2;
     color-scheme: dark;
   }
 }
@@ -65,6 +69,8 @@
   --err-bg: #3a1a18;
   --info-bg: #1b2738;
   --selected: #223a55;
+  --nf-bg: #4a4a4a;
+  --nf-fg: #f2f2f2;
   color-scheme: dark;
 }
 
@@ -643,10 +649,18 @@ code,
   gap: 16px;
   align-items: start;
 }
+@media (min-width: 1101px) {
+  .explore-body.has-tensor {
+    grid-template-columns: minmax(0, 0.85fr) minmax(0, 1.3fr);
+  }
+}
 @media (max-width: 1100px) {
   .explore-body {
     grid-template-columns: minmax(0, 1fr);
   }
+}
+.has-tensor .inspector {
+  position: static;
 }
 .catalog {
   display: flex;
@@ -841,4 +855,198 @@ code,
   justify-content: flex-end;
   gap: 8px;
   margin-top: 16px;
+}
+
+/* Exact ROI explorer (Phase 1 Task 4A) */
+.tensor-sub {
+  margin-top: 4px;
+  color: var(--muted);
+}
+.facts-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
+  gap: 8px 16px;
+}
+.roi {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  border-top: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+  padding: 10px 0;
+  min-width: 0;
+}
+.roi-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.roi-precision {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.prec-lossless {
+  color: var(--ok);
+}
+.prec-rounded {
+  color: var(--warn);
+}
+.roi-banner {
+  background: var(--info-bg);
+  border: 1px solid var(--border);
+  border-left: 4px solid var(--accent);
+  border-radius: var(--radius);
+  padding: 8px 10px;
+}
+.roi-bounds {
+  display: flex;
+  gap: 6px 24px;
+  flex-wrap: wrap;
+  font-size: 15px;
+}
+.roi-slice {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 8px 10px;
+  margin: 0;
+}
+.roi-slice .field-num,
+.roi-toolbar .field-num,
+.roi-scale .field-num {
+  flex: 0 1 auto;
+}
+.roi-toolbar {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.roi .row .input {
+  flex: 0 0 auto;
+}
+.roi input.input-small {
+  width: 10ch;
+}
+.roi select.input-small {
+  width: auto;
+}
+.roi-loading {
+  min-height: 120px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px dashed var(--border);
+  border-radius: var(--radius);
+}
+.tabs {
+  display: flex;
+  gap: 2px;
+  border-bottom: 1px solid var(--border);
+}
+.tab {
+  font: inherit;
+  font-weight: 600;
+  border: 1px solid transparent;
+  border-bottom: 0;
+  background: none;
+  color: var(--muted);
+  padding: 6px 14px;
+  border-radius: var(--radius) var(--radius) 0 0;
+  cursor: pointer;
+  margin-bottom: -1px;
+}
+.tab[aria-selected="true"] {
+  background: var(--surface);
+  color: var(--text);
+  border-color: var(--border);
+  box-shadow: inset 0 3px 0 var(--accent);
+}
+.roi-panel {
+  min-width: 0;
+}
+.heatmap {
+  min-width: 0;
+  overflow-x: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.heatmap-canvas {
+  display: block;
+  cursor: crosshair;
+  touch-action: none;
+}
+.heatmap-hover {
+  min-height: 1.5em;
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+.legend {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.legend-scale {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.legend-bar {
+  width: min(256px, 50vw);
+  height: 12px;
+  border: 1px solid var(--border);
+}
+.legend-special {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 16px;
+  font-size: 13px;
+}
+.legend-special li {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.legend-swatch {
+  width: 16px;
+  height: 16px;
+  border: 1px solid var(--border);
+}
+.selected-cell {
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.cell-value {
+  font-size: 15px;
+  font-weight: 700;
+  user-select: all;
+}
+.values-table .value-btn {
+  font: inherit;
+  border: 0;
+  background: none;
+  color: var(--accent);
+  padding: 0;
+  cursor: pointer;
+  text-align: left;
+  user-select: text;
+}
+.values-table .value-cell {
+  white-space: nowrap;
+}
+.values-scroll {
+  position: relative; /* contains the visually hidden copy-status spans */
+  max-height: 480px;
+  overflow: auto;
 }

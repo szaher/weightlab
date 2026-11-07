@@ -71,7 +71,7 @@ export function ExploreView({ projectName, models, modelId, onSelectModel, onGoW
         <>
           <ModelStatusNotice model={model} />
           <Warnings warnings={model.warnings} />
-          <div className="explore-body">
+          <div className={selectedTensor ? "explore-body has-tensor" : "explore-body"}>
             <TensorCatalog key={model.id} modelId={model.id} selectedId={selectedTensor} onSelect={(t: Tensor) => setTensor({ model: model.id, id: t.id })} />
             <TensorInspector modelId={model.id} modelName={model.display_name} tensorId={selectedTensor} />
           </div>

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Run the test suite and write Phase 1 foundation evidence (Tasks 1-2: database and local API; kit).
+"""Run the test suite and write Phase 1 evidence (Tasks 1-2: database and local API; kit; Tasks 3-4A server side).
 
     uv run python scripts/phase1_evidence.py --out evidence/phase1
 
@@ -66,6 +66,10 @@ AREAS = [
     (
         "tests/api/test_ui_static.py",
         "Task 3: UI shell served token-free from memory; API auth, Host/Origin intact; traversal and unknown paths 404",
+    ),
+    (
+        "tests/api/test_roi_explorer.py",
+        "Task 4A: the explorer's ROI requests (rank 0/1/2/3, transpose, ragged edges, dtypes, 64-bit ints, -0.0, budget) vs NumPy decode of fixture bytes; edited file -> FILE_CHANGED",
     ),
     ("tests/security/test_special_files.py", "Reader hardening: FIFOs/devices/directories refused without blocking"),
     (

@@ -200,3 +200,58 @@ export async function expectNoToken(page: Page, token: string): Promise<void> {
   const html = await page.content();
   expect(html).not.toContain(token);
 }
+
+/** A decoded element: a float64 (exact for every float dtype), a bigint (64-bit ints) or a boolean. */
+export type Elem = number | bigint | boolean;
+
+function f16(bits: number): number {
+  const s = bits & 0x8000 ? -1 : 1;
+  const e = (bits >> 10) & 0x1f;
+  const m = bits & 0x3ff;
+  if (e === 0) return s * m * 2 ** -24;
+  if (e === 31) return m ? NaN : s * Infinity;
+  return s * (1 + m / 1024) * 2 ** (e - 15);
+}
+
+/** Decodes one tensor straight from the file's bytes (little-endian, C order): the E2E's own expectation,
+ * independent of the backend's reader and of the API's serialization. */
+export function readTensor(path: string, key: string): { dtype: string; shape: number[]; values: Elem[] } {
+  const b = readFileSync(path);
+  const n = Number(b.readBigUInt64LE(0));
+  const header = JSON.parse(b.subarray(8, 8 + n).toString("utf8")) as Record<string, { dtype: string; shape: number[]; data_offsets: [number, number] }>;
+  const t = header[key];
+  if (!t) throw new Error(`no tensor ${key}`);
+  const data = b.subarray(8 + n + t.data_offsets[0], 8 + n + t.data_offsets[1]);
+  const dv = new DataView(data.buffer, data.byteOffset, data.byteLength);
+  const count = t.shape.reduce((a, c) => a * c, 1);
+  const values: Elem[] = [];
+  for (let i = 0; i < count; i++) {
+    switch (t.dtype) {
+      case "F64": values.push(dv.getFloat64(i * 8, true)); break;
+      case "F32": values.push(dv.getFloat32(i * 4, true)); break;
+      case "F16": values.push(f16(dv.getUint16(i * 2, true))); break;
+      case "BF16": {
+        const tmp = new DataView(new ArrayBuffer(4));
+        tmp.setUint32(0, dv.getUint16(i * 2, true) << 16, false);
+        values.push(tmp.getFloat32(0, false));
+        break;
+      }
+      case "I64": values.push(dv.getBigInt64(i * 8, true)); break;
+      case "U64": values.push(dv.getBigUint64(i * 8, true)); break;
+      case "I32": values.push(dv.getInt32(i * 4, true)); break;
+      case "BOOL": values.push(dv.getUint8(i) !== 0); break;
+      default: throw new Error(`readTensor: ${t.dtype} not needed by the tests`);
+    }
+  }
+  return { dtype: t.dtype, shape: t.shape, values };
+}
+
+/** True when the UI's text is exactly the expected element (numbers compared as float64, keeping -0 and NaN). */
+export function sameValue(text: string, expected: Elem): boolean {
+  if (typeof expected === "bigint") return text === expected.toString();
+  if (typeof expected === "boolean") return text === String(expected);
+  if (Number.isNaN(expected)) return text === "NaN";
+  if (expected === Infinity) return text === "+Infinity";
+  if (expected === -Infinity) return text === "−Infinity";
+  return Object.is(Number(text), expected);
+}

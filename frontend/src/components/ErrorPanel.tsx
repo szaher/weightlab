@@ -1,8 +1,8 @@
-import { describeError } from "../lib/errors/describe";
+import { describeError, type ErrorContext } from "../lib/errors/describe";
 
 interface Props {
   error: unknown;
-  context?: "import" | "relink";
+  context?: ErrorContext | undefined;
   onRetry?: (() => void) | undefined;
 }
 

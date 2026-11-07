@@ -47,10 +47,11 @@ Three pieces are built:
 - **Database (`weightlab/db/`):** the SQLite project database with checksummed migrations (Phase 1 task 1).
 - **Local API (`weightlab/api/`):** the FastAPI routes of `contracts/openapi.yaml` 0.3.0, with strict request schemas, a loopback-only security boundary and generated contract tests (task 2).
 - **Browser UI (`frontend/`, served from `weightlab/ui/static`):** the first usable application (task 3). Create projects, import a local SafeTensors checkpoint by absolute path (read in place, never uploaded), relink moved models, and search, filter, sort and page the tensor catalog on the server, with a metadata inspector.
+- **Exact ROI explorer (Phase 1 task 4A, `frontend/src/features/roi/`):** select a tensor to see an exact window of its values (64 × 64 by default, never more than `roi_max_cells`) as a Canvas heatmap and as an accessible table. It supports pan, zoom, jump-to-cell, transpose, row/column axis and fixed-index slicing for rank > 2, colour scales (auto for the visible region, sign-symmetric, fixed) and exact copy. Values come from `POST /tensors/roi` unchanged: −0.0 keeps its sign, I64/U64 stay decimal strings, NaN/±Inf are labelled patterns.
 
 `weightlab start` serves the API and the UI on the same loopback origin. It prints `http://127.0.0.1:<port>/#token=...`, and the page moves the per-launch token into `sessionStorage` and removes it from the address bar. The wheel ships the production build, so Node.js is needed only to rebuild the UI, never to run it.
 
-Heatmaps, ROI views, stats jobs, exports, Compare and Adapters are not built yet. Their routes answer 404 `deferred`, and their navigation entries are marked "planned".
+The ROI explorer shows one exact window at a time; it is not a whole-tensor overview. Tiled whole-tensor heatmaps (`/tiles`, pyramids, sampled previews), jobs, stats, exports, Compare and Adapters are not built yet. Their routes answer 404 `deferred`, the UI never calls them, and their navigation entries are marked "planned".
 
 The Phase 0.5 practitioner evaluation (doc 14, Phase 0.5 task 6) has a self-contained kit in `evaluation-kit/`:
 

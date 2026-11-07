@@ -212,6 +212,12 @@ def open_model(conn: sqlite3.Connection, model_id: str, project_id: str | None =
             raise ApiError(
                 ErrorCode.FILE_CHANGED, "model files are missing (moved or deleted); relink or re-import"
             ) from None
+        # The files parsed at import. If they no longer do and their stat fingerprint differs, the checkpoint
+        # changed on disk: that is FILE_CHANGED (re-import), not a format error of the imported model.
+        if live_status(conn, m) in ("changed", "disconnected"):
+            raise ApiError(
+                ErrorCode.FILE_CHANGED, f"model files changed since import and no longer parse ({e.detail})"
+            ) from None
         raise
     try:
         _assert_same_files(conn, model_id, ck, root, compare_file_id=True)
