@@ -243,6 +243,36 @@ class Checkpoint:
         transpose = view.transpose if view is not None else False
         return RawRoi(meta, entry.dtype, out.reshape(r1 - r0, c1 - c0), rv.rows, rv.cols, transpose, stripes)
 
+    def roi_read_bytes(
+        self, key: str, r0: int, r1: int, c0: int, c1: int, view: View | None = None, *, max_cells: int
+    ) -> int:
+        """Bytes `read_roi_raw` would read for this ROI (its covering stripes), without reading anything.
+
+        Lets a caller enforce a read budget over many ROIs before the first byte is read."""
+        meta = self.tensor(key)
+        entry = self._shards[meta.shard_id].header.entries[key]
+        if not 0 < max_cells <= self.limits.roi_hard_max_cells:
+            raise fail(ErrorCode.RESOURCE_LIMIT, "max_cells outside the hard bound")
+        rv = resolve_view(meta.shape, view)
+        validate_roi(rv, r0, r1, c0, c1, max_cells)
+        idx = np.sort(element_indices(meta.shape, rv, r0, r1, c0, c1).ravel(), kind="stable")
+        return stripe_bytes(plan_reads(idx, entry.dtype.size, self.limits), entry.dtype.size)
+
+    def fingerprints(self, keys: list[str]) -> list[dict[str, object]]:
+        """Quick fingerprint (doc 10 section 6) of every file holding `keys`, as recorded when it was opened:
+        selected-root-relative path, size, mtime_ns and file ID. Sorted by path; plain JSON values."""
+        out: list[dict[str, object]] = []
+        for sid in sorted({self.tensor(k).shard_id for k in keys}):
+            ident = self._shards[sid].file.identity
+            rel = os.path.relpath(self._shards[sid].file.path, self.root).replace(os.sep, "/")
+            out.append(
+                {"relpath": rel, "size": ident.size, "mtime_ns": ident.mtime_ns, "file_id": f"{ident.dev}:{ident.ino}"}
+            )
+        if self.index is not None:  # the index maps keys to shards, so it is an input too
+            rel = os.path.relpath(self.index.path, self.root).replace(os.sep, "/")
+            out.append({"relpath": rel, "size": self.index.identity.size, "sha256": self.index.sha256})
+        return out
+
     def read_roi_2d(
         self,
         key: str,
