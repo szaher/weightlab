@@ -97,6 +97,17 @@ jobs:
         env:
           CI: "1"
           WEIGHTLAB_SCREENSHOTS: ${{ runner.temp }}/ui-screenshots
+      - name: Build the wheel and install it into a fresh venv (the packaged UI, not the checkout)
+        working-directory: .
+        run: |
+          uv build --wheel -o "${{ runner.temp }}/dist"
+          uv venv "${{ runner.temp }}/wheel-venv" --python 3.12
+          uv pip install --python "${{ runner.temp }}/wheel-venv/bin/python" "${{ runner.temp }}"/dist/*.whl
+      - name: Browser E2E against the installed wheel (journey, exact ROI explorer, security, accessibility)
+        run: npx playwright test
+        env:
+          CI: "1"
+          WEIGHTLAB_CMD: '["${{ runner.temp }}/wheel-venv/bin/weightlab"]'
       - uses: actions/upload-artifact@v4
         if: always()
         with:

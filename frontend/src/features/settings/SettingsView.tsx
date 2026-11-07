@@ -66,8 +66,8 @@ export function SettingsView({ theme, onTheme, health }: { theme: Theme; onTheme
           Resource and privacy settings
         </h2>
         <p className="help">
-          Current values stored by the backend. They govern heatmaps, jobs and exports, which arrive in later milestones;
-          editing them here is not available yet.
+          Current values stored by the backend. <code>roi_max_cells</code> bounds every exact-value window in Explore; the others
+          govern tiled heatmaps, jobs and exports, which arrive in later milestones. Editing them here is not available yet.
         </p>
         {settings.error ? <ErrorPanel error={settings.error} onRetry={settings.reload} /> : null}
         {settings.data ? (

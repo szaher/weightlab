@@ -1,9 +1,9 @@
 # Phase 1 foundation evidence (Tasks 1-2): macos (PASS on this OS only)
 
-- Date (UTC): 2026-11-07 12:17
+- Date (UTC): 2026-11-07 20:32
 - Platform: macOS-26.0-arm64-arm-64bit / arm64 / Python 3.12.11
 - Command: `uv run python scripts/phase1_evidence.py` -> full `pytest` suite (exit 0)
-- Totals (whole suite): 433 passed, 0 failed, 0 skipped
+- Totals (whole suite): 444 passed, 0 failed, 0 skipped
 - Database schema version: 1; contract: contracts/openapi.yaml 0.3.0-spec-1.2-final
 
 ## Results by area
@@ -21,6 +21,7 @@
 | Task 2: bookmarks with ownership, settings round trip, bounds and persistence (`tests/api/test_bookmarks_settings_api.py`) | 3 | 3 | 0 | 0 |
 | PR #3 review: adapter config and shard index changes -> FILE_CHANGED, atomic relink, admission before body, cheap health (`tests/api/test_review_pr3.py`) | 9 | 9 | 0 | 0 |
 | Task 3: UI shell served token-free from memory; API auth, Host/Origin intact; traversal and unknown paths 404 (`tests/api/test_ui_static.py`) | 32 | 32 | 0 | 0 |
+| Task 4A: the explorer's ROI requests (rank 0/1/2/3, transpose, ragged edges, dtypes, 64-bit ints, -0.0, budget) vs NumPy decode of fixture bytes; edited file -> FILE_CHANGED (`tests/api/test_roi_explorer.py`) | 11 | 11 | 0 | 0 |
 | Reader hardening: FIFOs/devices/directories refused without blocking (`tests/security/test_special_files.py`) | 3 | 3 | 0 | 0 |
 | Workstream A: evaluation kit examples reproduce against generator values, checks can fail, docs consistent (`tests/integration/test_evaluation_kit.py`) | 5 | 5 | 0 | 0 |
 | Phase 0 / 0.5 suites (regression) | 233 | 233 | 0 | 0 |

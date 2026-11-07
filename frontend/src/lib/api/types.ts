@@ -97,3 +97,51 @@ export interface ErrorEnvelope {
   error: ErrorBody;
   request_id: string;
 }
+
+// ---- Exact ROI (POST /tensors/roi; doc 09 section 2). Only the `tensor` source kind is used by the UI today.
+
+export interface TensorSource {
+  kind: "tensor";
+  model_id: string;
+  tensor_id: string;
+}
+
+export interface RoiView {
+  row_axis: number | null;
+  col_axis: number | null;
+  fixed_indices: Record<string, number>;
+  transpose: boolean;
+}
+
+export interface RoiBounds {
+  r0: number;
+  r1: number;
+  c0: number;
+  c1: number;
+}
+
+export interface RoiRequest {
+  source: TensorSource;
+  view: RoiView;
+  roi: RoiBounds;
+  value_encoding: "auto";
+}
+
+export type ValueEncoding = "float_json" | "int_json" | "int_decimal_string" | "bool_json" | "hex_bits";
+export type NumericPrecision = "lossless" | "rounded" | "overflowed";
+export type NonfiniteKind = "nan" | "pos_inf" | "neg_inf" | "overflow";
+
+/** As received; `values` are still unchecked JSON. `parseRoi` validates every field before anything is drawn. */
+export interface RoiResponse {
+  schema_version: number;
+  source: unknown;
+  roi: RoiBounds;
+  shape: number[];
+  source_dtype: Dtype;
+  value_encoding: ValueEncoding;
+  coverage: string;
+  numeric_precision: NumericPrecision;
+  values: unknown[][];
+  nonfinite_mask: (NonfiniteKind | null)[][] | null;
+  warnings: string[];
+}

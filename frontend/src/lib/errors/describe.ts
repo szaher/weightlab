@@ -14,7 +14,13 @@ export interface ErrorView {
 const RECONNECT =
   "Open the link that `weightlab start` printed in its terminal (it ends in #token=…). Restarting WeightLab prints a new link; old links stop working.";
 
-export function describeError(e: unknown, context?: "import" | "relink"): ErrorView {
+/** Where the failure happened: import/relink forms, or an exact-value (ROI) read. */
+export type ErrorContext = "import" | "relink" | "roi";
+
+const ROI_FILES =
+  "Values are never shown from a checkpoint that differs from the imported one. Re-import the model if it was modified; relink it in the Workspace if it was only moved.";
+
+export function describeError(e: unknown, context?: ErrorContext): ErrorView {
   if (!(e instanceof ApiRequestError)) {
     return {
       title: "Something went wrong in the page",
@@ -57,7 +63,29 @@ export function describeError(e: unknown, context?: "import" | "relink"): ErrorV
     case "RATE_LIMITED":
       return { ...base, title: "Too many requests at once", explanation: msg, action: server ?? "Retry in a moment." };
     case "RESOURCE_LIMIT":
+      if (context === "roi") {
+        return {
+          ...base,
+          title: "Region exceeds the exact-read budget",
+          explanation: msg,
+          action: "Zoom in to a smaller window. The budget is the server's roi_max_cells setting (1–65,536 cells).",
+        };
+      }
       return { ...base, title: "Request exceeds a resource limit", explanation: msg, action: server };
+    case "INVALID_ROI":
+      return {
+        ...base,
+        title: "Region or view not valid for this tensor",
+        explanation: msg,
+        action: "Reset to the origin, or choose axes and slice indices within the tensor's shape.",
+      };
+    case "UNSUPPORTED_PRECISION":
+      return {
+        ...base,
+        title: "Values cannot be represented exactly",
+        explanation: msg,
+        action: "WeightLab does not show values it cannot represent exactly. This view is unavailable for this tensor.",
+      };
     case "FILE_CHANGED":
       return {
         ...base,
@@ -66,7 +94,9 @@ export function describeError(e: unknown, context?: "import" | "relink"): ErrorV
         action:
           context === "relink"
             ? "Relink accepts only the exact files that were imported. If the model was modified, import it again as a new model."
-            : (server ?? "Re-import the model; relink only if it was moved unchanged."),
+            : context === "roi"
+              ? ROI_FILES
+              : (server ?? "Re-import the model; relink only if it was moved unchanged."),
       };
     case "PATH_OUTSIDE_ROOT":
       return {
@@ -78,6 +108,14 @@ export function describeError(e: unknown, context?: "import" | "relink"): ErrorV
     case "INVALID_FORMAT":
     case "MISSING_SHARD":
     case "UNSUPPORTED_DTYPE":
+      if (context === "roi") {
+        return {
+          ...base,
+          title: e.code === "UNSUPPORTED_DTYPE" ? "This dtype cannot be read exactly" : "The model's files cannot be read",
+          explanation: msg,
+          action: e.code === "UNSUPPORTED_DTYPE" ? "Its metadata stays available above." : ROI_FILES,
+        };
+      }
       return {
         ...base,
         title: e.code === "MISSING_SHARD" ? "A shard of this model is missing" : "Not a supported SafeTensors checkpoint",
@@ -93,6 +131,9 @@ export function describeError(e: unknown, context?: "import" | "relink"): ErrorV
           explanation: msg,
           action: "Check the spelling of the absolute path. The path is read on the computer running WeightLab.",
         };
+      }
+      if (context === "roi") {
+        return { ...base, title: "Tensor no longer available", explanation: msg, action: "The model may have been removed. Reload the model list." };
       }
       return { ...base, title: "Not found", explanation: msg, action: "It may have been deleted. Reload the list." };
     case "VALIDATION_ERROR":

@@ -4,6 +4,7 @@ import { KeyText } from "../../components/KeyText";
 import { api } from "../../lib/api/endpoints";
 import { formatBytes, formatInt, formatShape } from "../../lib/format";
 import { useResource } from "../../lib/useResource";
+import { RoiExplorer } from "../roi/RoiExplorer";
 
 interface Props {
   modelId: string;
@@ -11,7 +12,7 @@ interface Props {
   tensorId: string | null;
 }
 
-/** Metadata of one tensor (GET /models/{id}/tensors/{tensor_id}). No tensor values are read. */
+/** One tensor: its metadata (GET /models/{id}/tensors/{tensor_id}) and the exact-window explorer (POST /tensors/roi). */
 export function TensorInspector({ modelId, modelName, tensorId }: Props) {
   const res = useResource(tensorId ? `${modelId}/${tensorId}` : null, (signal) => api.getTensor(modelId, tensorId ?? "", signal));
   const t = res.data;
@@ -20,7 +21,7 @@ export function TensorInspector({ modelId, modelName, tensorId }: Props) {
       <h2 id="inspector-h" className="pane-title">
         Tensor details
       </h2>
-      {!tensorId ? <p className="muted">Select a tensor name in the table to see its metadata.</p> : null}
+      {!tensorId ? <p className="muted">Select a tensor name in the table to see its metadata and exact values.</p> : null}
       {res.error ? <ErrorPanel error={res.error} onRetry={res.reload} /> : null}
       {tensorId && !t && !res.error ? (
         <p className="muted" role="status">
@@ -37,8 +38,13 @@ export function TensorInspector({ modelId, modelName, tensorId }: Props) {
               </code>
               <CopyButton value={t.raw_key} label="Copy raw tensor key" />
             </div>
+            <p className="tensor-sub mono" data-testid="inspector-summary">
+              Shape {formatShape(t.shape)} · {t.dtype}
+            </p>
           </div>
-          <dl className="facts facts-1col">
+          <RoiExplorer key={`${modelId}/${t.id}`} modelId={modelId} tensor={t} />
+          <h3 className="h3">Metadata</h3>
+          <dl className="facts facts-grid">
             <div>
               <dt>Model</dt>
               <dd>{modelName}</dd>
@@ -94,7 +100,6 @@ export function TensorInspector({ modelId, modelName, tensorId }: Props) {
           </dl>
           <p className="help">
             Role and layer are guessed from the tensor name. Offsets are absolute positions in the shard file, end exclusive.
-            Heatmaps and exact value reads arrive in a later milestone.
           </p>
         </div>
       ) : null}
