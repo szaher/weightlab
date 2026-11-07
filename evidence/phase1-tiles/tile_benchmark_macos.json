@@ -1,0 +1,149 @@
+{
+  "memory_metric": "macos_phys_footprint_peak",
+  "peak_after_import": 20005296,
+  "tiles": [
+    {
+      "name": "L0 origin",
+      "level": 0,
+      "x": 0,
+      "y": 0,
+      "aggregation": "mean",
+      "seconds": 0.018045542004983872,
+      "shape": [
+        256,
+        256
+      ],
+      "covered_bytes": 262144,
+      "bytes_read": 262144,
+      "peak_after": 33849776,
+      "corner_value": 0.0,
+      "corner_status": 0
+    },
+    {
+      "name": "L0 far corner",
+      "level": 0,
+      "x": 127,
+      "y": 127,
+      "aggregation": "max",
+      "seconds": 0.016540083015570417,
+      "shape": [
+        256,
+        256
+      ],
+      "covered_bytes": 262144,
+      "bytes_read": 262144,
+      "peak_after": 35733936,
+      "corner_value": 64.0,
+      "corner_status": 0
+    },
+    {
+      "name": "L1",
+      "level": 1,
+      "x": 0,
+      "y": 0,
+      "aggregation": "mean",
+      "seconds": 0.044867999997222796,
+      "shape": [
+        256,
+        256
+      ],
+      "covered_bytes": 1048576,
+      "bytes_read": 1048576,
+      "peak_after": 42729904,
+      "corner_value": 0.0,
+      "corner_status": 0
+    },
+    {
+      "name": "L2",
+      "level": 2,
+      "x": 1,
+      "y": 1,
+      "aggregation": "rms",
+      "seconds": 0.1526436249841936,
+      "shape": [
+        256,
+        256
+      ],
+      "covered_bytes": 4194304,
+      "bytes_read": 4194304,
+      "peak_after": 52953520,
+      "corner_value": 0.0,
+      "corner_status": 0
+    },
+    {
+      "name": "L3",
+      "level": 3,
+      "x": 0,
+      "y": 0,
+      "aggregation": "mean",
+      "seconds": 0.41140558299957775,
+      "shape": [
+        256,
+        256
+      ],
+      "covered_bytes": 16777216,
+      "bytes_read": 16777216,
+      "peak_after": 55509424,
+      "corner_value": 0.0,
+      "corner_status": 0
+    },
+    {
+      "name": "L3 far corner",
+      "level": 3,
+      "x": 15,
+      "y": 15,
+      "aggregation": "max",
+      "seconds": 0.31627245800336823,
+      "shape": [
+        256,
+        256
+      ],
+      "covered_bytes": 16777216,
+      "bytes_read": 16777216,
+      "peak_after": 55509424,
+      "corner_value": 64.0,
+      "corner_status": 0
+    },
+    {
+      "name": "L3 transposed",
+      "level": 3,
+      "x": 1,
+      "y": 0,
+      "aggregation": "min",
+      "seconds": 0.7129982080077752,
+      "shape": [
+        256,
+        256
+      ],
+      "covered_bytes": 16777216,
+      "bytes_read": 16777216,
+      "peak_after": 55591344,
+      "corner_value": 0.0,
+      "corner_status": 0
+    },
+    {
+      "name": "L4 (64 MiB, the direct limit)",
+      "level": 4,
+      "x": 0,
+      "y": 0,
+      "aggregation": "mean_abs",
+      "seconds": 1.0021907500049565,
+      "shape": [
+        256,
+        256
+      ],
+      "covered_bytes": 67108864,
+      "bytes_read": 67108864,
+      "peak_after": 55886256,
+      "corner_value": 0.0,
+      "corner_status": 0
+    }
+  ],
+  "peak_after_open": 20005296,
+  "l5": "RESOURCE_LIMIT: tile covers 268435456 source bytes, above direct_tile_max_mib (64 MiB); it needs the exact pyramid, which is not available yet",
+  "bytes_read_total": 123207784,
+  "n": 32768,
+  "file_bytes": 4294967296,
+  "platform": "darwin",
+  "peak_growth_bytes": 35880960
+}

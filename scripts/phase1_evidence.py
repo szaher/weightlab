@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Run the test suite and write Phase 1 evidence (Tasks 1-2: database and local API; kit; Tasks 3-4A server side).
+"""Run the test suite and write Phase 1 evidence (Tasks 1-2: database and local API; kit; Tasks 3-4A server side; Task 4B tile engine foundation).
 
     uv run python scripts/phase1_evidence.py --out evidence/phase1
 
@@ -71,6 +71,16 @@ AREAS = [
         "tests/api/test_roi_explorer.py",
         "Task 4A: the explorer's ROI requests (rank 0/1/2/3, transpose, ragged edges, dtypes, 64-bit ints, -0.0, budget) vs NumPy decode of fixture bytes; edited file -> FILE_CHANGED",
     ),
+    (
+        "tests/integration/test_tile_engine.py",
+        "Task 4B foundation: L0-L3+ direct tiles vs independent reference and goldens: aggregations, edges, non-finite, F64 extremes, I64/U64, BF16/F16, slices, transpose, FILE_CHANGED, budgets",
+    ),
+    (
+        "tests/unit/test_tile_codec.py",
+        "Task 4B foundation: binary layout/byte order, JSON parity vs contract schemas, status and metadata validation, headers, canonical identity and cache keys",
+    ),
+    ("tests/property/test_tile_property.py", "Task 4B foundation: random tensors/views/levels/bands vs the reference; tiles partition the view"),
+    ("tests/perf/test_tile_bounded.py", "Task 4B foundation: 4 GiB sparse checkpoint, L0-L4 tiles: flat peak memory, reads = covered bytes, L5 refused"),
     ("tests/security/test_special_files.py", "Reader hardening: FIFOs/devices/directories refused without blocking"),
     (
         "tests/integration/test_evaluation_kit.py",

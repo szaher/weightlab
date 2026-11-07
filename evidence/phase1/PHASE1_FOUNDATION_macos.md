@@ -1,9 +1,9 @@
 # Phase 1 foundation evidence (Tasks 1-2): macos (PASS on this OS only)
 
-- Date (UTC): 2026-11-07 20:32
+- Date (UTC): 2026-11-07 21:42
 - Platform: macOS-26.0-arm64-arm-64bit / arm64 / Python 3.12.11
 - Command: `uv run python scripts/phase1_evidence.py` -> full `pytest` suite (exit 0)
-- Totals (whole suite): 444 passed, 0 failed, 0 skipped
+- Totals (whole suite): 524 passed, 0 failed, 0 skipped
 - Database schema version: 1; contract: contracts/openapi.yaml 0.3.0-spec-1.2-final
 
 ## Results by area
@@ -22,6 +22,10 @@
 | PR #3 review: adapter config and shard index changes -> FILE_CHANGED, atomic relink, admission before body, cheap health (`tests/api/test_review_pr3.py`) | 9 | 9 | 0 | 0 |
 | Task 3: UI shell served token-free from memory; API auth, Host/Origin intact; traversal and unknown paths 404 (`tests/api/test_ui_static.py`) | 32 | 32 | 0 | 0 |
 | Task 4A: the explorer's ROI requests (rank 0/1/2/3, transpose, ragged edges, dtypes, 64-bit ints, -0.0, budget) vs NumPy decode of fixture bytes; edited file -> FILE_CHANGED (`tests/api/test_roi_explorer.py`) | 11 | 11 | 0 | 0 |
+| Task 4B foundation: L0-L3+ direct tiles vs independent reference and goldens: aggregations, edges, non-finite, F64 extremes, I64/U64, BF16/F16, slices, transpose, FILE_CHANGED, budgets (`tests/integration/test_tile_engine.py`) | 52 | 52 | 0 | 0 |
+| Task 4B foundation: binary layout/byte order, JSON parity vs contract schemas, status and metadata validation, headers, canonical identity and cache keys (`tests/unit/test_tile_codec.py`) | 26 | 26 | 0 | 0 |
+| Task 4B foundation: random tensors/views/levels/bands vs the reference; tiles partition the view (`tests/property/test_tile_property.py`) | 1 | 1 | 0 | 0 |
+| Task 4B foundation: 4 GiB sparse checkpoint, L0-L4 tiles: flat peak memory, reads = covered bytes, L5 refused (`tests/perf/test_tile_bounded.py`) | 1 | 1 | 0 | 0 |
 | Reader hardening: FIFOs/devices/directories refused without blocking (`tests/security/test_special_files.py`) | 3 | 3 | 0 | 0 |
 | Workstream A: evaluation kit examples reproduce against generator values, checks can fail, docs consistent (`tests/integration/test_evaluation_kit.py`) | 5 | 5 | 0 | 0 |
 | Phase 0 / 0.5 suites (regression) | 233 | 233 | 0 | 0 |

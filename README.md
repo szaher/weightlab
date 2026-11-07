@@ -51,6 +51,8 @@ Three pieces are built:
 
 `weightlab start` serves the API and the UI on the same loopback origin. It prints `http://127.0.0.1:<port>/#token=...`, and the page moves the per-launch token into `sessionStorage` and removes it from the address bar. The wheel ships the production build, so Node.js is needed only to rebuild the UI, never to run it.
 
+- **Tile engine foundation (Phase 1 task 4B, `weightlab/analysis/tile.py`, `tile_codec.py`):** exact heatmap tiles by direct bounded reads (origin-anchored 256 x 256 tiles, `block = 2^level`, count-weighted mean / mean_abs / RMS from sums of squares / min / max over finite values, NaN/+Inf/-Inf counts, overflow and float32-range withholding), the frozen binary tile body and its JSON form, and canonical SHA-256 tile identities. It is an internal Python interface only: `/api/v1/tiles` stays deferred until the exact pyramid, row-sampled previews and 202 build jobs exist (next PR); tiles covering more than `direct_tile_max_mib` are refused, never sampled.
+
 The ROI explorer shows one exact window at a time; it is not a whole-tensor overview. Tiled whole-tensor heatmaps (`/tiles`, pyramids, sampled previews), jobs, stats, exports, Compare and Adapters are not built yet. Their routes answer 404 `deferred`, the UI never calls them, and their navigation entries are marked "planned".
 
 The Phase 0.5 practitioner evaluation (doc 14, Phase 0.5 task 6) has a self-contained kit in `evaluation-kit/`:
