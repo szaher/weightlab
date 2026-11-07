@@ -159,22 +159,23 @@ class BlockAggregates:
         """Aggregates of a 2D float64 array whose first row / column sit at offset `row_phase` / `col_phase`
         (mod `block`) from a block boundary. Returns one record per (partial) block the array touches.
 
-        The array is padded to whole blocks with each reduction's identity (-0.0 for sums, which also keeps the sign
-        of a lone -0.0; 0 for counts; +/-inf for min/max) and reduced over a (rows, b, cols, b) reshape."""
+        Only the array's own cells are reduced: memory is O(array), whatever the block size (a level-52 block is
+        2^52 x 2^52 cells; nothing is ever padded to it). Sums start from -0.0, which keeps a lone -0.0's sign."""
         fin = np.isfinite(v)
         with np.errstate(over="ignore", invalid="ignore"):
             fv = np.where(fin, v, -0.0)
+            red = _BlockReducer(v.shape, row_phase, col_phase, block)
             out = cls(
-                _blocks(fin, row_phase, col_phase, block, False).sum(axis=(1, 3), dtype=np.int64),
-                _blocks(np.isnan(v), row_phase, col_phase, block, False).sum(axis=(1, 3), dtype=np.int64),
-                _blocks(np.isposinf(v), row_phase, col_phase, block, False).sum(axis=(1, 3), dtype=np.int64),
-                _blocks(np.isneginf(v), row_phase, col_phase, block, False).sum(axis=(1, 3), dtype=np.int64),
-                np.zeros(_grid(v.shape, row_phase, col_phase, block), np.uint8),
-                _blocks(fv, row_phase, col_phase, block, -0.0).sum(axis=(1, 3), initial=-0.0),
-                _blocks(np.abs(fv), row_phase, col_phase, block, -0.0).sum(axis=(1, 3), initial=-0.0),
-                _blocks(fv * fv, row_phase, col_phase, block, -0.0).sum(axis=(1, 3), initial=-0.0),
-                _blocks(np.where(fin, v, np.inf), row_phase, col_phase, block, np.inf).min(axis=(1, 3)),
-                _blocks(np.where(fin, v, -np.inf), row_phase, col_phase, block, -np.inf).max(axis=(1, 3)),
+                red.count(fin),
+                red.count(np.isnan(v)),
+                red.count(np.isposinf(v)),
+                red.count(np.isneginf(v)),
+                np.zeros(red.grid, np.uint8),
+                red.sum(fv),
+                red.sum(np.abs(fv)),
+                red.sum(fv * fv),
+                red.extreme(np.where(fin, v, np.inf), np.minimum, np.inf),
+                red.extreme(np.where(fin, v, -np.inf), np.maximum, -np.inf),
             )
         out._flag_overflow()
         return out
@@ -238,19 +239,53 @@ class BlockAggregates:
 _FIELDS = ("finite", "nan", "pos_inf", "neg_inf", "flags", "sum", "sum_abs", "sum_sq", "min", "max")
 
 
-def _grid(shape: tuple[int, ...], row_phase: int, col_phase: int, block: int) -> tuple[int, int]:
-    return -(-(row_phase + shape[0]) // block), -(-(col_phase + shape[1]) // block)
+class _BlockReducer:
+    """Per-block reductions of an h x w array placed at (row_phase, col_phase) inside a grid of block x block
+    blocks. When whole-block padding stays within 2x the array (block small next to it), the array is padded with
+    the reduction's identity and reduced over a (rows, b, cols, b) reshape; otherwise each axis is reduced over the
+    array's own block boundaries (ufunc.reduceat), so no allocation ever depends on the block size."""
+
+    def __init__(self, shape: tuple[int, ...], row_phase: int, col_phase: int, block: int) -> None:
+        h, w = int(shape[0]), int(shape[1])
+        if not (0 <= row_phase < block and 0 <= col_phase < block) or h < 1 or w < 1:
+            raise ValueError("block phases must lie within the block and the array must be non-empty")
+        self.h, self.w, self.rp, self.cp, self.block = h, w, row_phase, col_phase, block
+        self.grid = (-(-(row_phase + h) // block), -(-(col_phase + w) // block))
+        self.padded = self.grid[0] * block * self.grid[1] * block <= 2 * h * w
+        self.row_cuts = _cuts(h, row_phase, block)
+        self.col_cuts = _cuts(w, col_phase, block)
+
+    def _pad(self, a: npt.NDArray[Any], fill: Any) -> npt.NDArray[Any]:
+        (gr, gc), b = self.grid, self.block
+        if (self.rp, self.cp, gr * b, gc * b) != (0, 0, self.h, self.w):
+            p = np.full((gr * b, gc * b), fill, dtype=a.dtype)
+            p[self.rp : self.rp + self.h, self.cp : self.cp + self.w] = a
+            a = p
+        return a.reshape(gr, b, gc, b)
+
+    def count(self, mask: npt.NDArray[np.bool_]) -> I64:
+        if self.padded:
+            return self._pad(mask, False).sum(axis=(1, 3), dtype=np.int64)
+        m = np.add.reduceat(mask, self.row_cuts, axis=0, dtype=np.int64)
+        return np.add.reduceat(m, self.col_cuts, axis=1)
+
+    def sum(self, a: F64) -> F64:
+        if self.padded:
+            return self._pad(a, -0.0).sum(axis=(1, 3), initial=-0.0)
+        # reduceat starts each segment from its first element: the same as starting from -0.0 (-0.0 + x == x).
+        return np.add.reduceat(np.add.reduceat(a, self.row_cuts, axis=0), self.col_cuts, axis=1)
+
+    def extreme(self, a: F64, op: np.ufunc, fill: float) -> F64:
+        if self.padded:
+            p = self._pad(a, fill)
+            return p.min(axis=(1, 3)) if op is np.minimum else p.max(axis=(1, 3))
+        return op.reduceat(op.reduceat(a, self.row_cuts, axis=0), self.col_cuts, axis=1)
 
 
-def _blocks(a: npt.NDArray[Any], row_phase: int, col_phase: int, block: int, fill: Any) -> npt.NDArray[Any]:
-    """`a` placed at (row_phase, col_phase) in a fill-padded array of whole blocks, viewed as (rows, b, cols, b)."""
-    gr, gc = _grid(a.shape, row_phase, col_phase, block)
-    h, w = a.shape
-    if (row_phase, col_phase, gr * block, gc * block) != (0, 0, h, w):
-        padded = np.full((gr * block, gc * block), fill, dtype=a.dtype)
-        padded[row_phase : row_phase + h, col_phase : col_phase + w] = a
-        a = padded
-    return a.reshape(gr, block, gc, block)
+def _cuts(n: int, phase: int, block: int) -> npt.NDArray[np.intp]:
+    """Start offsets, within an n-long axis beginning `phase` cells into a block, of each block it touches."""
+    rest = np.arange(block - phase, n, block, dtype=np.int64)  # empty when the axis ends inside its first block
+    return np.concatenate((np.zeros(1, np.int64), rest)).astype(np.intp)
 
 
 # ------------------------------------------------------------------------------------------------------- budget

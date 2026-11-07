@@ -10,10 +10,12 @@ import struct
 from pathlib import Path
 from typing import Any
 
+import jsonschema
 import numpy as np
 import pytest
 
 from tests.api.contract import component
+from tests.helpers import write_safetensors
 from weightlab.analysis import tile_codec as tc
 from weightlab.analysis.tile import TileBudget, compute_tile, tile_geometry
 from weightlab.api.config import DEFAULT_SETTINGS
@@ -248,3 +250,67 @@ def test_budget_from_the_frozen_settings() -> None:
     assert b.memory_bytes == 1024 * 1024 * 1024 // 2  # memory_budget_mib / max_active_tiles
     with pytest.raises(ValueError, match="positive"):
         TileBudget(band_cells=0)
+
+
+# ------------------------------------------------------------------------------------------ JSON shape limits
+def shaped_tile(tmp_path: Path, rows: int, cols: int) -> tuple[Any, dict[str, Any]]:
+    a = np.arange(rows * cols, dtype="<f4")
+    path = write_safetensors(tmp_path / f"s{rows}x{cols}.safetensors", {"w": ("F32", (rows, cols), a.tobytes())})
+    with open_checkpoint(path) as ck:
+        t = compute_tile(ck, "w", View(0, 1, {}, False), level=0, x=0, y=0, aggregation="mean")
+        key = tc.cache_key(tc.tile_identity(source_kind="tensor", files=ck.fingerprints(["w"]), tensor_keys=["w"],
+                                            view=View(0, 1, {}, False), level=0, x=0, y=0, size=256,
+                                            aggregation="mean"))  # fmt: skip
+    return t, tc.metadata(t, cache_key=key, source=SOURCE, view=View(0, 1, {}, False))
+
+
+def test_json_128x128_is_valid_against_the_contract(tmp_path: Path) -> None:
+    t, meta = shaped_tile(tmp_path, 128, 128)
+    doc = tc.to_json(meta, t.values, t.status)
+    component("TileJson").validate(doc)
+    _, v, s = tc.from_json(json.loads(json.dumps(doc)))
+    np.testing.assert_array_equal(v, t.values)
+    np.testing.assert_array_equal(s, t.status)
+
+
+@pytest.mark.parametrize(("rows", "cols"), [(1, 256), (256, 64), (129, 1), (1, 129), (64, 256)])
+def test_json_rejects_any_dimension_above_128(tmp_path: Path, rows: int, cols: int) -> None:
+    """Each shape is within 16384 cells or not, but has a dimension the frozen TileJson schema forbids."""
+    t, meta = shaped_tile(tmp_path, rows, cols)
+    with pytest.raises(WeightLabError) as e:
+        tc.to_json(meta, t.values, t.status)
+    assert e.value.code.value == "NOT_ACCEPTABLE"
+    # The decoder rejects such a document too (built by hand, as the encoder refuses to).
+    doc = {"metadata": meta, "values": t.values.astype(float).tolist(), "status": t.status.astype(int).tolist()}
+    with pytest.raises(jsonschema.ValidationError):
+        component("TileJson").validate(doc)  # proof that the shape violates the contract
+    with pytest.raises(WeightLabError) as e:
+        tc.from_json(doc)
+    assert e.value.code.value == "VALIDATION_ERROR"
+
+
+# -------------------------------------------------------------------------------------- JSON status strictness
+def tiny_doc(fixtures_dir: Path) -> dict[str, Any]:
+    t, meta = edge_tile(fixtures_dir, level=0)
+    return json.loads(json.dumps(tc.to_json(meta, t.values, t.status)))
+
+
+@pytest.mark.parametrize("bad", ["0", 0.7, 0.0, True, False, None, -1, 32, 255, [0], {"s": 0}])
+def test_json_status_must_be_an_integer_within_0_31(fixtures_dir: Path, bad: object) -> None:
+    doc = tiny_doc(fixtures_dir)
+    i, j = next((i, j) for i, r in enumerate(doc["status"]) for j, s in enumerate(r) if s == 0)
+    doc["status"][i][j] = bad
+    with pytest.raises(WeightLabError) as e:
+        tc.from_json(doc)
+    assert e.value.code.value == "VALIDATION_ERROR"
+    assert "status" in e.value.detail
+
+
+@pytest.mark.parametrize("bad", ["1.0", True, [1.0]])
+def test_json_values_must_be_numbers_or_null(fixtures_dir: Path, bad: object) -> None:
+    doc = tiny_doc(fixtures_dir)
+    i, j = next((i, j) for i, r in enumerate(doc["status"]) for j, s in enumerate(r) if s == 0)
+    doc["values"][i][j] = bad
+    with pytest.raises(WeightLabError) as e:
+        tc.from_json(doc)
+    assert e.value.code.value == "VALIDATION_ERROR"

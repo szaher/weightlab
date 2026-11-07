@@ -49,6 +49,7 @@ F32 = npt.NDArray[np.float32]
 U8 = npt.NDArray[np.uint8]
 
 JSON_MAX_CELLS = 16_384
+JSON_MAX_DIM = 128  # TileJson: values / status have at most 128 rows of at most 128 entries
 LEVEL0_STATUSES = frozenset(
     {0, NO_FINITE | HAS_NAN, NO_FINITE | HAS_POS_INF, NO_FINITE | HAS_NEG_INF, NOT_REPRESENTABLE}
 )
@@ -56,6 +57,12 @@ LEVEL0_STATUSES = frozenset(
 
 def _bad(why: str) -> Exception:
     return fail(ErrorCode.VALIDATION_ERROR, f"invalid tile: {why}")
+
+
+def _check_json_shape(rows: int, cols: int, error: ErrorCode) -> None:
+    if rows > JSON_MAX_DIM or cols > JSON_MAX_DIM or rows * cols > JSON_MAX_CELLS:
+        msg = f"JSON tiles are limited to {JSON_MAX_DIM}x{JSON_MAX_DIM} cells, got {rows}x{cols}; use {TILE_FORMAT}"
+        raise fail(error, msg) if error is ErrorCode.NOT_ACCEPTABLE else _bad(msg)
 
 
 # ----------------------------------------------------------------------------------------------------- validation
@@ -178,8 +185,7 @@ def headers(meta: Mapping[str, Any]) -> dict[str, str]:
 
 def to_json(meta: Mapping[str, Any], values: F32, status: U8) -> dict[str, Any]:
     rows, cols = values.shape
-    if rows * cols > JSON_MAX_CELLS:
-        raise fail(ErrorCode.NOT_ACCEPTABLE, f"JSON tiles are limited to {JSON_MAX_CELLS} cells; use {TILE_FORMAT}")
+    _check_json_shape(rows, cols, ErrorCode.NOT_ACCEPTABLE)
     validate_metadata(meta, rows, cols)
     validate_cells(values, status, int(meta["level"]))
     drawable = (status & DRAWABLE_MASK) == 0
@@ -194,13 +200,19 @@ def from_json(doc: Mapping[str, Any]) -> tuple[dict[str, Any], F32, U8]:
     meta = dict(doc["metadata"])
     raw_vals: Sequence[Sequence[float | None]] = doc["values"]
     raw_status: Sequence[Sequence[int]] = doc["status"]
+    if not isinstance(raw_vals, list) or not isinstance(raw_status, list):
+        raise _bad("values and status must be arrays")
+    if not all(isinstance(r, list) for r in raw_vals) or not all(isinstance(r, list) for r in raw_status):
+        raise _bad("values and status must be arrays of arrays")
     rows, cols = len(raw_status), len(raw_status[0]) if raw_status else 0
     if len(raw_vals) != rows or any(len(r) != cols for r in raw_vals) or any(len(r) != cols for r in raw_status):
         raise _bad("values and status must be rectangular and of the same shape")
-    status = np.array(raw_status, dtype=np.int64)
-    if np.any((status < 0) | (status > 255)):
-        raise _bad("status out of byte range")
-    st = status.astype(np.uint8)
+    _check_json_shape(rows, cols, ErrorCode.VALIDATION_ERROR)
+    for i, row in enumerate(raw_status):  # TileStatus: a JSON integer 0..31 (no strings, booleans or fractions)
+        for j, s in enumerate(row):
+            if type(s) is not int or not 0 <= s <= 31:
+                raise _bad(f"cell {i},{j}: status must be an integer within 0..31, got {s!r}")
+    st = np.array(raw_status, dtype=np.uint8).reshape(rows, cols)
     values = np.full((rows, cols), np.nan, np.float32)
     for i, row in enumerate(raw_vals):
         for j, v in enumerate(row):
@@ -208,6 +220,8 @@ def from_json(doc: Mapping[str, Any]) -> tuple[dict[str, Any], F32, U8]:
             if (v is None) == drawable:
                 raise _bad(f"cell {i},{j}: null exactly for non-drawable cells")
             if v is not None:
+                if type(v) not in (int, float):
+                    raise _bad(f"cell {i},{j}: value must be a number or null, got {v!r}")
                 f = np.float32(v)
                 if float(f) != v:
                     raise _bad(f"cell {i},{j}: value is not a float32")

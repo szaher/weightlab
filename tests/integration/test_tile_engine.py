@@ -443,3 +443,53 @@ def test_transposed_reads_stay_near_the_covered_bytes(tmp_path: Path) -> None:
         trans = compute_tile(ck, "w", View(0, 1, {}, True), level=2, x=0, y=0, aggregation="mean")
     assert plain.bytes_read == trans.bytes_read == a.nbytes
     np.testing.assert_array_equal(trans.values, plain.values.T)
+
+
+# ------------------------------------------------------------------------------------------ high levels, bounded
+@pytest.mark.parametrize("level", [16, 32, 52])
+@pytest.mark.parametrize("shape", [(8, 8), (3, 300), (300, 3)])
+def test_tiny_tensors_at_huge_levels_use_memory_of_the_tensor_not_the_block(
+    tmp_path: Path, level: int, shape: tuple[int, int]
+) -> None:
+    """A level-L block is 2^L x 2^L cells (level 16: 4 Gi cells, 32 GiB as float64). The engine must reduce only
+    the tensor's own cells: the traced allocation peak stays within a few times the tensor, whatever the level."""
+    import tracemalloc
+
+    rng = np.random.default_rng(level)
+    a = rng.standard_normal(shape).astype("<f4")
+    a.flat[1] = np.nan
+    a.flat[2] = -np.inf
+    path = write_safetensors(tmp_path / "t.safetensors", {"w": ("F32", shape, a.tobytes())})
+    v = view2d(decode_tensor(path, "w"), 0, 1, {}, False)
+    with open_checkpoint(path) as ck:
+        for agg in AGGREGATIONS:
+            tracemalloc.start()
+            try:
+                tile = compute_tile(ck, "w", None, level=level, x=0, y=0, aggregation=agg,
+                                    budget=TileBudget(band_cells=97))  # fmt: skip  # several rectangles, odd phases
+                _, peak = tracemalloc.get_traced_memory()
+            finally:
+                tracemalloc.stop()
+            check(tile, ref_tile(v, level, 0, 0, 256, agg), exact=agg in ("min", "max"))
+            assert tile.status.tolist() == [[2 | 8]]  # HAS_NAN | HAS_NEG_INF; the finite aggregate is drawable
+            assert (tile.finite_count, tile.nonfinite_count) == (a.size - 2, 2)
+            assert peak < 1024 * 1024, f"level {level} {agg}: traced peak {peak} bytes"
+
+
+def test_large_blocks_over_partial_rectangles_match_the_reference(tmp_path: Path) -> None:
+    """Blocks larger than the read rectangles (block-size-independent reduction path) with every phase offset."""
+    rng = np.random.default_rng(7)
+    a = (rng.standard_normal((70, 90)) * 10.0 ** rng.integers(-3, 4, (70, 90))).astype("<f8")
+    a[5, 5], a[60, 80], a[33, 1] = np.nan, np.inf, -0.0
+    path = write_safetensors(tmp_path / "t.safetensors", {"w": ("F64", (70, 90), a.tobytes())})
+    v = view2d(decode_tensor(path, "w"), 0, 1, {}, False)
+    with open_checkpoint(path) as ck:
+        for level in (5, 6, 7, 20):
+            for band in (13, 64, 1000):
+                for agg in AGGREGATIONS:
+                    span = 3 << level
+                    for y in range(-(-70 // span)):
+                        for x in range(-(-90 // span)):
+                            t = compute_tile(ck, "w", None, level=level, x=x, y=y, size=3, aggregation=agg,
+                                             budget=TileBudget(band_cells=band))  # fmt: skip
+                            check(t, ref_tile(v, level, x, y, 3, agg), exact=agg in ("min", "max"))

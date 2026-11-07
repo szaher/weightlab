@@ -17,7 +17,7 @@ Branch `phase-1-tile-engine`, based on `main` at cccd5de (merged PR #5). Spec 1.
 | Module | Contents |
 |---|---|
 | `weightlab/analysis/tile.py` | `tile_geometry`; `BlockAggregates` (record format v1 fields: finite/NaN/+Inf/−Inf counts, overflow flags, Σx, Σ\|x\|, Σx², min, max; merge by addition and min/max); `display` (`mean`, `mean_abs`, `rms`, `min`, `max` → float32 + status); `TileBudget` (`from_settings`); `compute_tile` |
-| `weightlab/analysis/tile_codec.py` | Binary encode/decode (`rows*cols` float32 LE then `rows*cols` uint8), status and metadata validation, `TileMetadata` builder, response headers, `TileJson` to/from (≤ 16,384 cells), canonical identity and SHA-256 `cache_key` |
+| `weightlab/analysis/tile_codec.py` | Binary encode/decode (`rows*cols` float32 LE then `rows*cols` uint8), status and metadata validation, `TileMetadata` builder, response headers, `TileJson` to/from (≤ 128 × 128: each dimension ≤ 128 and ≤ 16,384 cells; statuses must be JSON integers 0–31, values numbers or `null`), canonical identity and SHA-256 `cache_key` |
 | `weightlab/formats/checkpoint.py` | `roi_read_bytes` (plan a read's stripe bytes without reading), `fingerprints` (quick fingerprint of the files holding given keys, plus the shard index for sharded models) |
 
 ### Semantics
@@ -29,6 +29,7 @@ Branch `phase-1-tile-engine`, based on `main` at cccd5de (merged PR #5). Spec 1.
 - **Aggregation over finite values only** (doc 05 §6):
   - **Formulas:** mean = Σx/n, mean_abs = Σ|x|/n, rms = √(Σx²/n), min/max over finite elements. Partial records merge by addition, so means are count-weighted and RMS comes from sums of squares. Per-block RMS values are never averaged.
   - **Accumulators:** sums start from −0.0, so a lone −0.0 keeps its sign.
+  - **Bounded at every level.** Only the real cells of each block are reduced. When whole-block padding stays within 2× the read rectangle, the rectangle is padded with each reduction's identity and reduced over a `(rows, b, cols, b)` reshape. Otherwise each axis is reduced over the rectangle's own block boundaries (`ufunc.reduceat`). No allocation depends on the block size, so an 8 × 8 tensor at level 52 (blocks of 2^52 × 2^52) costs what the 64 cells cost.
   - **Counts:** NaN, +Inf and −Inf counts give the status bits; a block with no finite element is `NO_FINITE` (1) plus its kinds.
 - **Never a fabricated drawable value:**
   - A float64 sum that becomes non-finite although every input was finite sets `SUM_OVERFLOW`, `SUM_ABS_OVERFLOW` or `SUM_SQ_OVERFLOW`, and the flags propagate when records merge.
@@ -78,7 +79,7 @@ Branch `phase-1-tile-engine`, based on `main` at cccd5de (merged PR #5). Spec 1.
 - it aggregates every block on its own with Python `Fraction` sums (rounded once) and the generator's status rule;
 - it also uses the golden values in `examples/fixtures/expected_results.json`.
 
-Float32 display values must match bit for bit at L0 and for min/max. Means and RMS may differ by at most 1 float32 ulp, because float64 summation order differs from the exactly rounded reference. Statuses and counts must match exactly.
+Float32 display values must match bit for bit at L0 and for min/max. Means and RMS may differ by at most 1 float32 ulp, because float64 summation order differs from the exactly rounded reference. Statuses and counts must match exactly. The property test applies that rule wherever the rigorous float64 recursive-summation bound (`sum_error_bound`, γ(n+1)·Σ\|x\|/n, Higham eq. 4.4) is below 2^-25 of the exact value. In an ill-conditioned block it requires the result to be within that bound, and only the `NOT_REPRESENTABLE` bit may differ (see Findings).
 
 | Requirement | Test(s) | Result |
 |---|---|---|
@@ -94,16 +95,21 @@ Float32 display values must match bit for bit at L0 and for min/max. Means and R
 | BF16/F16 decoding, incl. specials and −0.0 | `test_half_precision_decoding` (4) | pass |
 | Rank-3 slices (5 views) and transpose; golden cube slice means 15.5 and 47.5 | `test_rank3_slices_and_transpose`, `test_transposed_view_of_the_odd_tensor` | pass |
 | Rank 0, rank 1, BOOL | `test_rank0_rank1_and_bool` | pass |
-| Random F32/F64 tensors with NaN/±Inf/−0/1e300/5e-324/3.5e38, random rank, view, level, size, band and aggregation; tiles of a level partition the view | `tests/property/test_tile_property.py` (150 examples) | pass |
+| Random F32/F64 tensors with NaN/±Inf/−0/1e300/5e-324/3.5e38, random rank, view, level, size, band and aggregation; tiles of a level partition the view | `tests/property/test_tile_property.py` (150 examples, levels 0–8, plus a pinned cancellation case; 3,000-example stress run also passed) | pass |
 | Binary layout, byte order (`1.0f` = `00 00 80 3f`), exact length | `test_binary_layout_and_byte_order`, `test_body_length_must_be_exact` | pass |
 | JSON parity (golden L4 and L0 tiles), validated against the frozen `TileJson` and `TileMetadata` schemas | `test_golden_tile_round_trips_…`, `test_level0_json_parity_…` | pass |
 | Reserved bits, status rules, metadata consistency | `test_invalid_cells_are_rejected` (10), `test_metadata_consistency_is_checked` | pass |
 | Source change during reads and after the last read → `FILE_CHANGED` | `test_source_change_during_reads_…`, `test_change_after_the_last_read_…` | pass |
 | Oversized coordinates, invalid levels, sizes and aggregations; invalid views; all budgets — rejected before any read | `test_invalid_geometry_is_rejected` (12), `test_invalid_views_are_rejected`, `test_budgets_are_enforced_before_reading`, `test_direct_budget_refuses_tiles_that_need_a_pyramid` | pass; `bytes_read` unchanged |
+| Tiny tensors (8 × 8, 3 × 300, 300 × 3) at levels 16, 32 and 52, every aggregation: exact values and a traced allocation peak below 1 MiB | `test_tiny_tensors_at_huge_levels_use_memory_of_the_tensor_not_the_block` (9) | pass; on 1e816f08 levels 32/52 fail (`array is too big`) |
+| Blocks larger than the read rectangles (levels 5, 6, 7, 20; bands of 13/64/1000 cells; every phase) | `test_large_blocks_over_partial_rectangles_match_the_reference` | pass; on 1e816f08 level 20 drives the process out of memory (killed) |
+| JSON 128 × 128 valid against `TileJson`; 1 × 256, 256 × 64, 129 × 1, 1 × 129, 64 × 256 refused by `to_json` (`NOT_ACCEPTABLE`) and `from_json` (`VALIDATION_ERROR`), and shown invalid by the schema | `test_json_128x128_…`, `test_json_rejects_any_dimension_above_128` (5) | pass; all 5 fail on 1e816f08 |
+| JSON statuses `"0"`, 0.7, 0.0, true, false, null, −1, 32, 255, `[0]`, `{}` and values `"1.0"`, true, `[1.0]` rejected | `test_json_status_must_be_an_integer_within_0_31` (11), `test_json_values_must_be_numbers_or_null` (3) | pass; 11 of these fail on 1e816f08 (−1, 32 and `"1.0"` were already rejected) |
 | Cache keys change with every identity input; key order irrelevant; a fingerprint change invalidates | `test_cache_keys_…`, `test_fingerprint_change_…`, `test_sharded_fingerprints_include_the_index` | pass |
 
 **Findings while testing** (no change in behaviour was needed):
 - For `[[big, big], [−big, −big]]`, whether float64 overflows depends on NumPy's summation order. The engine either returns the exact 0 or withholds the cell, never a wrong number; the tests accept exactly these two outcomes. A deterministic merge order that must overflow is tested on the aggregate records.
+- **Float64 cancellation (found by the wider property test).** Record format v1 keeps one float64 Σx per block. In a block that mixes magnitudes more than 2^53 apart, the small terms can vanish: `[3.4e38, 1e300, −0.0, 3.5e38, −0.0, −1e300]` sums to 0 in float64, but the true mean is 1.15e38. The engine then shows 0.0, labelled `numeric_precision = rounded`. This error is inherent to float64 accumulation, and the old property test (levels 0–4) could hit it as well. It is pinned as an `@example` and listed under Known limitations.
 - min/max of {+0.0, −0.0} may be either zero (IEEE 754 leaves it open). Above L0, the tests compare those values numerically.
 
 ## Memory and I/O (measured)
@@ -112,18 +118,18 @@ Float32 display values must match bit for bit at L0 and for min/max. Means and R
 
 | Tile | Time | Covered | Read | Peak after (process) |
 |---|---|---|---|---|
-| — after open | — | — | — | 19.1 MiB |
-| L0 origin | 18 ms | 0.25 MiB | 0.25 MiB | 32.3 MiB |
-| L0 far corner (value 64 found) | 17 ms | 0.25 MiB | 0.25 MiB | 34.1 MiB |
-| L1 | 45 ms | 1 MiB | 1 MiB | 40.8 MiB |
-| L2 | 153 ms | 4 MiB | 4 MiB | 50.5 MiB |
-| L3 | 411 ms | 16 MiB | 16 MiB | 52.9 MiB |
-| L3 far corner (max 64 found) | 316 ms | 16 MiB | 16 MiB | 52.9 MiB |
-| L3 transposed | 713 ms | 16 MiB | 16 MiB | 53.0 MiB |
-| L4 (64 MiB, the direct limit) | 1,002 ms | 64 MiB | 64 MiB | 53.3 MiB |
+| — after open | — | — | — | 18.9 MiB |
+| L0 origin | 11 ms | 0.25 MiB | 0.25 MiB | 31.0 MiB |
+| L0 far corner (value 64 found) | 10 ms | 0.25 MiB | 0.25 MiB | 31.4 MiB |
+| L1 | 31 ms | 1 MiB | 1 MiB | 36.1 MiB |
+| L2 | 88 ms | 4 MiB | 4 MiB | 38.6 MiB |
+| L3 | 314 ms | 16 MiB | 16 MiB | 46.7 MiB |
+| L3 far corner (max 64 found) | 267 ms | 16 MiB | 16 MiB | 46.7 MiB |
+| L3 transposed | 593 ms | 16 MiB | 16 MiB | 46.8 MiB |
+| L4 (64 MiB, the direct limit) | 766 ms | 64 MiB | 64 MiB | 47.0 MiB |
 | L5 | refused: `RESOURCE_LIMIT … needs the exact pyramid` | 256 MiB | 0 | — |
 
-The peak grows by **34 MiB** above the opened state for a 4 GiB file, in line with the engine's working-set estimate (~35 MiB). Reads equal covered bytes, including the transposed view. `tests/perf/test_tile_bounded.py` asserts:
+Measured after the review fixes. The peak grows by **28 MiB** above the opened state for a 4 GiB file, in line with the engine's working-set estimate (~35 MiB). Reads equal covered bytes, including the transposed view. `tests/perf/test_tile_bounded.py` asserts:
 - growth below 128 MiB;
 - `bytes_read == covered_bytes`;
 - the far-corner values;
@@ -137,8 +143,8 @@ Speed. Replacing two-stage `reduceat` with a padded `(rows, b, cols, b)` reshape
 |---|---|
 | `uv run ruff format --check . && uv run ruff check .` | clean |
 | `uv run mypy --platform {linux,darwin,win32}` | no issues (44 files each) |
-| `uv run pytest -q` | **524 passed** (444 before; 80 new: engine 52, codec 26, property 1, perf 1) |
-| `uv run python scripts/phase1_evidence.py --out evidence/phase1` | PASS, 524 passed, 0 failed, 0 skipped |
+| `uv run pytest -q` | **554 passed** (444 before PR #6; 110 new: engine 62, codec 46, property 1, perf 1) |
+| `uv run python scripts/phase1_evidence.py --out evidence/phase1` | PASS, 554 passed, 0 failed, 0 skipped |
 | `uv run python scripts/tile_benchmark.py --size-gib 4` | table above |
 | `check_spec`, `check_contracts`, `check_demo_fixtures`, `manifest --check` | see the PR description |
 
@@ -151,5 +157,6 @@ Linux and Windows were not run locally; the CI matrix covers them, including the
 - **Derived sources.** Only `kind = tensor` sources are computed. The identity function already takes `source_kind`, extra files and `operation` parameters, but delta and LoRA tiles are not implemented.
 - **Caching.** There is no persistent or in-memory tile cache, only the key. Reads are single-threaded.
 - **Counters.** Counts are int64 per output cell. The uint16 base / uint64 coarse on-disk record layout belongs to the pyramid store, which is not built yet.
-- **Overflow is order-dependent.** As documented above, a mathematically representable mean can be withheld when float64 overflows on the way. It is never shown wrong.
+- **Overflow is order-dependent.** As documented above, a mathematically representable mean can be withheld when float64 overflows on the way. It is never shown as Inf.
+- **Float64 cancellation.** mean is computed from one float64 Σx (record format v1). When a block holds values more than 2^53 apart in magnitude that cancel (for example ±1e300 next to 1e38), the drawable mean can be far from the true mean. Such tiles are labelled `rounded`, and exact values come from `/tensors/roi`. Withholding these cells needs an error-bound rule (for example Σ\|x\| against \|Σx\|). That rule would change the status semantics that the frozen fixture generator defines, so it is left as an open spec decision.
 - **Below the float32 range.** Float32 display of values below its range rounds toward 0 (for example 5e-324 → 0); such cells stay drawable, with `value_precision = float32_visualization` stating the loss.

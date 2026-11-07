@@ -79,8 +79,14 @@ AREAS = [
         "tests/unit/test_tile_codec.py",
         "Task 4B foundation: binary layout/byte order, JSON parity vs contract schemas, status and metadata validation, headers, canonical identity and cache keys",
     ),
-    ("tests/property/test_tile_property.py", "Task 4B foundation: random tensors/views/levels/bands vs the reference; tiles partition the view"),
-    ("tests/perf/test_tile_bounded.py", "Task 4B foundation: 4 GiB sparse checkpoint, L0-L4 tiles: flat peak memory, reads = covered bytes, L5 refused"),
+    (
+        "tests/property/test_tile_property.py",
+        "Task 4B foundation: random tensors/views/levels/bands vs the reference; tiles partition the view",
+    ),
+    (
+        "tests/perf/test_tile_bounded.py",
+        "Task 4B foundation: 4 GiB sparse checkpoint, L0-L4 tiles: flat peak memory, reads = covered bytes, L5 refused",
+    ),
     ("tests/security/test_special_files.py", "Reader hardening: FIFOs/devices/directories refused without blocking"),
     (
         "tests/integration/test_evaluation_kit.py",

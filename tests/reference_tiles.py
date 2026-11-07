@@ -113,3 +113,49 @@ def ref_tile(view: npt.NDArray[Any], level: int, x: int, y: int, size: int, aggr
     finite = sum(1 for v in flat if math.isfinite(v))
     return {"values": values, "status": status, "exact": exact, "rows": rows, "cols": cols,
             "range": (r0, r1, c0, c1), "finite": finite, "nonfinite": len(flat) - finite}  # fmt: skip
+
+
+U64 = 2.0**-53  # float64 unit roundoff
+
+
+def _gamma(k: int) -> float:
+    return k * U64 / (1 - k * U64)
+
+
+def sum_error_bound(
+    view: npt.NDArray[Any], level: int, x: int, y: int, size: int, aggregation: str
+) -> tuple[npt.NDArray[np.float64], npt.NDArray[np.float64]]:
+    """Per cell: (rigorous bound on |float64 result - exact aggregate|, exact aggregate as float64, inf if beyond).
+
+    Record format v1 keeps one float64 sum per block, so mean / mean_abs / rms carry the error of recursive float64
+    summation in any order (Higham, Accuracy and Stability of Numerical Algorithms, 2nd ed., eq. 4.4): at most
+    gamma(n-1) * sum|x_i| for the sum, one more rounding per square and for the division. min / max are exact.
+    In a well-conditioned block the bound is a tiny fraction of the value; it exceeds the value only when a block
+    mixes magnitudes so far apart (e.g. +/-1e300 with 1e38) that float64 cancellation loses the small terms."""
+    b = 1 << level
+    span = size * b
+    r0, c0 = y * span, x * span
+    sub = view[r0 : min(view.shape[0], r0 + span), c0 : min(view.shape[1], c0 + span)]
+    rows, cols = -(-sub.shape[0] // b), -(-sub.shape[1] // b)
+    bound = np.zeros((rows, cols))
+    exact = np.full((rows, cols), np.nan)
+    for i in range(rows):
+        for j in range(cols):
+            fin = [float(v) for v in np.asarray(sub[i * b : (i + 1) * b, j * b : (j + 1) * b]).ravel()]
+            fin = [v for v in fin if math.isfinite(v)]
+            n = len(fin)
+            if not n or aggregation in ("min", "max"):
+                continue
+            if aggregation == "rms":
+                sq = sum((Fraction(v) ** 2 for v in fin), Fraction(0))
+                ms = sq / n
+                e2 = _gamma(n + 1) * float(min(sq, Fraction(1.7e308))) / n  # error of the float64 mean square
+                fms = float(min(ms, Fraction(1.7e308)))
+                exact[i, j] = math.sqrt(fms)
+                bound[i, j] = e2 / (math.sqrt(fms) + math.sqrt(max(fms - e2, 0.0))) if fms > 0 else 0.0
+                bound[i, j] += U64 * exact[i, j]  # the square root's own rounding
+            else:
+                q = sum((Fraction(abs(v) if aggregation == "mean_abs" else v) for v in fin), Fraction(0)) / n
+                exact[i, j] = float(q) if abs(q) <= Fraction(1.7976931348623157e308) else math.copysign(math.inf, q)
+                bound[i, j] = _gamma(n + 1) * math.fsum(abs(v) for v in fin) / n
+    return bound, exact

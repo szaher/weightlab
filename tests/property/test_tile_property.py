@@ -4,15 +4,17 @@ size; the tiles of one level partition the view exactly."""
 
 from __future__ import annotations
 
+import os
 import tempfile
 from pathlib import Path
+from typing import Any
 
 import numpy as np
-from hypothesis import HealthCheck, given, settings
+from hypothesis import HealthCheck, example, given, settings
 from hypothesis import strategies as st
 
 from tests.helpers import write_safetensors
-from tests.reference_tiles import decode_tensor, ref_tile, view2d
+from tests.reference_tiles import decode_tensor, ref_tile, sum_error_bound, view2d
 from weightlab import open_checkpoint
 from weightlab.analysis.tile import AGGREGATIONS, TileBudget, compute_tile, tile_geometry
 from weightlab.formats.selection import View
@@ -40,7 +42,7 @@ def cases(draw: st.DrawFn) -> dict[str, object]:
         ra, ca = draw(st.permutations(range(rank)))[:2]
         fixed = {ax: draw(st.integers(0, shape[ax] - 1)) for ax in range(rank) if ax not in (ra, ca)}
         view = View(ra, ca, fixed, draw(st.booleans()))
-    level = draw(st.integers(0, 4))
+    level = draw(st.integers(0, 8))  # >= 5 exercises blocks larger than the tensor (reduceat path)
     size = draw(st.integers(1, 9))
     band = draw(st.integers(1, 64))
     agg = draw(st.sampled_from(AGGREGATIONS))
@@ -56,8 +58,32 @@ def cases(draw: st.DrawFn) -> dict[str, object]:
     }
 
 
-@settings(max_examples=150, deadline=None, suppress_health_check=[HealthCheck.too_slow])
+def assert_matches(tile: Any, ref: dict[str, Any], bound: Any, exact: Any) -> None:
+    """Exact status and the float32 rounding of the exact aggregate (1 ulp) wherever float64 summation is
+    accurate to well below float32 resolution (bound <= 2^-25 |exact|): every cell of min / max and of any
+    well-conditioned block. Where it is not (cancellation between magnitudes > 2^53 apart), the result must
+    still be within the rigorous float64 error bound and only the NOT_REPRESENTABLE bit, which then depends
+    on the summation order, may differ."""
+    ill = bound > 2.0**-25 * np.abs(exact)
+    ok = ~ill
+    np.testing.assert_array_equal(tile.status[ok], ref["status"][ok])
+    np.testing.assert_allclose(tile.values[ok], ref["values"][ok], rtol=2.0**-23, atol=0, equal_nan=True)
+    np.testing.assert_array_equal(tile.status[ill] & 0xEF, ref["status"][ill] & 0xEF)
+    both = ill & ((tile.status & 17) == 0) & ((ref["status"] & 17) == 0)
+    err = np.abs(tile.values[both].astype(np.float64) - exact[both])
+    assert np.all(err <= 2 * bound[both] + np.abs(exact[both]) * 2.0**-23), (err, bound[both])
+
+
+@settings(
+    max_examples=int(os.environ.get("WEIGHTLAB_PROPERTY_EXAMPLES", "150")),
+    deadline=None,
+    suppress_health_check=[HealthCheck.too_slow],
+)
 @given(cases())
+@example(  # float64 cancellation: 3.4e38 and 3.5e38 vanish between +1e300 and -1e300 (true mean 1.15e38)
+    {"dtype": "F64", "shape": (8,), "view": None, "level": 3, "size": 1, "band": 1, "agg": "mean",
+     "data": np.array([3.4e38, np.inf, 1e300, -0.0, 3.5e38, np.nan, -0.0, -1e300], "<f8").tobytes()}
+)  # fmt: skip
 def test_any_tile_matches_the_reference(case: dict[str, object]) -> None:
     with tempfile.TemporaryDirectory() as d:
         path = write_safetensors(Path(d) / "t.safetensors", {"w": (case["dtype"], case["shape"], case["data"])})  # type: ignore[dict-item]
@@ -78,8 +104,7 @@ def test_any_tile_matches_the_reference(case: dict[str, object]) -> None:
                     tile = compute_tile(ck, "w", view, level=level, x=x, y=y, size=size, aggregation=case["agg"],  # type: ignore[arg-type]
                                         budget=TileBudget(band_cells=int(case["band"])))  # type: ignore[call-overload]  # fmt: skip
                     ref = ref_tile(v, level, x, y, size, str(case["agg"]))
-                    np.testing.assert_array_equal(tile.status, ref["status"])
-                    np.testing.assert_allclose(tile.values, ref["values"], rtol=2.0**-23, atol=0, equal_nan=True)
+                    assert_matches(tile, ref, *sum_error_bound(v, level, x, y, size, str(case["agg"])))
                     assert (tile.finite_count, tile.nonfinite_count) == (ref["finite"], ref["nonfinite"])
                     covered += tile.geometry.covered_cells
         assert covered == v.shape[0] * v.shape[1]  # the tiles of one level partition the view
