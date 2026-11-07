@@ -182,3 +182,67 @@ def test_integrity_reports_foreign_key_violations(tmp_path: Path) -> None:
     c.close()
     assert report.foreign_key_violations == 1
     assert report.ok is False
+
+
+def _hot_wal_database(path: Path, statements: list[str]) -> None:
+    """A WAL database whose committed transactions are still only in a non-empty -wal (as after a crash): no
+    checkpoint on close, and the -shm removed."""
+    c = sqlite3.connect(path, isolation_level=None)
+    c.execute("PRAGMA journal_mode = WAL")
+    c.execute("PRAGMA wal_autocheckpoint = 0")
+    c.setconfig(sqlite3.SQLITE_DBCONFIG_NO_CKPT_ON_CLOSE, True)
+    for s in statements:
+        c.execute(s)
+    c.close()
+    Path(f"{path}-shm").unlink(missing_ok=True)
+    assert Path(f"{path}-wal").stat().st_size > 0
+
+
+def _snapshot(directory: Path) -> dict[str, str]:
+    return {p.name: hashlib.sha256(p.read_bytes()).hexdigest() for p in sorted(directory.iterdir())}
+
+
+def test_foreign_database_with_hot_wal_is_refused_without_sidecar_files(tmp_path: Path) -> None:
+    """PR #3 review, round 2: the hot-WAL branch opened the original with mode=ro, and SQLite created a -shm
+    next to it. The inspection must leave the directory exactly as it was: same files, same bytes."""
+    path = tmp_path / "other.sqlite3"
+    _hot_wal_database(path, ["CREATE TABLE notes (x TEXT)", "INSERT INTO notes VALUES ('only in the WAL')"])
+    before = _snapshot(tmp_path)
+    assert set(before) == {"other.sqlite3", "other.sqlite3-wal"}
+    with pytest.raises(DatabaseVersionError, match="not a WeightLab database"):
+        migrate(path)
+    with pytest.raises(DatabaseVersionError):
+        Database(path)
+    assert _snapshot(tmp_path) == before
+
+
+def test_hot_wal_contents_are_inspected_not_ignored(tmp_path: Path) -> None:
+    """A WeightLab database whose newer-version row exists only in the WAL: an inspection that ignored the WAL
+    (immutable) would see version 1 and let migrate() open the original. It must be refused, untouched."""
+    path = tmp_path / "w.sqlite3"
+    Database(path)
+    _hot_wal_database(path, ["INSERT INTO schema_migrations VALUES (99, '2030-01-01T00:00:00Z', 'x')"])
+    before = _snapshot(tmp_path)
+    with pytest.raises(DatabaseVersionError, match="newer"):
+        migrate(path)
+    assert _snapshot(tmp_path) == before
+
+
+def test_preflight_refuses_a_database_that_keeps_changing(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """The snapshot copy is retried when the files change while being copied, and refused if they never settle."""
+    path = tmp_path / "w.sqlite3"
+    _hot_wal_database(path, ["CREATE TABLE notes (x TEXT)"])
+    real = mig._copy_snapshot
+    calls = 0
+
+    def busy(src: Path, wal: Path, dest: Path) -> None:
+        nonlocal calls
+        calls += 1
+        real(src, wal, dest)
+        with wal.open("ab") as f:  # a concurrent writer appends to the WAL during every copy
+            f.write(b"\0")
+
+    monkeypatch.setattr(mig, "_copy_snapshot", busy)
+    with pytest.raises(DatabaseVersionError, match="changing"):
+        migrate(path)
+    assert calls == mig.SNAPSHOT_ATTEMPTS

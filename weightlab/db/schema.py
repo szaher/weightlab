@@ -5,7 +5,8 @@
   transaction together with its `schema_migrations` row (version, time, SHA-256 of the file).
 * Fail closed: a database written by a newer WeightLab (version above the latest known), one whose
   applied migration no longer matches the shipped file, or a foreign SQLite file is refused without being
-  modified. The check runs on a read-only connection before the connection policy (WAL) is applied.
+  modified, with no sidecar file created next to it. The check runs before the connection policy (WAL) is
+  applied: read-only and immutable on the original, or on a private copy when the WAL holds committed data.
 * Before upgrading a database that already holds a schema, a backup is taken with the SQLite backup
   API (never a raw copy of a live WAL database).
 """
@@ -16,7 +17,9 @@ import datetime as dt
 import hashlib
 import os
 import re
+import shutil
 import sqlite3
+import tempfile
 from dataclasses import dataclass
 from importlib import resources
 from pathlib import Path
@@ -141,20 +144,25 @@ def _check_schema(conn: sqlite3.Connection, known: list[Migration]) -> int:
     return start
 
 
-def _preflight(path: str | os.PathLike[str], known: list[Migration]) -> None:
-    """Check an existing database through a read-only connection *before* the WeightLab connection policy
-    runs: `PRAGMA journal_mode = WAL` rewrites the file header, so a foreign, newer or edited database
-    must be refused before connect() ever sees it."""
-    raw = os.fspath(path)
-    p = Path(raw)
-    if raw == ":memory:" or not p.exists() or p.stat().st_size == 0:
-        return  # nothing to protect: connect() creates it
-    # immutable=1: no locks, no -wal/-shm created (a plain mode=ro open of a WAL database leaves both behind).
-    # It ignores a WAL, so when a non-empty -wal exists (a crashed writer) the ro open must read it instead.
-    wal = Path(raw + "-wal")
-    hot = wal.exists() and wal.stat().st_size > 0
-    query = "?mode=ro" if hot else "?mode=ro&immutable=1"
-    conn = sqlite3.connect(p.resolve().as_uri() + query, uri=True, isolation_level=None)
+SNAPSHOT_ATTEMPTS = 3
+
+
+def _stat_key(p: Path) -> tuple[int, int, int, int] | None:
+    try:
+        st = os.stat(p)
+    except FileNotFoundError:
+        return None
+    return (st.st_size, st.st_mtime_ns, st.st_dev, st.st_ino)
+
+
+def _copy_snapshot(src: Path, wal: Path, dest: Path) -> None:
+    """Copy the database and its WAL (never the -shm, which SQLite rebuilds from the WAL) into `dest`."""
+    shutil.copyfile(src, dest / "db.sqlite3")
+    shutil.copyfile(wal, dest / "db.sqlite3-wal")
+
+
+def _inspect(uri: str, known: list[Migration]) -> None:
+    conn = sqlite3.connect(uri, uri=True, isolation_level=None)
     conn.row_factory = sqlite3.Row
     try:
         _check_schema(conn, known)
@@ -162,6 +170,43 @@ def _preflight(path: str | os.PathLike[str], known: list[Migration]) -> None:
         raise DatabaseVersionError(f"not a readable SQLite database ({e}); it was not modified") from None
     finally:
         conn.close()
+
+
+def _preflight(path: str | os.PathLike[str], known: list[Migration]) -> None:
+    """Check an existing database *before* the WeightLab connection policy runs (`PRAGMA journal_mode = WAL`
+    rewrites the file header), so a foreign, newer or edited database is refused with its directory untouched:
+    same files, same bytes.
+
+    * No WAL content: the original is opened with `mode=ro&immutable=1` (no locks, no -wal/-shm created).
+    * A non-empty -wal (committed transactions not yet checkpointed, e.g. after a crash): `immutable` would
+      ignore them, and any other open of the original creates a -shm next to it. So the database and WAL are
+      copied into a private temporary directory and the copy is inspected there; SQLite's WAL recovery runs on
+      the copy. Both files' (size, mtime, device, inode) must be the same before and after the copy, so a copy
+      torn by a concurrent writer is never trusted: it is retried, and refused after SNAPSHOT_ATTEMPTS.
+    """
+    raw = os.fspath(path)
+    p = Path(raw)
+    if raw == ":memory:" or not p.exists() or p.stat().st_size == 0:
+        return  # nothing to protect: connect() creates it
+    wal = Path(raw + "-wal")
+    for _ in range(SNAPSHOT_ATTEMPTS):
+        before = (_stat_key(p), _stat_key(wal))
+        if before[1] is None or before[1][0] == 0:  # re-evaluated per attempt: a writer may checkpoint meanwhile
+            _inspect(p.resolve().as_uri() + "?mode=ro&immutable=1", known)
+            return
+        with tempfile.TemporaryDirectory(prefix="weightlab-preflight-") as tmp:
+            snap = Path(tmp)
+            try:
+                _copy_snapshot(p, wal, snap)
+            except FileNotFoundError:
+                continue  # checkpointed or moved while copying: look again
+            if (_stat_key(p), _stat_key(wal)) != before:
+                continue  # torn copy
+            _inspect((snap / "db.sqlite3").as_uri(), known)  # read-write on the private copy only
+            return
+    raise DatabaseVersionError(
+        "database kept changing while it was inspected (is another program writing to it?); it was not modified"
+    )
 
 
 def migrate(path: str | os.PathLike[str], backup_dir: Path | None = None) -> MigrationResult:
