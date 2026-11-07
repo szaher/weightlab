@@ -44,6 +44,7 @@ from weightlab.api.security import Guard
 from weightlab.core.errors import ErrorCode, WeightLabError
 from weightlab.db import Database, quick_health, store
 from weightlab.formats.base import strict_json
+from weightlab.ui import Asset, load_assets
 
 ID = r"^[a-z]{3}_[A-Za-z0-9]{1,64}$"
 IdPath = Annotated[str, Path(pattern=ID, max_length=68)]
@@ -116,7 +117,8 @@ async def parse[M: BaseModel](request: Request, model: type[M]) -> M:
         ) from None
 
 
-def create_app(config: ServerConfig, database: Database | None = None) -> Guard:
+def create_app(config: ServerConfig, database: Database | None = None, assets: dict[str, Asset] | None = None) -> Guard:
+    """The API behind the Guard, which also serves the built UI shell (`assets`, default: the packaged build)."""
     db = database or Database(config.data_dir / "weightlab.sqlite3")
 
     def run(fn: Callable[..., Any], *args: Any) -> Any:
@@ -389,7 +391,7 @@ def create_app(config: ServerConfig, database: Database | None = None) -> Guard:
                 raise ApiError(ErrorCode.NOT_FOUND, "bookmark not found")
         return Response(status_code=204)
 
-    return Guard(app, config)
+    return Guard(app, config, load_assets() if assets is None else assets)
 
 
 def check_view_ownership(conn: Any, project_id: str, view: SavedView) -> None:
