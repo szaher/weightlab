@@ -1,11 +1,19 @@
 [project]
 name = "weightlab"
 version = "0.0.1.dev0"
-description = "Local-first, CPU-only LLM checkpoint explorer (Phase 0: strict SafeTensors reader and exact ROI)."
+description = "Local-first, CPU-only LLM checkpoint explorer: strict SafeTensors reader, change reports, local API."
 readme = "README.md"
 requires-python = ">=3.12"
 # Exact pins; uv.lock records the full resolved set with hashes.
-dependencies = ["numpy==2.5.4"]
+dependencies = [
+    "numpy==2.5.4",
+    # Local API (Phase 1): FastAPI + Pydantic schemas, served by uvicorn on loopback only.
+    "fastapi==0.162.0",
+    "pydantic==2.14.3",
+    "uvicorn==0.54.0",
+    # Platform-native application data directory (doc 18 section 4).
+    "platformdirs==4.14.5",
+]
 
 [project.scripts]
 weightlab = "weightlab.cli:main"
@@ -21,6 +29,8 @@ dev = [
     # Contract validation of report fragments (Metric, LineageAssessment) in tests.
     "jsonschema==4.26.0",
     "pyyaml==6.0.3",
+    # In-process API test client (Starlette TestClient uses httpx2 from Starlette 1.x).
+    "httpx2==2.16.0",
 ]
 
 [build-system]
@@ -51,8 +61,11 @@ select = ["E", "F", "W", "I", "B", "UP", "SIM", "RUF", "PT", "S"]
 ignore = ["S101", "RUF001", "RUF002", "RUF003"]
 
 [tool.ruff.lint.per-file-ignores]
-"tests/**" = ["S603", "S108", "S311"]
+"tests/**" = ["S603", "S108", "S311", "S104"]  # S104: tests assert that non-loopback binds are refused
 "scripts/**" = ["S603", "S607", "E501"]
+"evaluation-kit/**" = ["S603"]  # runs the participant's own weightlab on the shipped fixtures
+# Repository SQL: only constant column lists and WHERE fragments are interpolated; every value is a bound "?" parameter.
+"weightlab/db/store.py" = ["S608"]
 
 [tool.mypy]
 python_version = "3.12"

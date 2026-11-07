@@ -10,12 +10,13 @@ from __future__ import annotations
 
 import hashlib
 import os
+import stat
 import sys
 import threading
 from dataclasses import dataclass
 from pathlib import Path
 
-from weightlab.core.errors import ErrorCode, fail
+from weightlab.core.errors import ErrorCode, WeightLabError, fail
 
 
 @dataclass(frozen=True)
@@ -53,7 +54,9 @@ class PositionedFile:
 
     def __init__(self, path: Path) -> None:
         self.path = path
-        flags = os.O_RDONLY | getattr(os, "O_BINARY", 0) | getattr(os, "O_CLOEXEC", 0)
+        # O_NONBLOCK: a FIFO or device swapped in after any earlier check cannot block open(); it is then
+        # refused by the S_ISREG test on the handle below (doc 12 section 3: regular files only).
+        flags = os.O_RDONLY | getattr(os, "O_BINARY", 0) | getattr(os, "O_CLOEXEC", 0) | getattr(os, "O_NONBLOCK", 0)
         try:
             self._fd: int | None = os.open(path, flags)
         except FileNotFoundError:
@@ -61,9 +64,14 @@ class PositionedFile:
         except IsADirectoryError:
             raise fail(ErrorCode.INVALID_FORMAT, f"not a file: {path.name}") from None
         except PermissionError as e:
+            if os.path.isdir(path):  # Windows reports opening a directory as EACCES
+                raise fail(ErrorCode.INVALID_FORMAT, f"not a file: {path.name}") from None
             raise fail(ErrorCode.VALIDATION_ERROR, f"permission denied: {path.name} ({e.strerror})") from None
         try:
-            handle = FileIdentity.of(os.fstat(self._fd))
+            st = os.fstat(self._fd)
+            if not stat.S_ISREG(st.st_mode):
+                raise fail(ErrorCode.INVALID_FORMAT, f"not a regular file: {path.name}")
+            handle = FileIdentity.of(st)
             if handle != path_identity(path):
                 raise fail(ErrorCode.FILE_CHANGED, f"{path.name} changed while being opened")
         except BaseException:
@@ -72,6 +80,7 @@ class PositionedFile:
         self.identity = handle
         self.bytes_read = 0
         self._lock = threading.Lock()
+        self._changed: str | None = None  # latched FILE_CHANGED reason; see invalidate()
 
     @property
     def fd(self) -> int:
@@ -79,20 +88,35 @@ class PositionedFile:
             raise fail(ErrorCode.VALIDATION_ERROR, "file is closed")
         return self._fd
 
+    def invalidate(self, reason: str) -> WeightLabError:
+        """Latch FILE_CHANGED: once any change was detected through this handle (identity, short read, or a
+        digest mismatch found by the caller), every later check() and read() fails too, until the file is
+        reopened. Without the latch a same-size rewrite with the mtime restored passed the next quick check on
+        Windows, where ctime is the creation time and does not move (PR #3 review). Returns the error to raise."""
+        if self._changed is None:
+            self._changed = reason
+        return fail(ErrorCode.FILE_CHANGED, reason)
+
+    def _assert_unchanged(self) -> None:
+        if self._changed is not None:
+            raise fail(ErrorCode.FILE_CHANGED, f"{self._changed} (detected earlier; reopen the file)")
+
     def check(self) -> None:
         """Best-effort identity check of handle and path against the identity recorded at open."""
+        self._assert_unchanged()
         try:
             handle = FileIdentity.of(os.fstat(self.fd))
             current = path_identity(self.path)
         except OSError:
-            raise fail(ErrorCode.FILE_CHANGED, f"{self.path.name} is no longer accessible") from None
+            raise self.invalidate(f"{self.path.name} is no longer accessible") from None
         if handle != self.identity:
-            raise fail(ErrorCode.FILE_CHANGED, f"{self.path.name} was modified (size, time or identity)")
+            raise self.invalidate(f"{self.path.name} was modified (size, time or identity)")
         if current != self.identity:
-            raise fail(ErrorCode.FILE_CHANGED, f"{self.path.name} was replaced, renamed or relinked")
+            raise self.invalidate(f"{self.path.name} was replaced, renamed or relinked")
 
     def read(self, offset: int, length: int) -> bytes:
         """Exactly `length` bytes at `offset`, inside the size recorded at open; short read -> FILE_CHANGED."""
+        self._assert_unchanged()
         if offset < 0 or length < 0 or offset + length > self.identity.size:
             raise fail(ErrorCode.INVALID_FORMAT, "read outside the validated file range")
         if length == 0:
@@ -117,7 +141,7 @@ class PositionedFile:
                 done += len(chunk)
         self.bytes_read += done
         if done != length:
-            raise fail(ErrorCode.FILE_CHANGED, f"{self.path.name} is shorter than when it was opened")
+            raise self.invalidate(f"{self.path.name} is shorter than when it was opened")
         return parts[0] if len(parts) == 1 else b"".join(parts)
 
     def sha256(self, chunk_bytes: int) -> str:

@@ -339,11 +339,8 @@ def _base_report(
     }
 
 
-def pair_report(a: Checkpoint, b: Checkpoint, lin: LineageInputs, opts: Options, control: RunControl) -> dict[str, Any]:
-    """Base (A) vs derived (B)."""
-    if opts.consistency is Consistency.VERIFIED or lin.user_attestation or lin.manifest is not None:
-        a.digests()
-        b.digests()
+def assess_pair(a: Checkpoint, b: Checkpoint, lin: LineageInputs) -> tuple[Structure, Assessment]:
+    """Structural comparison and lineage assessment of base A and derived B (shared with the API)."""
     structure: Structure = compare_structure(a, b)
     caps = (["the tie of the output head differs"] if structure.tie_differs else []) + (
         ["tensor dtypes differ"] if structure.dtype_differs else []
@@ -352,6 +349,15 @@ def pair_report(a: Checkpoint, b: Checkpoint, lin: LineageInputs, opts: Options,
     lineage = assess(
         a, derived_digest, lin, structure_blocking=bool(structure.blocking), structure_caps_at_l=caps, adapter=False
     )
+    return structure, lineage
+
+
+def pair_report(a: Checkpoint, b: Checkpoint, lin: LineageInputs, opts: Options, control: RunControl) -> dict[str, Any]:
+    """Base (A) vs derived (B)."""
+    if opts.consistency is Consistency.VERIFIED or lin.user_attestation or lin.manifest is not None:
+        a.digests()
+        b.digests()
+    structure, lineage = assess_pair(a, b, lin)
 
     analyzable = [e for e in structure.entries if e.analyzable]
     control.total_bytes = sum(e.a.byte_length + e.b.byte_length for e in analyzable if e.a and e.b)
