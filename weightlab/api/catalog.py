@@ -23,7 +23,7 @@ from weightlab.api.schemas import ModelImport, ModelRelink
 from weightlab.core.errors import ErrorCode, WeightLabError
 from weightlab.db import store
 from weightlab.db.store import FileRow, TensorRow
-from weightlab.formats.checkpoint import Checkpoint, open_checkpoint
+from weightlab.formats.checkpoint import Checkpoint, fingerprint_side_file, open_checkpoint
 from weightlab.formats.fileio import FileIdentity
 
 CONTRACT_ROLES = frozenset(
@@ -107,11 +107,20 @@ def _file_id(ident: FileIdentity) -> str:
 
 
 def _file_rows(ck: Checkpoint, root: Path) -> list[FileRow]:
+    """Every file the catalog depends on: the shards (quick fingerprint) and, for a sharded checkpoint, the
+    index that maps keys to shards (quick fingerprint plus SHA-256 of its bytes, which the reader reads in
+    full anyway). Without the index row, an index rewritten to map keys differently while naming the same
+    shards went undetected (PR #3 review)."""
     idents = ck.file_identities()
-    return [
+    rows = [
         FileRow(_relpath(ck, sid, root), ident.size, ident.mtime_ns, _file_id(ident), None, "size_mtime")
         for sid, ident in idents.items()
     ]
+    if ck.index is not None:
+        rel = Path(os.path.relpath(os.path.abspath(ck.index.path), os.path.abspath(root))).as_posix()
+        i = ck.index.identity
+        rows.append(FileRow(rel, i.size, i.mtime_ns, _file_id(i), ck.index.sha256, "sha256"))
+    return rows
 
 
 def import_model(conn: sqlite3.Connection, project_id: str, req: ModelImport) -> dict[str, Any]:
@@ -195,6 +204,7 @@ def open_model(conn: sqlite3.Connection, model_id: str, project_id: str | None =
     if m is None:
         raise ApiError(ErrorCode.NOT_FOUND, "model not found")
     root = Path(m["selected_root"])
+    _assert_same_index(conn, model_id, root)  # before parsing: an edited index must be FILE_CHANGED, not a parse error
     try:
         ck = open_checkpoint(m["entry_path"], root)
     except WeightLabError as e:
@@ -211,6 +221,21 @@ def open_model(conn: sqlite3.Connection, model_id: str, project_id: str | None =
     return ck
 
 
+def _assert_same_index(conn: sqlite3.Connection, model_id: str, root: Path) -> None:
+    """Content check of the recorded index file (rows with a SHA-256), by its own read."""
+    for f in store.model_files(conn, model_id):
+        if f["sha256"] is None:
+            continue
+        try:
+            now = fingerprint_side_file(root / f["relpath"], root, "index file")
+        except WeightLabError:
+            raise ApiError(
+                ErrorCode.FILE_CHANGED, f"{Path(f['relpath']).name} is missing or unreadable; relink or re-import"
+            ) from None
+        if now.sha256 != f["sha256"]:
+            raise ApiError(ErrorCode.FILE_CHANGED, f"{Path(f['relpath']).name} changed since import (content)")
+
+
 def _assert_same_files(
     conn: sqlite3.Connection, model_id: str, ck: Checkpoint, root: Path, *, compare_file_id: bool
 ) -> None:
@@ -224,6 +249,8 @@ def _assert_same_files(
             compare_file_id and r.file_id != f["file_id"]
         ):
             raise ApiError(ErrorCode.FILE_CHANGED, f"{Path(rel).name} changed since import (size, time or identity)")
+        if f["sha256"] is not None and r.sha256 != f["sha256"]:  # the index: bytes re-read on every open
+            raise ApiError(ErrorCode.FILE_CHANGED, f"{Path(rel).name} changed since import (content)")
 
 
 def relink(conn: sqlite3.Connection, model_id: str, req: ModelRelink) -> dict[str, Any]:
@@ -242,6 +269,7 @@ def relink(conn: sqlite3.Connection, model_id: str, req: ModelRelink) -> dict[st
             raise ApiError(ErrorCode.FILE_CHANGED, f"{Path(f['relpath']).name} is not under the new root") from None
         if (st.st_size, st.st_mtime_ns) != (f["size_bytes"], f["mtime_ns"]):
             raise ApiError(ErrorCode.FILE_CHANGED, f"{Path(f['relpath']).name} differs from the imported file")
+    _assert_same_index(conn, model_id, root)
     with open_checkpoint(entry, root) as ck:
         _assert_same_files(conn, model_id, ck, root, compare_file_id=False)  # a move changes the inode
         total, rows = store.query_tensors(conn, model_id, limit=max(1, len(ck.metadata())) + 1)
@@ -249,8 +277,10 @@ def relink(conn: sqlite3.Connection, model_id: str, req: ModelRelink) -> dict[st
         now = {m_.key: (m_.shape, m_.dtype, m_.data_offset) for m_ in ck.metadata()}
         if total != len(now) or catalog != now:
             raise ApiError(ErrorCode.FILE_CHANGED, "tensor catalog differs from the imported model; re-import it")
-        store.relink_model(conn, model_id, str(ck.entry), str(root))
-        store.update_file_ids(conn, model_id, {r.relpath: r.file_id for r in _file_rows(ck, root)})
+        # One transaction: a failure must not leave the new path with the old file identities.
+        store.relink_model(
+            conn, model_id, str(ck.entry), str(root), {r.relpath: r.file_id for r in _file_rows(ck, root)}
+        )
     return model_view(conn, model_id)
 
 

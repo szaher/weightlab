@@ -8,12 +8,21 @@ import sqlite3
 from collections.abc import Iterator
 from pathlib import Path
 
-from weightlab.db.schema import MigrationResult, connect, integrity, latest_version, migrate
+from weightlab.db.schema import MigrationResult, connect, integrity, latest_version, migrate, quick_health
 from weightlab.db.store import install_functions
 
 DB_FILE_NAME = "weightlab.sqlite3"
 
-__all__ = ["DB_FILE_NAME", "Database", "MigrationResult", "connect", "integrity", "latest_version", "migrate"]
+__all__ = [
+    "DB_FILE_NAME",
+    "Database",
+    "MigrationResult",
+    "connect",
+    "integrity",
+    "latest_version",
+    "migrate",
+    "quick_health",
+]
 
 
 class Database:

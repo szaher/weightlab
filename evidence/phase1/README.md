@@ -73,7 +73,22 @@ The contract tests are in `tests/api/`:
 - **Clean install:** the self-test above, plus a manual install from the unpacked archive; all checks passed on macOS.
 - **Not yet done:** install on Linux or Windows.
 
-## Phase 0/0.5 code touched by Task 2 (refactors, no behaviour change)
+## PR #3 review fixes
+
+Each fix has a regression test. Run against the `weightlab/` code of the reviewed head (ea76a920), 15 of these tests fail. The other 10 in those files pass on both versions. They include the `wal` variant of the foreign-database test, which is a control: switching an already-WAL database to WAL changes nothing.
+
+| # | Finding | Fix | Test |
+|---|---|---|---|
+| 1 (P1) | `migrate()` ran `connect()` before the ownership check. Its `PRAGMA journal_mode = WAL` rewrote the header of a refused foreign database | A read-only preflight runs before the connection policy (`schema._preflight`). It uses `mode=ro&immutable=1`, which creates no `-wal`/`-shm` files, or plain `mode=ro` when a non-empty `-wal` exists, because `immutable` would ignore it. A file that is not SQLite at all is refused too. The policy connection checks again afterwards | `test_foreign_database_is_refused_byte_for_byte_unmodified[delete, truncate, persist, wal]`, `test_non_sqlite_file_is_refused_unmodified`; the newer and edited cases now also compare bytes |
+| 2 (P1) | An edit to `adapter_config.json` alone went undetected, so ROIs used the stored native scale | The config is fingerprinted by SHA-256 and size at import, and checked again before every adapter read (`relations.config_fingerprint`). It is also compared before and after the import itself | `test_adapter_config_edit_is_file_changed_for_both_adapter_sources[mtime_changes, same_size_and_mtime]`: `lora_alpha` 4 → 8 (same length), `lora_delta` and `virtual_effective` both give 409 |
+| 3 (P1) | The shard index was not part of the model fingerprint | The reader records the index's identity and the SHA-256 of the bytes it parsed (`Checkpoint.index`). The catalog stores it as a `model_files` row (method `sha256`) and content-checks it before parsing, on every open and on relink | `test_index_only_edit_that_keeps_the_shard_set_is_file_changed` (the reviewer's scenario), `test_same_size_same_mtime_index_rewrite_is_file_changed[reordered, key_renamed]`, `test_index_is_recorded_and_relink_checks_its_content` |
+| 4 (CI) | After a verified read detected `FILE_CHANGED`, a later best-effort read succeeded on Windows: ctime there is the creation time, so the quick check still matched | `PositionedFile.invalidate()` latches the first detected change, from an identity mismatch, a short read or a digest mismatch found by `Checkpoint`. Every later `read()` or `check()` on that handle fails until the file is reopened | `test_detected_change_latches_every_later_read[False, True]`. It runs on every OS by giving ctime the Windows behaviour, and asserts the precondition (the quick check passes) |
+| 5 (P2) | Relink updated the path and the file identities in two transactions | `store.relink_model` makes both updates in one transaction | `test_relink_is_one_transaction`: a trigger aborts the second update, and the model row stays unchanged |
+| 6 (P2) | The in-flight slot was taken after the body was read | The slot is taken after the header-only checks and before the body is read. It is released on every exit, including body errors | `test_slow_request_bodies_count_towards_in_flight`: two stalled bodies hold both slots, the third request gets 429, a 413 releases its slot |
+| 7 (P2) | The unauthenticated `/health` ran `PRAGMA integrity_check` | `quick_health` reads the schema version only, at constant cost; `integrity()` remains for `weightlab doctor` | `test_health_does_not_run_a_full_integrity_scan` (SQL traced) |
+| 8 | Recommended: a packaging test of migrations and API startup | The kit build's self-test also runs `weightlab start` from the wheel installed in the fresh venv: the packaged migrations create the database, then `/health` and `GET /projects` (with the token) must answer. A new CI step builds the archive on all three OSes | `scripts/build_evaluation_kit.py`, CI step "Package test" |
+
+## Phase 0/0.5 code touched by Phase 1
 
 These were extracted so the API reuses the CLI's code instead of duplicating it:
 
@@ -83,7 +98,7 @@ These were extracted so the API reuses the CLI's code instead of duplicating it:
 
 All Phase 0/0.5 tests and goldens pass unchanged.
 
-One reader hardening is new: `formats/fileio.py` opens with `O_NONBLOCK` and requires `S_ISREG` on the handle, so a FIFO, device or directory is refused with `INVALID_FORMAT` instead of blocking (`tests/security/test_special_files.py`).
+Two reader changes are new. The first is the `FILE_CHANGED` latch (PR #3 fix 4 above). The second: `formats/fileio.py` opens with `O_NONBLOCK` and requires `S_ISREG` on the handle, so a FIFO, device or directory is refused with `INVALID_FORMAT` instead of blocking (`tests/security/test_special_files.py`).
 
 ## Specification gaps and decisions needing ADRs (spec not edited)
 
@@ -121,6 +136,6 @@ One reader hardening is new: `formats/fileio.py` opens with `O_NONBLOCK` and req
 ## Known limitations
 
 - **Single process, single user.** SQLite runs in WAL mode with `BEGIN IMMEDIATE` writes. There is no multi-process server.
-- **Stale detection uses quick fingerprints:** relative path, size, `mtime_ns` and `dev:ino`. As in Phase 0/0.5 `best_effort`, a same-size rewrite that preserves the mtime is not detected until a read sees different bytes.
+- **Stale detection of shard and adapter weight files uses quick fingerprints:** relative path, size, `mtime_ns` and `dev:ino`. As in Phase 0/0.5 `best_effort`, a same-size rewrite of a weight file that preserves the mtime goes undetected until a verified read finds different bytes. From then on, that checkpoint instance refuses every read. Small side files (the shard index and `adapter_config.json`) are content-checked by SHA-256 on every open.
 - **The token is printed once**, in the terminal URL's fragment, and is never logged. Anyone who can read that terminal can use the API until the process stops.
 - **The evaluation kit has not been tried by anyone outside the project.** Its time estimates (30 minutes in total) are the author's guesses, and the first participants will test them.

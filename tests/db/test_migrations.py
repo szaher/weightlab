@@ -91,18 +91,40 @@ def test_edited_applied_migration_is_refused(tmp_path: Path) -> None:
     c = connect(path)
     c.execute("UPDATE schema_migrations SET checksum = 'tampered'")
     c.close()
+    before = file_digest(path)
     with pytest.raises(DatabaseVersionError, match="checksum"):
         migrate(path)
+    assert file_digest(path) == before
 
 
-def test_foreign_database_is_refused(tmp_path: Path) -> None:
+@pytest.mark.parametrize("journal", ["delete", "truncate", "persist", "wal"])
+def test_foreign_database_is_refused_byte_for_byte_unmodified(tmp_path: Path, journal: str) -> None:
+    """Regression (PR #3 review): connect() set journal_mode=WAL before the ownership check, which rewrites
+    the header of a rollback-journal database (bytes 18-19), so a refused foreign file was still modified."""
     path = tmp_path / "other.sqlite3"
     c = sqlite3.connect(path)
+    c.execute(f"PRAGMA journal_mode = {journal}")
     c.execute("CREATE TABLE notes (x TEXT)")
+    c.execute("INSERT INTO notes VALUES ('keep me')")
     c.commit()
     c.close()
+    before, header, files = file_digest(path), path.read_bytes()[:100], sorted(p.name for p in tmp_path.iterdir())
     with pytest.raises(DatabaseVersionError, match="not a WeightLab database"):
         migrate(path)
+    with pytest.raises(DatabaseVersionError):
+        Database(path)
+    assert path.read_bytes()[:100] == header
+    assert file_digest(path) == before
+    assert sorted(p.name for p in tmp_path.iterdir()) == files  # no -wal/-shm created
+
+
+def test_non_sqlite_file_is_refused_unmodified(tmp_path: Path) -> None:
+    path = tmp_path / "weightlab.sqlite3"
+    path.write_bytes(b"not a database, just someone's notes\n" * 200)
+    before = file_digest(path)
+    with pytest.raises(DatabaseVersionError, match="not a readable SQLite database"):
+        migrate(path)
+    assert file_digest(path) == before
 
 
 def _with_extra(monkeypatch: pytest.MonkeyPatch, sql: str) -> None:

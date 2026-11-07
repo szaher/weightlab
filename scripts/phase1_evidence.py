@@ -59,6 +59,10 @@ AREAS = [
         "tests/api/test_bookmarks_settings_api.py",
         "Task 2: bookmarks with ownership, settings round trip, bounds and persistence",
     ),
+    (
+        "tests/api/test_review_pr3.py",
+        "PR #3 review: adapter config and shard index changes -> FILE_CHANGED, atomic relink, admission before body, cheap health",
+    ),
     ("tests/security/test_special_files.py", "Reader hardening: FIFOs/devices/directories refused without blocking"),
     (
         "tests/integration/test_evaluation_kit.py",

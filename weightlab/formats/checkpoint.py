@@ -11,6 +11,7 @@ after. A detected change raises FILE_CHANGED and no partial result is returned.
 
 from __future__ import annotations
 
+import hashlib
 import os
 from collections.abc import Iterator, Mapping
 from dataclasses import dataclass
@@ -53,6 +54,31 @@ class FileInfo:
     sha256: str | None
 
 
+@dataclass(frozen=True)
+class SideFile:
+    """A small file read in full (shard index, adapter config): identity at open and SHA-256 of the bytes read.
+    Shard fingerprints alone miss a rewritten index that still names the same shards (PR #3 review)."""
+
+    path: Path
+    identity: FileIdentity
+    sha256: str
+
+
+def fingerprint_side_file(path: Path, root: Path, what: str, max_bytes: int = CONFIG_MAX_BYTES) -> SideFile:
+    """Identity and SHA-256 of a small side file: contained in `root`, regular file, size-capped, read once."""
+    if not is_within(os.path.realpath(path), os.path.realpath(root)):
+        raise fail(ErrorCode.PATH_OUTSIDE_ROOT, f"{what} resolves outside the selected root")
+    f = PositionedFile(path)
+    try:
+        if f.identity.size > max_bytes:
+            raise fail(ErrorCode.INVALID_FORMAT, f"{what} above the size cap")
+        data = f.read(0, f.identity.size)
+        f.check()
+        return SideFile(path, f.identity, hashlib.sha256(data).hexdigest())
+    finally:
+        f.close()
+
+
 @dataclass
 class _Shard:
     shard_id: str
@@ -86,6 +112,7 @@ class Checkpoint:
         tensors: dict[str, TensorMeta],
         warnings: list[str],
         limits: Limits,
+        index: SideFile | None = None,
     ) -> None:
         self.root = root
         self.entry = entry
@@ -93,6 +120,7 @@ class Checkpoint:
         self._tensors = tensors
         self.warnings = warnings
         self.limits = limits
+        self.index = index  # the *.safetensors.index.json of a sharded checkpoint, None for a single file
 
     # -- catalog ---------------------------------------------------------------------------
     def metadata(self) -> list[TensorMeta]:
@@ -137,7 +165,7 @@ class Checkpoint:
         """Recompute every recorded digest; FILE_CHANGED if any differs (verified consistency)."""
         for s in self._shards.values():
             if s.digest is not None and s.file.sha256(self.limits.read_chunk_bytes) != s.digest:
-                raise fail(ErrorCode.FILE_CHANGED, f"{s.shard_id} content changed during the job")
+                raise s.file.invalidate(f"{s.shard_id} content changed during the job")
 
     def shard_path(self, shard_id: str) -> Path:
         return self._shards[shard_id].file.path
@@ -164,13 +192,13 @@ class Checkpoint:
             return None
         digest = shard.file.sha256(self.limits.read_chunk_bytes)
         if shard.digest is not None and digest != shard.digest:
-            raise fail(ErrorCode.FILE_CHANGED, f"{shard.shard_id} content differs from the digest recorded at open")
+            raise shard.file.invalidate(f"{shard.shard_id} content differs from the digest recorded at open")
         return digest
 
     def _end(self, shard: _Shard, before: str | None) -> None:
         shard.file.check()
         if before is not None and shard.file.sha256(self.limits.read_chunk_bytes) != before:
-            raise fail(ErrorCode.FILE_CHANGED, f"{shard.shard_id} content changed during the read")
+            raise shard.file.invalidate(f"{shard.shard_id} content changed during the read")
 
     # -- exact reads -----------------------------------------------------------------------
     def read_roi_raw(
@@ -356,8 +384,10 @@ def open_checkpoint(
     try:
         if index_file.identity.size > limits.index_max_bytes:
             raise fail(ErrorCode.INVALID_FORMAT, "index file above the size cap")
-        doc = parse_index(index_file.read(0, index_file.identity.size))
+        index_bytes = index_file.read(0, index_file.identity.size)
+        doc = parse_index(index_bytes)
         index_file.check()
+        index = SideFile(entry, index_file.identity, hashlib.sha256(index_bytes).hexdigest())
     finally:
         index_file.close()
 
@@ -384,7 +414,7 @@ def open_checkpoint(
             actual = sum(m.byte_length for m in tensors.values())
             if actual != doc.total_size:
                 warnings.append(f"metadata.total_size {doc.total_size} differs from tensor bytes {actual}")
-        return Checkpoint(root, entry, shards, {k: tensors[k] for k in doc.weight_map}, warnings, limits)
+        return Checkpoint(root, entry, shards, {k: tensors[k] for k in doc.weight_map}, warnings, limits, index)
     except BaseException:
         for s in shards.values():
             s.file.close()

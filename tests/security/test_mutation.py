@@ -271,3 +271,38 @@ def test_backend_process_survives_truncation(tmp_path: Path) -> None:
     proc = run_python(SURVIVE, str(p), timeout=120)
     assert proc.returncode == 0, proc.stderr
     assert proc.stdout.split() == ["FILE_CHANGED", "alive"]
+
+
+@pytest.fixture
+def windows_like_ctime(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Make every OS behave like Windows for the quick check: ctime is a creation time that a rewrite does not
+    move, so a same-size rewrite with the mtime restored leaves the whole quick fingerprint unchanged."""
+    from weightlab.formats import fileio
+
+    real = fileio.FileIdentity.of
+
+    def of(st: os.stat_result) -> fileio.FileIdentity:
+        i = real(st)
+        return fileio.FileIdentity(i.size, i.mtime_ns, 0, i.dev, i.ino)
+
+    monkeypatch.setattr(fileio.FileIdentity, "of", staticmethod(of))
+
+
+@pytest.mark.usefixtures("windows_like_ctime")
+@pytest.mark.parametrize("digest_at_open", [False, True])
+def test_detected_change_latches_every_later_read(tmp_path: Path, digest_at_open: bool) -> None:
+    """PR #3 review (Windows CI): a verified read found the SHA-256 mismatch, but the next best-effort ROI read
+    succeeded because the quick fingerprint still matched. Once FILE_CHANGED is detected the instance stays failed
+    closed for every read path, until the file is reopened."""
+    p = setup_file(tmp_path, symlinked=False)
+    with open_checkpoint(p, hash_files=digest_at_open) as ck:
+        it = ck.iter_flat_chunks("w", CHUNK, consistency=Consistency.VERIFIED)
+        next(it)
+        apply(rewrite_same_size_keep_mtime, p, tmp_path)
+        ck.check()  # the precondition of the bug: the quick check alone sees nothing
+        assert code(lambda: list(it)) == "FILE_CHANGED"
+        assert code(lambda: ck.read_roi_2d("w", 0, 1, 0, 4)) == "FILE_CHANGED"
+        assert code(lambda: list(ck.iter_flat_chunks("w", CHUNK))) == "FILE_CHANGED"
+        assert code(ck.check) == "FILE_CHANGED"
+    with open_checkpoint(p) as fresh:  # a new instance reads the new bytes
+        assert fresh.read_roi_2d("w", 0, 1, 0, 4).tolist() == [[2.0] * 4]

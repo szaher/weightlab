@@ -3,8 +3,9 @@
 * Every connection: `foreign_keys=ON`, `busy_timeout`, `synchronous=FULL`; file databases use WAL.
 * Migrations are numbered SQL files in `weightlab/db/migrations/`, applied in order, each in one
   transaction together with its `schema_migrations` row (version, time, SHA-256 of the file).
-* Fail closed: a database written by a newer WeightLab (version above the latest known), or one whose
-  applied migration no longer matches the shipped file, is refused without being modified.
+* Fail closed: a database written by a newer WeightLab (version above the latest known), one whose
+  applied migration no longer matches the shipped file, or a foreign SQLite file is refused without being
+  modified. The check runs on a read-only connection before the connection policy (WAL) is applied.
 * Before upgrading a database that already holds a schema, a backup is taken with the SQLite backup
   API (never a raw copy of a live WAL database).
 """
@@ -128,18 +129,50 @@ def backup(conn: sqlite3.Connection, target: Path) -> Path:
     return target
 
 
+def _check_schema(conn: sqlite3.Connection, known: list[Migration]) -> int:
+    """The database's schema version, or DatabaseVersionError when WeightLab must not touch it."""
+    start = current_version(conn)
+    if start == 0 and _has_user_tables(conn):
+        raise DatabaseVersionError("database has tables but no schema_migrations; not a WeightLab database")
+    if start:
+        _verify_applied(conn, known)
+    if start > len(known):  # guarded by _verify_applied too; kept explicit
+        raise DatabaseVersionError(f"database schema {start} is newer than this WeightLab ({len(known)})")
+    return start
+
+
+def _preflight(path: str | os.PathLike[str], known: list[Migration]) -> None:
+    """Check an existing database through a read-only connection *before* the WeightLab connection policy
+    runs: `PRAGMA journal_mode = WAL` rewrites the file header, so a foreign, newer or edited database
+    must be refused before connect() ever sees it."""
+    raw = os.fspath(path)
+    p = Path(raw)
+    if raw == ":memory:" or not p.exists() or p.stat().st_size == 0:
+        return  # nothing to protect: connect() creates it
+    # immutable=1: no locks, no -wal/-shm created (a plain mode=ro open of a WAL database leaves both behind).
+    # It ignores a WAL, so when a non-empty -wal exists (a crashed writer) the ro open must read it instead.
+    wal = Path(raw + "-wal")
+    hot = wal.exists() and wal.stat().st_size > 0
+    query = "?mode=ro" if hot else "?mode=ro&immutable=1"
+    conn = sqlite3.connect(p.resolve().as_uri() + query, uri=True, isolation_level=None)
+    conn.row_factory = sqlite3.Row
+    try:
+        _check_schema(conn, known)
+    except sqlite3.DatabaseError as e:
+        raise DatabaseVersionError(f"not a readable SQLite database ({e}); it was not modified") from None
+    finally:
+        conn.close()
+
+
 def migrate(path: str | os.PathLike[str], backup_dir: Path | None = None) -> MigrationResult:
-    """Bring the database at `path` to the latest schema. Creates it when absent."""
+    """Bring the database at `path` to the latest schema. Creates it when absent. An existing database is
+    verified read-only first and refused, byte for byte unmodified, unless it is a WeightLab database
+    whose applied migrations all match the shipped files."""
     known = migrations()
+    _preflight(path, known)
     conn = connect(path)
     try:
-        start = current_version(conn)
-        if start == 0 and _has_user_tables(conn):
-            raise DatabaseVersionError("database has tables but no schema_migrations; not a WeightLab database")
-        if start:
-            _verify_applied(conn, known)
-        if start > len(known):  # guarded by _verify_applied too; kept explicit
-            raise DatabaseVersionError(f"database schema {start} is newer than this WeightLab ({len(known)})")
+        start = _check_schema(conn, known)  # again under the policy connection (the file may have been replaced)
         pending = [m for m in known if m.version > start]
         saved: Path | None = None
         if pending and start > 0:
@@ -202,3 +235,13 @@ def integrity(conn: sqlite3.Connection) -> IntegrityReport:
     version = current_version(conn)
     latest = latest_version()
     return IntegrityReport(result == "ok" and fk == 0 and version == latest, version, latest, result, fk)
+
+
+def quick_health(conn: sqlite3.Connection) -> bool:
+    """Constant-cost liveness probe for the unauthenticated /health route: the database answers and is at the
+    latest schema. The full integrity_check / foreign_key_check scan grows with the database and stays in
+    integrity() (`weightlab doctor`), not on a route anyone on the machine can call (PR #3 review)."""
+    try:
+        return current_version(conn) == latest_version()
+    except sqlite3.Error:
+        return False

@@ -42,7 +42,7 @@ from weightlab.api.schemas import (
 )
 from weightlab.api.security import Guard
 from weightlab.core.errors import ErrorCode, WeightLabError
-from weightlab.db import Database, integrity, store
+from weightlab.db import Database, quick_health, store
 from weightlab.formats.base import strict_json
 
 ID = r"^[a-z]{3}_[A-Za-z0-9]{1,64}$"
@@ -186,7 +186,7 @@ def create_app(config: ServerConfig, database: Database | None = None) -> Guard:
     @app.get(f"{p}/health")
     def health() -> JSONResponse:
         with db.session() as conn:
-            ok = integrity(conn).ok
+            ok = quick_health(conn)  # constant cost; full integrity checks belong to `weightlab doctor`
         return _json(
             {"status": "ok" if ok else "degraded", "version": __version__[:64], "offline": True, "capabilities": []}
         )

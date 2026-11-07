@@ -11,7 +11,9 @@ Self-test, as a participant would run it: the archive is unpacked into a tempora
 archive* is installed into a new virtual environment (`uv venv` + `uv pip install`; dependencies come from PyPI or
 the uv cache), and that environment's python runs the packed run_examples.py with that environment's `weightlab`
 executable, from outside the repository and with PYTHONPATH/VIRTUAL_ENV cleared. The build checks that
-`weightlab` imports from the new environment, and fails (removing the archive) if anything does not pass.
+`weightlab` imports from the new environment, then runs `weightlab start` from it (the packaged migrations create
+a new database; /health and an authenticated route must answer), and fails, removing the archive, if anything
+does not pass.
 Exit status: 0 on success.
 """
 
@@ -19,11 +21,16 @@ from __future__ import annotations
 
 import argparse
 import hashlib
+import http.client
+import json
 import os
+import re
 import shutil
+import signal
 import subprocess
 import sys
 import tempfile
+import time
 import tomllib
 import zipfile
 from pathlib import Path
@@ -44,6 +51,7 @@ FIXTURE_ITEMS = [
     "malformed",
 ]
 EPOCH = (1980, 1, 1, 0, 0, 0)
+URL = re.compile(r"http://127\.0\.0\.1:(\d+)/#token=([A-Za-z0-9_-]{43,})")
 
 
 def stage(dest: Path, wheel_dir: Path) -> None:
@@ -108,7 +116,72 @@ def self_test(uv: str, kit: Path, work: Path) -> bool:
     if r.returncode != 0:
         print(r.stdout + r.stderr, file=sys.stderr)
         return False
-    return True
+    return api_smoke_test(cli, work, env)
+
+
+def _get(port: int, path: str, token: str | None = None) -> tuple[int, bytes]:
+    conn = http.client.HTTPConnection("127.0.0.1", port, timeout=10)
+    try:
+        headers = {"Host": f"127.0.0.1:{port}"}
+        if token:
+            headers["Authorization"] = f"Bearer {token}"
+        conn.request("GET", path, headers=headers)
+        resp = conn.getresponse()
+        return resp.status, resp.read()
+    finally:
+        conn.close()
+
+
+def api_smoke_test(cli: Path, work: Path, env: dict[str, str]) -> bool:
+    """`weightlab start` from the installed wheel: the packaged migrations create and migrate a new database,
+    and the API answers /health and an authenticated route. Checks the wheel's package data, not the repo's."""
+    data = work / "api-data"
+    # Windows: own process group, stopped with CTRL_BREAK_EVENT (CTRL_C_EVENT would reach this script too).
+    stop: int
+    if sys.platform == "win32":
+        flags, stop = subprocess.CREATE_NEW_PROCESS_GROUP, signal.CTRL_BREAK_EVENT
+    else:
+        flags, stop = 0, signal.SIGINT
+    proc = subprocess.Popen(
+        [str(cli), "start", "--port", "0", "--data-dir", str(data)],
+        cwd=work, env={**env, "PYTHONUNBUFFERED": "1"}, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True,
+        creationflags=flags,
+    )  # fmt: skip
+    ok = False
+    try:
+        assert proc.stdout is not None
+        line, deadline = "", time.monotonic() + 60
+        while not (m := URL.search(line)) and time.monotonic() < deadline and proc.poll() is None:
+            line += proc.stdout.readline()
+        if not m:
+            print(f"weightlab start printed no URL: {line[-300:]!r}", file=sys.stderr)
+            return False
+        port, token = int(m.group(1)), m.group(2)
+        for _ in range(100):
+            try:
+                status, body = _get(port, "/api/v1/health")
+                break
+            except ConnectionRefusedError:
+                time.sleep(0.1)
+        else:
+            print("API never accepted a connection", file=sys.stderr)
+            return False
+        health = json.loads(body)
+        projects = _get(port, "/api/v1/projects", token)
+        db = data / "weightlab.sqlite3"
+        ok = status == 200 and health.get("status") == "ok" and projects == (200, b"[]") and db.is_file()
+        print(f"self-test: weightlab start -> health {status} {health.get('status')}, projects {projects[0]}, "
+              f"database created: {db.is_file()}")  # fmt: skip
+        if not ok:
+            print(f"API smoke test failed: health={body!r} projects={projects!r}", file=sys.stderr)
+        return ok
+    finally:
+        proc.send_signal(stop)
+        try:
+            proc.communicate(timeout=20)
+        except subprocess.TimeoutExpired:
+            proc.kill()
+            proc.communicate()
 
 
 def main() -> int:

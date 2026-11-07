@@ -70,22 +70,26 @@ class Guard:
             return
         headers = _headers(scope)
         try:
-            self._check(scope, headers)
-            body = await self._read_body(receive, headers)
+            self._check(scope, headers)  # headers only: no I/O before admission
         except ApiError as err:
             await _reply(send, err, rid)
             return
+        # Admission before the body is read: a slow or stalled body stream occupies a slot like any other
+        # request, so it counts towards max_in_flight (PR #3 review). Released on every exit path below.
         with self._lock:
-            if self._in_flight >= self.config.max_in_flight:
-                busy = True
-            else:
-                busy = False
+            busy = self._in_flight >= self.config.max_in_flight
+            if not busy:
                 self._in_flight += 1
         if busy:
             await _reply(send, ApiError(ErrorCode.RATE_LIMITED, "too many requests in flight"), rid)
             return
-        scope.setdefault("state", {})["request_id"] = rid
         try:
+            try:
+                body = await self._read_body(receive, headers)
+            except ApiError as err:
+                await _reply(send, err, rid)
+                return
+            scope.setdefault("state", {})["request_id"] = rid
             await self.app(scope, _replay(body), _secured(send, rid))
         finally:
             with self._lock:

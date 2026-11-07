@@ -207,16 +207,15 @@ def model_files(conn: sqlite3.Connection, model_id: str) -> list[dict[str, Any]]
     return [dict(r) for r in conn.execute("SELECT * FROM model_files WHERE model_id = ? ORDER BY relpath", (model_id,))]
 
 
-def relink_model(conn: sqlite3.Connection, model_id: str, entry_path: str, selected_root: str) -> None:
+def relink_model(
+    conn: sqlite3.Connection, model_id: str, entry_path: str, selected_root: str, file_ids: dict[str, str | None]
+) -> None:
+    """Point a model at its new place and record the new file identities, atomically (one transaction)."""
     with transaction(conn):
         conn.execute(
             "UPDATE models SET entry_path = ?, selected_root = ?, status = 'ready' WHERE id = ?",
             (entry_path, selected_root, model_id),
         )
-
-
-def update_file_ids(conn: sqlite3.Connection, model_id: str, file_ids: dict[str, str | None]) -> None:
-    with transaction(conn):
         conn.executemany(
             "UPDATE model_files SET file_id = ? WHERE model_id = ? AND relpath = ?",
             [(fid, model_id, rel) for rel, fid in file_ids.items()],

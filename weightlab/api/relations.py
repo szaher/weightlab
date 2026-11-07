@@ -9,7 +9,6 @@
 from __future__ import annotations
 
 import hashlib
-import os
 import sqlite3
 from pathlib import Path
 from typing import Any
@@ -22,7 +21,7 @@ from weightlab.api.errors import ApiError
 from weightlab.api.schemas import AdapterImport, ComparisonRequest
 from weightlab.core.errors import ErrorCode, WeightLabError
 from weightlab.db import store
-from weightlab.formats.checkpoint import Checkpoint, hub_cache_root, open_checkpoint
+from weightlab.formats.checkpoint import Checkpoint, fingerprint_side_file, hub_cache_root, open_checkpoint
 
 ADAPTER_FILES = ("adapter_config.json", "adapter_model.safetensors")
 API_MAX_RANK = 4096  # AdapterModule.rank maximum in the frozen contract
@@ -142,9 +141,16 @@ def open_adapter_weights(d: Path) -> Checkpoint:
     return open_checkpoint(d / "adapter_model.safetensors", _adapter_root(d), hash_files=True)
 
 
-def adapter_files(d: Path, ck: Checkpoint) -> dict[str, Any]:
+def config_fingerprint(d: Path) -> dict[str, Any]:
+    """adapter_config.json fingerprint: size, mtime and SHA-256 of its bytes. The config holds r, lora_alpha,
+    rank_pattern, ..., from which the stored native scales were derived, so an edit to it alone must be
+    detected (PR #3 review); hashing a small capped file on every adapter read is cheap."""
+    f = fingerprint_side_file(d / "adapter_config.json", _adapter_root(d), "adapter_config.json")
+    return {"size": f.identity.size, "mtime_ns": f.identity.mtime_ns, "sha256": f.sha256}
+
+
+def adapter_files(d: Path, ck: Checkpoint, config: dict[str, Any]) -> dict[str, Any]:
     ident = next(iter(ck.file_identities().values()))
-    cfg = os.stat(d / "adapter_config.json")
     return {
         "adapter_model.safetensors": {
             "size": ident.size,
@@ -152,7 +158,7 @@ def adapter_files(d: Path, ck: Checkpoint) -> dict[str, Any]:
             "file_id": f"{ident.dev}:{ident.ino}",
             "sha256": next(iter(ck.digests().values())),
         },
-        "adapter_config.json": {"size": cfg.st_size, "mtime_ns": cfg.st_mtime_ns},
+        "adapter_config.json": config,
     }
 
 
@@ -160,6 +166,7 @@ def import_adapter(conn: sqlite3.Connection, project_id: str, req: AdapterImport
     if store.get_model(conn, req.base_model_id, project_id) is None:
         raise ApiError(ErrorCode.NOT_FOUND, "base model not found")
     d = _adapter_dir(req.adapter_directory)
+    config_before = config_fingerprint(d)
     cfg: AdapterConfig = load_config(d, _adapter_root(d))
     adapter_id = store.new_id("adp")
     base = open_model(conn, req.base_model_id, project_id)
@@ -179,7 +186,9 @@ def import_adapter(conn: sqlite3.Connection, project_id: str, req: AdapterImport
             digest = next(iter(ad.digests().values()))
             missing = [p for p in plans if p.module.base_key is None]
             lineage = assess(base, digest, lin, structure_blocking=bool(missing), structure_caps_at_l=[], adapter=True)
-            files = adapter_files(d, ad)
+            if config_fingerprint(d) != config_before:  # edited while the import read it
+                raise ApiError(ErrorCode.FILE_CHANGED, "adapter_config.json changed during import")
+            files = adapter_files(d, ad, config_before)
             ad.check()
         base.check()
     finally:
@@ -276,9 +285,19 @@ def adapter_module(row: dict[str, Any], mid: str) -> dict[str, Any] | None:
 
 
 def open_adapter_checked(row: dict[str, Any]) -> Checkpoint:
-    """Reopen an imported adapter's weights; FILE_CHANGED unless they are the imported bytes' file."""
+    """Reopen an imported adapter's weights; FILE_CHANGED unless both adapter files are the imported ones:
+    the weights by quick fingerprint, adapter_config.json (the source of rank, alpha and scale) by content."""
     d = Path(row["adapter_path"])
     want = row["files_json"]["adapter_model.safetensors"]
+    want_cfg = row["files_json"]["adapter_config.json"]
+    try:
+        cfg_now = config_fingerprint(d)
+    except WeightLabError as e:
+        if e.code is ErrorCode.NOT_FOUND:
+            raise ApiError(ErrorCode.FILE_CHANGED, "adapter files are missing (moved or deleted)") from None
+        raise ApiError(ErrorCode.FILE_CHANGED, "adapter_config.json changed since import; re-import it") from None
+    if cfg_now["sha256"] != want_cfg.get("sha256") or cfg_now["size"] != want_cfg["size"]:
+        raise ApiError(ErrorCode.FILE_CHANGED, "adapter_config.json changed since import; re-import it")
     try:
         ck = open_checkpoint(d / "adapter_model.safetensors", _adapter_root(d))
     except WeightLabError as e:
