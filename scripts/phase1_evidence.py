@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Run the test suite and write Phase 1 foundation evidence (Tasks 1-2: database and local API).
+"""Run the test suite and write Phase 1 foundation evidence (Tasks 1-2: database and local API; kit).
 
     uv run python scripts/phase1_evidence.py --out evidence/phase1
 
@@ -60,6 +60,10 @@ AREAS = [
         "Task 2: bookmarks with ownership, settings round trip, bounds and persistence",
     ),
     ("tests/security/test_special_files.py", "Reader hardening: FIFOs/devices/directories refused without blocking"),
+    (
+        "tests/integration/test_evaluation_kit.py",
+        "Workstream A: evaluation kit examples reproduce against generator values, checks can fail, docs consistent",
+    ),
 ]
 
 

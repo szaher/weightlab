@@ -40,6 +40,31 @@ uv run weightlab diff base/ --adapter lora/ --json lora.json     # LoRA effectiv
 uv run python scripts/g05_evidence.py --out evidence/g0.5        # tests + diff benchmark -> G0.5_<os>.md
 ```
 
+## Implementation status: Phase 1 foundation (Tasks 1–2) and practitioner evaluation kit
+
+Two pieces are built:
+
+- **Database (`weightlab/db/`):** the SQLite project database with checksummed migrations (Phase 1 task 1).
+- **Local API (`weightlab/api/`):** the FastAPI routes of `contracts/openapi.yaml` 0.3.0, with strict request schemas, a loopback-only security boundary and generated contract tests (task 2). `weightlab start` serves it on 127.0.0.1 and prints the URL with a fresh access token.
+
+Tiles, jobs, exports and the UI are not built yet. Their routes answer 404 `deferred`.
+
+The Phase 0.5 practitioner evaluation (doc 14, Phase 0.5 task 6) has a self-contained kit in `evaluation-kit/`:
+
+- installation instructions;
+- three reproducible examples, checked against generator values;
+- a 10-minute questionnaire;
+- a structured feedback-summary template.
+
+No feedback has been collected yet, and the G0.5 practitioner item stays open. Review guide, spec gaps and limitations: `evidence/phase1/README.md`.
+
+```bash
+uv run weightlab start                                   # http://127.0.0.1:<port>/#token=...
+uv run python evaluation-kit/run_examples.py             # the kit's three examples, self-checking
+uv run python scripts/build_evaluation_kit.py            # -> dist/weightlab-evaluation-kit-<version>.zip
+uv run python scripts/phase1_evidence.py --out evidence/phase1
+```
+
 ## Read this first
 
 This package is designed to hand to an engineer or coding agent without leaving important product, numerical, systems, or delivery decisions implicit. It does **not** guarantee a bug-free first attempt: the acceptance gates and automated tests make failures observable before release.

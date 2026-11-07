@@ -63,6 +63,7 @@ ignore = ["S101", "RUF001", "RUF002", "RUF003"]
 [tool.ruff.lint.per-file-ignores]
 "tests/**" = ["S603", "S108", "S311", "S104"]  # S104: tests assert that non-loopback binds are refused
 "scripts/**" = ["S603", "S607", "E501"]
+"evaluation-kit/**" = ["S603"]  # runs the participant's own weightlab on the shipped fixtures
 # Repository SQL: only constant column lists and WHERE fragments are interpolated; every value is a bound "?" parameter.
 "weightlab/db/store.py" = ["S608"]
 
