@@ -81,14 +81,23 @@ export function RoiExplorer({ modelId, tensor }: Props) {
   const quiet = useDebounced(key, ROI_QUIET_MS);
   // While the user is still moving, nothing is in flight: the previous request was aborted on the change.
   const fetchKey = key !== null && key === quiet ? key : null;
-  const res = useResource<{ key: string; grid: RoiGrid }>(fetchKey, async (signal) => {
+  // Every read the explorer issues gets a new generation, also when the user returns to a region read before
+  // (A -> B -> A is two reads of A). The resource key includes the generation, so a completed result is shown
+  // only for the read that produced it: leaving a region and coming back never redisplays its earlier values,
+  // which may come from files that have changed since; a fresh successful read is required (or FILE_CHANGED).
+  const [issued, setIssued] = useState<{ key: string | null; gen: number }>({ key: null, gen: 0 });
+  const gen = fetchKey !== issued.key ? issued.gen + 1 : issued.gen;
+  if (fetchKey !== issued.key) setIssued({ key: fetchKey, gen }); // derived from the previous render, not an effect
+  const readKey = fetchKey === null ? null : `${gen}:${fetchKey}`;
+  const res = useResource<{ readKey: string; grid: RoiGrid }>(readKey, async (signal) => {
     const r = JSON.parse(fetchKey ?? "null") as RoiRequest;
     const body = await api.roi(r, signal);
-    return { key: JSON.stringify(r), grid: parseRoi(body, r, tensor.dtype) };
+    return { readKey: readKey ?? "", grid: parseRoi(body, r, tensor.dtype) };
   });
-  // Only an answer to the request that is current now is ever shown.
-  const grid = res.data && res.data.key === key ? res.data.grid : null;
-  const error = key !== null && key === fetchKey ? res.error : undefined;
+  // Only the settled answer of the current read is ever shown: not while it (or a retry) is loading, not next to
+  // an error, and never a result of an earlier read of the same region.
+  const grid = readKey !== null && !res.loading && !res.error && res.data?.readKey === readKey ? res.data.grid : null;
+  const error = readKey !== null ? res.error : undefined;
 
   const scale = grid ? computeScale(grid, mode, fixed) : null;
 

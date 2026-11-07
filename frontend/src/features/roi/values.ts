@@ -126,6 +126,8 @@ function parse(resp: unknown, req: RoiRequest, dtype: Dtype): RoiGrid {
   check(r.source_dtype === dtype, `dtype ${String(r.source_dtype)} differs from the catalog's ${dtype}`);
   check(r.coverage === "complete", "coverage is not complete");
   check(r.numeric_precision === "lossless" || r.numeric_precision === "rounded" || r.numeric_precision === "overflowed", "unknown numeric_precision");
+  // A raw tensor source is lossless by contract (doc 09 section 2): rounded/overflowed belongs to derived sources only.
+  check(req.source.kind !== "tensor" || r.numeric_precision === "lossless", `a raw tensor read must be lossless, not ${String(r.numeric_precision)}`);
   const enc = r.value_encoding;
   check(enc === autoEncoding(dtype), `encoding ${String(enc)} is not the lossless encoding of ${dtype}`);
   check(Array.isArray(r.warnings) && r.warnings.every((w) => typeof w === "string"), "warnings malformed");

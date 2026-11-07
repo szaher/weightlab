@@ -69,9 +69,17 @@ Anything else is a `BAD_RESPONSE` error, and none of the response is shown.
 
 - The window is 64 × 64 by default and never exceeds the server's `roi_max_cells` (`GET /settings`, default 4,096). The UI computes no limit of its own. If zooming out would exceed the budget, the button is disabled and a note names the budget.
 - At most one ROI request is in flight per explorer. Every pan, zoom, slice, transpose or tensor change **aborts** it (`AbortController` in `useResource`) and sends the next request after 120 ms of quiet, so rapid panning sends one request for where you stop.
-- An answer is shown only if it matches the current request, so an old window's values never appear under new bounds (unit-tested, including a mutation check: removing the guard fails 3 tests).
+- Every read the explorer issues gets a **generation**. A result is shown only for the read that produced it, once that read has settled successfully: never while a read or retry is pending, never next to an error, and never from an earlier read of the same region. Going A → B → A therefore needs a new successful read of A; old values for A are not shown again (review fix, below). An old window's values never appear under new bounds (unit-tested, including a mutation check: removing the guard fails 3 tests).
 - There is **no client value cache**. Every window shown is a fresh read, checked by the server against the import fingerprint. A changed checkpoint therefore always appears as `FILE_CHANGED`, never as stale values. The heatmap reuses one canvas, and its backing store is released when it unmounts.
 - There is no automatic scanning: the colour scale uses only the loaded region.
+
+## Review fixes (PR #5 review)
+
+| Finding | Fix | Regression tests |
+|---|---|---|
+| **P1:** subnormal F64 regions produced NaN colour positions. Halving both operands underflowed: `[0, 5e-324]` and `[-5e-324, 5e-324]` gave `rgb(undefined, …)` | `normalize` uses the plain difference whenever the span `hi − lo` is finite (exact near zero, no underflow). Operands are halved only when the span itself overflows; that span is ≥ ~9e307, so halving cannot underflow it. The palette throws on a non-finite position, and `cellFill` draws any uncomputable position as "colour withheld" rather than inventing a colour. | `scale.test.ts`: the reported regions give exactly `[0, 1]`, `[0, 1]` and `[0, 1]` (plus `[0, 0.5, 1]` cases). Every cell of 8 extreme or subnormal regions × 5 scales × 2 palettes is a valid `rgb(r, g, b)`. Both tests fail with the old formula. |
+| **P1:** returning to an earlier ROI could briefly redisplay its old values (A → B pending → file changes → back to A) | Each issued read has a generation that is part of the resource key. Only the settled successful answer of the current read is drawn: not while loading, not with an error, and not from an earlier read of the same region. | `RoiExplorer.test.tsx`: the reported sequence shows no heatmap, values table or selected value while A's second read is pending, and after it returns `FILE_CHANGED`. This test failed before the fix. A second test checks that returning to A shows the new read's numbers. |
+| **P2:** a raw tensor response claiming `rounded` or `overflowed` precision was accepted | For `source.kind = "tensor"`, `parseRoi` rejects anything but `numeric_precision: "lossless"` (doc 09 §2), including an `overflow` mask. The selected-cell label reads "Value (exact)" only for lossless results. | `values.test.ts`: rounded, overflowed, overflowed with an overflow mask, and unknown precision are each `BAD_RESPONSE`. |
 
 ## Backend change (one bug found by the E2E)
 
@@ -95,10 +103,10 @@ If a checkpoint was edited after import so that it no longer parses (here, one b
 |---|---|
 | `npm run lint` | 0 problems |
 | `npm run typecheck` | 0 errors |
-| `npm test` (Vitest) | **110 passed** in 12 files (57 before; 53 new: `values` 22, `view` 8, `scale`/`paint` 11 [includes devicePixelRatio 1, 1.25, 1.5, 2, 3], `RoiExplorer` 12) |
+| `npm test` (Vitest) | **119 passed** in 12 files (57 before; 62 new: `values` 26, `view` 8, `scale`/`paint` 14 [includes devicePixelRatio 1, 1.25, 1.5, 2, 3], `RoiExplorer` 14) |
 | `npm run build` | `index.html` + 1 JS (304 kB, 94 kB gzip) + 1 CSS; two builds byte-identical |
-| `npx playwright test` against `uv run weightlab start` | **13 passed** (a11y 5, journey 1, **roi 1**, security 6) in 39 s |
-| `npx playwright test` with `WEIGHTLAB_CMD` = the installed wheel's `weightlab` | **13 passed** in 39 s |
+| `npx playwright test` against `uv run weightlab start` | **13 passed** (a11y 5, journey 1, **roi 1**, security 6) in 42 s |
+| `npx playwright test` with `WEIGHTLAB_CMD` = the installed wheel's `weightlab` | **13 passed** in 40 s |
 | `uv run ruff format --check . && uv run ruff check .` | clean |
 | `uv run mypy --platform {linux,darwin,win32}` | no issues (42 files each) |
 | `uv run python scripts/phase1_evidence.py --out evidence/phase1` | **444 passed**, 0 failed, 0 skipped (11 new: `tests/api/test_roi_explorer.py`) |

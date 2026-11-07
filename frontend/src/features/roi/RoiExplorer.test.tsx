@@ -269,6 +269,60 @@ describe("RoiExplorer", () => {
     expect(screen.queryByTestId("heatmap-canvas")).toBeNull();
   });
 
+  it("returning to an earlier window never shows its old values: a new read must succeed first (review P1)", async () => {
+    withToken();
+    const t = tensor("tns_q", [257, 263]);
+    let changed = false;
+    let replyA: ((r: Response) => void) | undefined;
+    const calls = serve([t], (body) => {
+      if (body.roi.c0 === 32) return new Promise<Response>(() => {}); // window B never answers
+      if (!changed) return json(answer(t, body)); // window A, first read
+      return new Promise<Response>((ok) => {
+        replyA = ok; // window A, second read: held until the test answers it
+      });
+    });
+    render(<RoiExplorer modelId="mod_1" tensor={t} />);
+    await clickCell(2, 3); // 1. A loads; a value is visible
+    expect(valueText()).toBe(num(t.shape, [2, 3]));
+    fireEvent.click(screen.getByRole("button", { name: "Pan right by 32 columns" })); // 2. B pending
+    await waitFor(() => expect(last(calls).roi.c0).toBe(32));
+    changed = true; // 3. the checkpoint changes on disk
+    fireEvent.click(screen.getByRole("button", { name: "Pan left by 32 columns" })); // 4. back to A before B answers
+    await waitFor(() => expect(rois(calls)).toHaveLength(3)); // A is read again...
+    expect(last(calls).roi).toEqual({ r0: 0, r1: 64, c0: 0, c1: 64 });
+    // ...and while that read is pending, none of A's earlier values are shown anywhere.
+    expect(screen.getByTestId("roi-loading")).toBeInTheDocument();
+    expect(screen.queryByTestId("heatmap-canvas")).toBeNull();
+    expect(screen.queryByTestId("selected-value")).toBeNull();
+    expect(screen.queryByRole("tab", { name: "Values" })).toBeNull();
+    await act(async () => replyA?.(apiError(409, "FILE_CHANGED", "tiny.safetensors changed since import (size, time or identity)")));
+    expect(await screen.findByRole("alert")).toHaveTextContent("FILE_CHANGED");
+    expect(screen.queryByTestId("heatmap-canvas")).toBeNull();
+    expect(screen.queryByTestId("selected-value")).toBeNull();
+    expect(screen.queryByTestId("values-table")).toBeNull();
+  });
+
+  it("returning to an earlier window shows the new read's values, not the old ones", async () => {
+    withToken();
+    const t = tensor("tns_q", [257, 263]);
+    let bump = 0;
+    serve([t], (body) => {
+      const r = answer(t, body);
+      r.values = r.values.map((row) => row.map((v) => v + bump));
+      return json(r);
+    });
+    render(<RoiExplorer modelId="mod_1" tensor={t} />);
+    await clickCell(0, 0);
+    expect(valueText()).toBe(num(t.shape, [0, 0]));
+    bump = 100; // the next reads return different numbers
+    await userEvent.click(screen.getByRole("button", { name: "Pan right by 32 columns" }));
+    await screen.findByTestId("heatmap-canvas");
+    await userEvent.click(screen.getByRole("button", { name: "Pan left by 32 columns" }));
+    await screen.findByTestId("heatmap-canvas");
+    await clickCell(0, 0);
+    expect(valueText()).toBe(String(oracle(t.shape, [0, 0]) + 100) + ".0");
+  });
+
   it("RESOURCE_LIMIT and INVALID_ROI from the server are explained", async () => {
     withToken();
     const t = tensor("tns_q", [16, 16]);

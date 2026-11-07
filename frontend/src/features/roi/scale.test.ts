@@ -52,6 +52,62 @@ describe("colour scales use only this region's colourable values", () => {
     expect(Number.isFinite(normalize(1e-323, tiny))).toBe(true);
   });
 
+  it("subnormal F64 ranges normalize to real positions (review P1: halving underflowed to NaN)", () => {
+    const at = (vals: number[], mode: "auto" | "symmetric" = "auto") => {
+      const s = computeScale(grid(1, vals.length, vals), mode);
+      return vals.map((v) => normalize(v, s));
+    };
+    expect(at([0, 5e-324])).toEqual([0, 1]);
+    expect(at([-5e-324, 5e-324])).toEqual([0, 1]);
+    expect(at([-5e-324, 0, 5e-324])).toEqual([0, 0.5, 1]);
+    expect(at([5e-324, 1e-323])).toEqual([0, 1]);
+    expect(at([0, 5e-324], "symmetric")).toEqual([0.5, 1]);
+    expect(at([5e-324, 1e-323, 1.5e-323])).toEqual([0, 0.5, 1]);
+    // Large and tiny together: the subnormal is indistinguishable from 0 at this scale, which is correct.
+    expect(at([-1.7976931348623157e308, 5e-324, 1.7976931348623157e308])).toEqual([0, 0.5, 1]);
+  });
+
+  it("every cell of extreme, subnormal and fixed-range regions gets a valid CSS colour", () => {
+    const RGB = /^rgb\((\d{1,3}), (\d{1,3}), (\d{1,3})\)$/;
+    const MAX = 1.7976931348623157e308;
+    const regions: number[][] = [
+      [0, 5e-324],
+      [-5e-324, 5e-324],
+      [5e-324, 1e-323],
+      [-MAX, MAX],
+      [-MAX, -5e-324, 0, 5e-324, MAX],
+      [2.2250738585072014e-308, 2.225073858507201e-308],
+      [1e300, -1e300, 1, -1],
+      [0, 1e-320, 2e-320, 3e-320],
+    ];
+    for (const vals of regions) {
+      const g = grid(1, vals.length, vals);
+      const fixed = [
+        { min: "0", max: "5e-324" },
+        { min: "-1", max: "1" },
+        { min: String(-MAX), max: String(MAX) },
+      ];
+      const scales = [computeScale(g, "auto"), computeScale(g, "symmetric"), ...fixed.map((f) => computeScale(g, "fixed", f))];
+      for (const sc of scales) {
+        for (const palette of ["sequential", "diverging"] as const) {
+          for (const c of g.cells) {
+            const f = cellFill(c, sc, palette);
+            expect(f.kind, `${vals} ${sc.mode} ${sc.lo}..${sc.hi}`).toBe("color");
+            if (f.kind !== "color") continue;
+            const m = RGB.exec(f.color);
+            expect(m, f.color).not.toBeNull();
+            expect(m!.slice(1).every((x) => Number(x) <= 255)).toBe(true);
+          }
+        }
+      }
+    }
+  });
+
+  it("the palette refuses a non-finite position instead of inventing a colour", () => {
+    expect(() => colorAt(NaN, "sequential")).toThrow(RangeError);
+    expect(() => colorAt(Infinity, "diverging")).toThrow(RangeError);
+  });
+
   it("palettes: sequential gets lighter monotonically; diverging is near white in the middle and dark at both ends", () => {
     const lum = (c: string) => {
       const [r, g, b] = c.match(/\d+/g)!.map(Number);

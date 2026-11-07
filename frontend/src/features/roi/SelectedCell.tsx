@@ -33,7 +33,7 @@ export function SelectedCell({ grid, selected, tensorIndex, rank }: Props) {
         ) : (
           <dl className="facts">
             <div>
-              <dt>Value (exact)</dt>
+              <dt>{grid.precision === "lossless" ? "Value (exact)" : `Value (${grid.precision}, not exact)`}</dt>
               <dd className="mono cell-value" data-testid="selected-value">
                 {cellText(cell)}
               </dd>

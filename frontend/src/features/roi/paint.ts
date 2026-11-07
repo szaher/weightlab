@@ -90,7 +90,10 @@ export type Fill = { kind: "color"; color: string } | { kind: "pattern"; pattern
 export function cellFill(cell: Cell, scale: Scale, palette: Palette): Fill {
   if (cell.state !== "finite") return { kind: "pattern", pattern: cell.state };
   if (cell.color === null) return { kind: "pattern", pattern: "withheld" };
-  return { kind: "color", color: colorAt(normalize(cell.color, scale), palette) };
+  const t = normalize(cell.color, scale);
+  // Defensive: a position that cannot be computed is shown as "colour withheld", never as a made-up colour.
+  if (!Number.isFinite(t)) return { kind: "pattern", pattern: "withheld" };
+  return { kind: "color", color: colorAt(t, palette) };
 }
 
 type Ctx = Pick<

@@ -145,6 +145,10 @@ describe("parseRoi: anything malformed or mismatched is an error, never data", (
     ["unknown mask", { ...ok(), values: [[null, 2], [3, 4]], nonfinite_mask: [["huge", null], [null, null]] }],
     ["overflow on lossless", { ...ok(), values: [[null, 2], [3, 4]], nonfinite_mask: [["overflow", null], [null, null]] }],
     ["schema", { ...ok(), schema_version: 1 }],
+    ["rounded precision on a raw tensor", { ...ok(), numeric_precision: "rounded" }],
+    ["overflowed precision on a raw tensor", { ...ok(), numeric_precision: "overflowed" }],
+    ["overflowed with overflow mask on a raw tensor", { ...ok(), numeric_precision: "overflowed", values: [[null, 2], [3, 4]], nonfinite_mask: [["overflow", null], [null, null]] }],
+    ["unknown precision", { ...ok(), numeric_precision: "approximate" }],
     ["not an object", null],
   ];
   it.each(cases)("%s", (_, body) => {

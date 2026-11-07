@@ -63,10 +63,22 @@ export function computeScale(grid: RoiGrid, mode: ScaleMode, fixed?: FixedRange)
   return { mode: mode === "fixed" ? "auto" : mode, lo: min, hi: max, degenerate: min === max ? "constant" : "none", below: 0, above: 0 };
 }
 
-/** Position of `v` on the scale in [0, 1]. Halved operands keep the span finite even for ±1.8e308. */
+/** Position of `v` on the scale in [0, 1], or NaN if it cannot be computed (callers then withhold colour).
+ *
+ * The plain difference is used whenever the span `hi - lo` is a finite float64: subtraction of floats is exact
+ * near zero (Sterbenz) and never underflows, so subnormal ranges such as [0, 5e-324] keep their full resolution.
+ * Only when the span itself overflows (|hi - lo| > 1.8e308, e.g. [-1.8e308, 1.8e308]) are the operands halved;
+ * that span is then at least ~9e307, so halving cannot underflow it to zero. */
 export function normalize(v: number, s: Scale): number {
   if (s.degenerate !== "none") return 0.5;
-  const t = (v / 2 - s.lo / 2) / (s.hi / 2 - s.lo / 2);
+  let span = s.hi - s.lo;
+  let off = v - s.lo;
+  if (!Number.isFinite(span)) {
+    span = s.hi / 2 - s.lo / 2;
+    off = v / 2 - s.lo / 2;
+  }
+  const t = off / span; // off may be ±Infinity for values far outside a fixed range: clamped below
+  if (Number.isNaN(t) || !(span > 0)) return NaN;
   return t <= 0 ? 0 : t >= 1 ? 1 : t;
 }
 
@@ -117,8 +129,9 @@ function lut(stops: readonly RGB[]): Uint8ClampedArray {
 
 const LUTS: Record<Palette, Uint8ClampedArray> = { sequential: lut(SEQUENTIAL), diverging: lut(DIVERGING) };
 
-/** CSS colour of position t in [0, 1]. */
+/** CSS colour of position t in [0, 1]. A non-finite t is a programming error, never a colour. */
 export function colorAt(t: number, palette: Palette): string {
+  if (!Number.isFinite(t)) throw new RangeError(`colour position ${t} is not finite`);
   const i = Math.round(Math.min(1, Math.max(0, t)) * 255) * 3;
   const l = LUTS[palette];
   return `rgb(${l[i]}, ${l[i + 1]}, ${l[i + 2]})`;
