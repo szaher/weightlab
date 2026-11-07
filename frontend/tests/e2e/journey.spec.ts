@@ -47,12 +47,14 @@ test("first launch to inspected tensor, restart, error states and deletion", asy
   const blocked = await loopbackOnly(context);
   const page = await context.newPage();
   const problems = watchConsole(page);
+  // Measure every catalog page the browser receives. The body is read inside the route handler, before it is
+  // handed to the page (a `response` listener can lose bodies Chromium has already evicted).
   const tensorPages: number[] = [];
-  page.on("response", async (r) => {
-    if (/\/api\/v1\/models\/[^/]+\/tensors\?/.test(r.url()) && r.ok()) {
-      const body = (await r.json()) as { items: unknown[] };
-      tensorPages.push(body.items.length);
-    }
+  await page.route(/\/api\/v1\/models\/[^/]+\/tensors\?/, async (route) => {
+    const response = await route.fetch();
+    const body = await response.text();
+    if (response.ok()) tensorPages.push((JSON.parse(body) as { items: unknown[] }).items.length);
+    await route.fulfill({ response, body });
   });
 
   // 1-3. Launch link -> token moved out of the address bar.
@@ -117,6 +119,7 @@ test("first launch to inspected tensor, restart, error states and deletion", asy
   await page.getByRole("button", { name: "Last" }).click();
   await expect(page.getByText(/Rows 3,001–3,001 of 3,001/)).toBeVisible();
   await shot(page, "04-catalog-3k");
+  expect(tensorPages.length).toBeGreaterThan(5);
   expect(Math.max(...tensorPages)).toBeLessThanOrEqual(200); // never the whole catalog
 
   // 9-10. Restart with the same data directory: a new token, the old one is refused, data restored.
