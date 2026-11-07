@@ -69,8 +69,11 @@ def check_pair(report: dict[str, Any], exp: dict[str, Any]) -> list[tuple[str, b
     others = [r for r in rows[1:] if r.get("status") == "matched"]
     return [
         ("report is complete", report.get("complete") is True, f"complete={report.get('complete')}"),
-        ("compatibility class V (ancestry known by construction)", lineage.get("compatibility_class") == "V",
+        ("compatibility class V (base file identity verified)", lineage.get("compatibility_class") == "V",
          f"class={lineage.get('compatibility_class')}"),
+        ("ancestry known by construction (synthetic pair)",
+         lineage.get("lineage_trust_level") == "proven_by_construction",
+         f"lineage_trust_level={lineage.get('lineage_trust_level')}"),
         (f"{exp['tensor_key']} ranked first", top.get("key") == exp["tensor_key"], f"rank 1 = {top.get('key')}"),
         (f"exactly {len(exp['changed_positions'])} elements changed",
          top.get("counts", {}).get("changed") == len(exp["changed_positions"]),

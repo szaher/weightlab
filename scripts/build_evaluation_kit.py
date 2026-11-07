@@ -5,15 +5,21 @@
 
 Contents: evaluation-kit/ (docs, questionnaire, templates, run_examples.py), the weightlab wheel, the fixtures
 the examples use (copied unmodified from examples/fixtures), docs/cli/weightlab-diff.md and SHA256SUMS. The
-archive is deterministic (sorted entries, fixed timestamps). After building, the archive is unpacked into a
-temporary directory and run_examples.py is run there against the packed fixtures; the build fails if any check
-fails. Exit status: 0 on success.
+archive is deterministic (sorted entries, fixed timestamps).
+
+Self-test, as a participant would run it: the archive is unpacked into a temporary directory, the wheel *from the
+archive* is installed into a new virtual environment (`uv venv` + `uv pip install`; dependencies come from PyPI or
+the uv cache), and that environment's python runs the packed run_examples.py with that environment's `weightlab`
+executable, from outside the repository and with PYTHONPATH/VIRTUAL_ENV cleared. The build checks that
+`weightlab` imports from the new environment, and fails (removing the archive) if anything does not pass.
+Exit status: 0 on success.
 """
 
 from __future__ import annotations
 
 import argparse
 import hashlib
+import os
 import shutil
 import subprocess
 import sys
@@ -72,6 +78,39 @@ def write_zip(src: Path, archive: Path, top: str) -> None:
             z.writestr(info, f.read_bytes())
 
 
+def self_test(uv: str, kit: Path, work: Path) -> bool:
+    """Install the archive's wheel into a fresh venv and run the packed examples with that venv's CLI."""
+    env = {k: v for k, v in os.environ.items() if k not in {"PYTHONPATH", "VIRTUAL_ENV", "PYTHONHOME"}}
+    venv = work / "venv"
+    bindir = venv / ("Scripts" if sys.platform == "win32" else "bin")
+    python = bindir / ("python.exe" if sys.platform == "win32" else "python")
+    cli = bindir / ("weightlab.exe" if sys.platform == "win32" else "weightlab")
+    wheels = sorted((kit / "wheel").glob("*.whl"))
+    if len(wheels) != 1:
+        print(f"expected one wheel in the archive, found {len(wheels)}", file=sys.stderr)
+        return False
+    py = f"{sys.version_info.major}.{sys.version_info.minor}"
+    subprocess.run([uv, "venv", "--quiet", "--python", py, str(venv)], cwd=work, env=env, check=True)
+    subprocess.run([uv, "pip", "install", "--quiet", "--python", str(python), str(wheels[0])], cwd=work, env=env,
+                   check=True)  # fmt: skip
+    origin = subprocess.run([str(python), "-c", "import weightlab; print(weightlab.__file__)"], cwd=work, env=env,
+                            capture_output=True, text=True, check=True).stdout.strip()  # fmt: skip
+    if not Path(origin).resolve().is_relative_to(venv.resolve()):
+        print(f"weightlab imported from {origin}, not from the test environment", file=sys.stderr)
+        return False
+    print(f"self-test: {wheels[0].name} installed into a fresh venv; weightlab from {Path(origin).parent}")
+    r = subprocess.run(
+        [str(python), str(kit / "run_examples.py"), "--fixtures", str(kit / "fixtures"),
+         "--out", str(work / "reports"), "--weightlab", str(cli)],
+        cwd=work, env=env, capture_output=True, text=True, check=False,
+    )  # fmt: skip
+    print(r.stdout[-600:])
+    if r.returncode != 0:
+        print(r.stdout + r.stderr, file=sys.stderr)
+        return False
+    return True
+
+
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("--out", type=Path, default=ROOT / "dist")
@@ -94,15 +133,7 @@ def main() -> int:
         with zipfile.ZipFile(archive) as z:
             z.extractall(check_dir)
         kit = check_dir / top
-        # The packed fixtures and runner are checked with the weightlab of this environment.
-        r = subprocess.run(
-            [sys.executable, str(kit / "run_examples.py"), "--fixtures", str(kit / "fixtures"),
-             "--out", str(t / "reports"), "--weightlab", ""],
-            cwd=t, capture_output=True, text=True, check=False,
-        )  # fmt: skip
-        print(r.stdout[-600:])
-        if r.returncode != 0:
-            print(r.stderr, file=sys.stderr)
+        if not self_test(uv, kit, t):
             archive.unlink()
             return 1
     digest = hashlib.sha256(archive.read_bytes()).hexdigest()

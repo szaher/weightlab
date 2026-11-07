@@ -39,12 +39,12 @@ The same `complete: false` and exit status 3 appear in every other case where th
 
 ## Optional: other incomplete or refused cases from the fixtures
 
-These need a clone of the repository or the full fixture set:
+The archive ships these fixtures under `fixtures/`. Run the commands from the unpacked kit directory:
 
 ```bash
-weightlab diff examples/fixtures/tiny_base.safetensors examples/fixtures/compat/shape_mismatch.safetensors       # Class X, matched subset still ranked
-weightlab diff examples/fixtures/tiny_precision_a.safetensors examples/fixtures/tiny_precision_b.safetensors    # F64 overflow: metrics withheld
-weightlab diff examples/fixtures/tiny_base.safetensors examples/fixtures/malformed/truncated_payload.safetensors  # refused: INVALID_FORMAT, exit 2
+weightlab diff fixtures/tiny_base.safetensors fixtures/compat/shape_mismatch.safetensors          # Class X, matched subset still ranked; exit 3
+weightlab diff fixtures/tiny_precision_a.safetensors fixtures/tiny_precision_b.safetensors       # F64 overflow: metrics withheld; exit 3
+weightlab diff fixtures/tiny_base.safetensors fixtures/malformed/truncated_payload.safetensors     # refused: INVALID_FORMAT; exit 2
 ```
 
-The archive ships the `compat/`, precision and malformed fixtures under `fixtures/` as well.
+In a clone of the repository, run the same commands from the repository root with `uv run` in front and `examples/fixtures/` in place of `fixtures/`.

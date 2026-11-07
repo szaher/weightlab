@@ -18,8 +18,8 @@ weightlab diff fixtures/tiny_base.safetensors fixtures/tiny_ft.safetensors --out
 ## What to look at in `report.md`
 
 1. **Compatibility first.** The report shows Class **V** ("base file identity verified") before any number.
-   - The classes run from V (verified ancestry) through L (declared or attested, unverified) and S (shape-compatible only, no evidence) to X (not comparable).
-   - Here V holds because the generator recorded the files' SHA-256 digests.
+   - The classes run from V (the base file is verifiably the one named) through L (lineage declared or attested, unverified) and S (shape-compatible only, no evidence) to X (not comparable).
+   - V verifies the base file's identity, not training ancestry. Here the identity comes from the SHA-256 digests the generator recorded. Separately, the report says ancestry is "known by construction" (`proven_by_construction`), because the generator built `tiny_ft` from `tiny_base`. A real pair can be Class V without that.
    - A real pair without such evidence gets S, with the caveat that raw deltas may be meaningless.
 2. **Completeness.** Look for `Complete: yes` and the counts of matched, missing and tied entries.
 3. **The ranking.** `demo.layers.0.mlp.up_proj.weight` is ranked first. Its metrics match the generator:

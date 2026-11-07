@@ -11,11 +11,21 @@ import subprocess
 import sys
 import time
 from pathlib import Path
+from typing import Any
 
 import pytest
 
 from tests.helpers import ROOT
 
+# Windows: CTRL_C_EVENT reaches every process on the console, pytest and the evidence scripts included. The server
+# gets its own process group instead, and CTRL_BREAK_EVENT (SIGBREAK, which uvicorn handles) is sent to that group.
+NEW_GROUP: dict[str, Any]
+if sys.platform == "win32":
+    NEW_GROUP = {"creationflags": subprocess.CREATE_NEW_PROCESS_GROUP}
+    STOP = signal.CTRL_BREAK_EVENT
+else:
+    NEW_GROUP = {}
+    STOP = signal.SIGINT
 URL = re.compile(r"http://127\.0\.0\.1:(\d+)/#token=([A-Za-z0-9_-]{43,})")
 
 
@@ -35,7 +45,7 @@ def test_start_serves_loopback_with_a_fresh_token(tmp_path: Path) -> None:
     for _ in range(2):  # restart rotates the token
         proc = subprocess.Popen([sys.executable, "-m", "weightlab.cli", "start", "--port", "0", "--data-dir",
                                  str(tmp_path / "data")], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True,
-                                env=env)  # fmt: skip
+                                env=env, **NEW_GROUP)  # fmt: skip
         try:
             line, deadline = "", time.monotonic() + 30
             assert proc.stdout is not None
@@ -61,7 +71,7 @@ def test_start_serves_loopback_with_a_fresh_token(tmp_path: Path) -> None:
             )
             assert _get(port, f"/api/v1/projects?token={token}", host)[0] == 401  # query-string tokens are not a thing
         finally:
-            proc.send_signal(signal.SIGINT if sys.platform != "win32" else signal.CTRL_C_EVENT)
+            proc.send_signal(STOP)
             try:
                 out, err = proc.communicate(timeout=20)
             except subprocess.TimeoutExpired:

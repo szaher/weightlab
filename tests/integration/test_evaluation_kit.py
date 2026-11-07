@@ -110,3 +110,16 @@ def test_documents_reference_existing_questions_files_and_fixtures() -> None:
         assert (ROOT / "examples" / "fixtures" / item).exists(), item
     for rel in runner.FIXTURE_FILES:
         assert rel in _expected()["file_sha256"], rel
+
+
+def test_fixture_paths_in_the_kit_documents_ship_in_the_archive() -> None:
+    """Commands in the kit's documents use archive paths (`fixtures/...`), and every such path is packed."""
+    packed = builder.FIXTURE_ITEMS
+    for doc in sorted(KIT.rglob("*.md")):
+        text = doc.read_text(encoding="utf-8")
+        for block in re.findall(r"```bash\n(.*?)```", text, flags=re.S):
+            assert "examples/fixtures" not in block, (doc.name, "repository path in a command")
+            for rel in re.findall(r"(?<![\w/])fixtures/(\S+)", block):
+                rel = rel.rstrip("/")
+                assert (ROOT / "examples" / "fixtures" / rel).exists(), (doc.name, rel)
+                assert any(rel == item or rel.startswith(item + "/") for item in packed), (doc.name, rel)
