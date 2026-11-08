@@ -1050,3 +1050,60 @@ code,
   max-height: 480px;
   overflow: auto;
 }
+
+/* ---- Whole-tensor overview (Phase 1 PR #8) */
+.workbench {
+  min-width: 0;
+}
+.overview {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 10px 0;
+  min-width: 0;
+}
+.overview .field-num,
+.workbench .roi-slice .field-num {
+  flex: 0 1 auto;
+}
+/* Inputs inside a column-flex .field must not take the row's 220px flex-basis as their height. */
+.overview .row .input,
+.workbench .roi-slice .row .input {
+  flex: 0 0 auto;
+}
+.overview select.input-small {
+  width: auto;
+}
+.overview input.input-small {
+  width: 12ch;
+}
+.overview-plot {
+  overflow: hidden;
+}
+.overview-plot .heatmap-canvas {
+  cursor: grab;
+}
+.overview-plot .heatmap-canvas:active {
+  cursor: grabbing;
+}
+.pill.q-exact {
+  border: 2px solid var(--ok);
+  color: var(--ok);
+  font-weight: 700;
+}
+.pill.q-sampled {
+  border: 2px dashed var(--warn);
+  color: var(--warn);
+  font-weight: 700;
+}
+.pill.q-building {
+  border: 2px dotted var(--accent);
+  font-weight: 700;
+}
+.job-panel progress {
+  width: min(320px, 60vw);
+  height: 14px;
+}
+.overview-facts .facts-grid dd {
+  white-space: normal;
+}

@@ -129,6 +129,11 @@ function lut(stops: readonly RGB[]): Uint8ClampedArray {
 
 const LUTS: Record<Palette, Uint8ClampedArray> = { sequential: lut(SEQUENTIAL), diverging: lut(DIVERGING) };
 
+/** The 256-entry RGB lookup table of a palette (index = round(t * 255)), for bulk ImageData painting. */
+export function paletteLut(palette: Palette): Uint8ClampedArray {
+  return LUTS[palette];
+}
+
 /** CSS colour of position t in [0, 1]. A non-finite t is a programming error, never a colour. */
 export function colorAt(t: number, palette: Palette): string {
   if (!Number.isFinite(t)) throw new RangeError(`colour position ${t} is not finite`);

@@ -41,20 +41,32 @@ export const ROI_QUIET_MS = 120;
 interface Props {
   modelId: string;
   tensor: Tensor;
+  /** Start from this view (axes, slice, transpose) instead of the default; e.g. the overview's. */
+  initialView?: ViewState | undefined;
+  /** Start on this exact window (view coordinates), e.g. a block selected in the overview. */
+  initialWin?: Win | undefined;
+  /** Told about every view change, so the overview stays on the same view. */
+  onViewChange?: ((v: ViewState) => void) | undefined;
 }
 
 type Tab = "heatmap" | "values";
 
-export function RoiExplorer({ modelId, tensor }: Props) {
+export function RoiExplorer({ modelId, tensor, initialView, initialWin, onViewChange }: Props) {
   const settings = useResource("settings", (signal) => api.settings(signal));
   const capRaw = settings.data?.roi_max_cells;
   const cap = typeof capRaw === "number" && Number.isSafeInteger(capRaw) && capRaw > 0 ? capRaw : null;
 
   const shape = tensor.shape;
   const rank = shape.length;
-  const [view, setView] = useState<ViewState>(() => defaultView(shape));
-  const [win, setWin] = useState<Win | null>(null);
-  const [selected, setSelected] = useState<CellRef | null>(rank === 0 ? { row: 0, col: 0 } : null);
+  const [view, setViewState] = useState<ViewState>(() => initialView ?? defaultView(shape));
+  const [win, setWin] = useState<Win | null>(initialWin ?? null);
+  const [selected, setSelected] = useState<CellRef | null>(
+    rank === 0 ? { row: 0, col: 0 } : initialWin ? { row: initialWin.r0, col: initialWin.c0 } : null,
+  );
+  function setView(v: ViewState) {
+    setViewState(v);
+    onViewChange?.(v);
+  }
   const [tab, setTab] = useState<Tab>("heatmap");
   const [mode, setMode] = useState<ScaleMode>("auto");
   const [palette, setPalette] = useState<Palette>("sequential");
