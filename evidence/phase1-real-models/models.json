@@ -1,0 +1,13 @@
+{
+  "note": "Pinned real checkpoints for Phase 1 validation. Weights are downloaded to a local directory outside the repository and are never committed or redistributed. sha256 values are the Hugging Face LFS object hashes for the pinned revision; fetch_models.py re-hashes every downloaded file.",
+  "models": [
+    {"name": "Qwen2.5-0.5B", "repo": "Qwen/Qwen2.5-0.5B", "revision": "060db6499f32faf8b98477b0a26969ef7d8b9987", "license": "apache-2.0", "tier": "initial",
+     "files": {"model.safetensors": {"size": 988097824, "sha256": "88c142557820ccad55bb59756bfcfcf891de9cc6202816bd346445188a0ed342"}, "config.json": {}, "LICENSE": {}}},
+    {"name": "Qwen2.5-0.5B-Instruct", "repo": "Qwen/Qwen2.5-0.5B-Instruct", "revision": "7ae557604adf67be50417f59c2c2f167def9a775", "license": "apache-2.0", "tier": "initial",
+     "files": {"model.safetensors": {"size": 988097824, "sha256": "fdf756fa7fcbe7404d5c60e26bff1a0c8b8aa1f72ced49e7dd0210fe288fb7fe"}, "config.json": {}, "LICENSE": {}}},
+    {"name": "Qwen2.5-Math-1.5B", "repo": "Qwen/Qwen2.5-Math-1.5B", "revision": "4a83ca6e4526a4f2da3aa259ec36c259f66b2ab2", "license": "apache-2.0", "tier": "extended",
+     "files": {"model.safetensors": {"size": 3087467144, "sha256": "f7aa8d665ab44d3b461bed742fe93cdcedc15d2e31e50dc372c126e6f720857b"}, "config.json": {}, "LICENSE": {}}},
+    {"name": "Qwen2.5-Math-1.5B-Instruct", "repo": "Qwen/Qwen2.5-Math-1.5B-Instruct", "revision": "aafeb0fc6f22cbf0eaeed126eff8be45b0360a35", "license": "apache-2.0", "tier": "extended",
+     "files": {"model.safetensors": {"size": 3087467144, "sha256": "08faf1e950173bb44c11d26df28c55da7237dc55c77dbc1cbae4a5d7584540d9"}, "config.json": {}, "LICENSE": {}}}
+  ]
+}

@@ -1,0 +1,59 @@
+[20:18:07] Qwen2.5-0.5B: imported in 0.01 s, 290 tensors, status ready, warnings None
+[20:18:07] Qwen2.5-0.5B-Instruct: imported in 0.01 s, 290 tensors, status ready, warnings None
+[20:18:07] Qwen2.5-Math-1.5B: imported in 0.01 s, 338 tensors, status ready, warnings None
+[20:18:07] Qwen2.5-Math-1.5B-Instruct: imported in 0.02 s, 338 tensors, status ready, warnings None
+[20:18:07]   sampled L8: 8 rows/block (stride), 145.9 ms, 0.0 ulps vs reference rows
+[20:18:07]   sampled L9: 8 rows/block (stride), 146.6 ms, 0.0 ulps vs reference rows
+[20:18:07]   sampled L10: 8 rows/block (stride), 92.8 ms, 0.0 ulps vs reference rows
+[20:18:07] Qwen2.5-0.5B: exact ROI and tiles
+[20:18:07]   role filter attention.q: 48 tensors; roles {'embedding': 1, 'norm': 49, 'mlp.down': 24, 'mlp.gate': 24, 'mlp.up': 24, 'attention.k': 48, 'attention.o': 24, 'attention.q': 48, 'attention.v': 48}
+[20:18:08]   model.embed_tokens.weight: 151936 x 896 BF16
+[20:18:13]   pyramid model.embed_tokens.weight: built in 1.21 s, scanned 259.7 MiB; tile 5.2 ms cold, 3.4 ms warm
+[20:18:17]   model.layers.0.self_attn.q_proj.weight: 896 x 896 BF16
+[20:18:17]   model.layers.0.self_attn.k_proj.weight: 128 x 896 BF16
+[20:18:18]   model.layers.12.mlp.down_proj.weight: 896 x 4864 BF16
+[20:18:19]   model.layers.12.mlp.gate_proj.weight: 4864 x 896 BF16
+[20:18:20]   model.layers.23.self_attn.o_proj.weight: 896 x 896 BF16
+[20:18:21]   model.layers.0.self_attn.q_proj.bias: 1 x 896 BF16
+[20:18:21]   model.norm.weight: 1 x 896 BF16
+[20:18:21] Qwen2.5-0.5B-Instruct: exact ROI and tiles
+[20:18:21]   role filter attention.q: 48 tensors; roles {'embedding': 1, 'norm': 49, 'mlp.down': 24, 'mlp.gate': 24, 'mlp.up': 24, 'attention.k': 48, 'attention.o': 24, 'attention.q': 48, 'attention.v': 48}
+[20:18:21]   model.embed_tokens.weight: 151936 x 896 BF16
+[20:18:27]   pyramid model.embed_tokens.weight: built in 1.26 s, scanned 259.7 MiB; tile 4.5 ms cold, 3.3 ms warm
+[20:18:29]   model.layers.0.self_attn.q_proj.weight: 896 x 896 BF16
+[20:18:29]   model.layers.0.self_attn.k_proj.weight: 128 x 896 BF16
+[20:18:30]   model.layers.12.mlp.down_proj.weight: 896 x 4864 BF16
+[20:18:31]   model.layers.12.mlp.gate_proj.weight: 4864 x 896 BF16
+[20:18:32]   model.layers.23.self_attn.o_proj.weight: 896 x 896 BF16
+[20:18:33]   model.layers.0.self_attn.q_proj.bias: 1 x 896 BF16
+[20:18:33]   model.norm.weight: 1 x 896 BF16
+[20:18:33] Qwen2.5-Math-1.5B: exact ROI and tiles
+[20:18:33]   role filter attention.q: 56 tensors; roles {'embedding': 1, 'norm': 57, 'mlp.down': 28, 'mlp.gate': 28, 'mlp.up': 28, 'attention.k': 56, 'attention.o': 28, 'attention.q': 56, 'attention.v': 56}
+[20:18:34]   model.embed_tokens.weight: 151936 x 1536 BF16
+[20:18:43]   pyramid model.embed_tokens.weight: built in 1.96 s, scanned 445.1 MiB; tile 4.9 ms cold, 3.9 ms warm
+[20:19:03]   model.layers.0.self_attn.q_proj.weight: 1536 x 1536 BF16
+[20:19:04]   model.layers.0.self_attn.k_proj.weight: 256 x 1536 BF16
+[20:19:04]   model.layers.14.mlp.down_proj.weight: 1536 x 8960 BF16
+[20:19:07]   model.layers.14.mlp.gate_proj.weight: 8960 x 1536 BF16
+[20:19:11]   model.layers.27.self_attn.o_proj.weight: 1536 x 1536 BF16
+[20:19:11]   model.layers.0.self_attn.q_proj.bias: 1 x 1536 BF16
+[20:19:11]   model.norm.weight: 1 x 1536 BF16
+[20:19:11] Qwen2.5-Math-1.5B-Instruct: exact ROI and tiles
+[20:19:11]   role filter attention.q: 56 tensors; roles {'embedding': 1, 'norm': 57, 'mlp.down': 28, 'mlp.gate': 28, 'mlp.up': 28, 'attention.k': 56, 'attention.o': 28, 'attention.q': 56, 'attention.v': 56}
+[20:19:12]   model.embed_tokens.weight: 151936 x 1536 BF16
+[20:19:20]   pyramid model.embed_tokens.weight: built in 1.96 s, scanned 445.1 MiB; tile 4.7 ms cold, 3.7 ms warm
+[20:19:32]   model.layers.0.self_attn.q_proj.weight: 1536 x 1536 BF16
+[20:19:33]   model.layers.0.self_attn.k_proj.weight: 256 x 1536 BF16
+[20:19:33]   model.layers.14.mlp.down_proj.weight: 1536 x 8960 BF16
+[20:19:37]   model.layers.14.mlp.gate_proj.weight: 8960 x 1536 BF16
+[20:19:40]   model.layers.27.self_attn.o_proj.weight: 1536 x 1536 BF16
+[20:19:41]   model.layers.0.self_attn.q_proj.bias: 1 x 1536 BF16
+[20:19:41]   model.norm.weight: 1 x 1536 BF16
+[20:19:44]   after restart: HTTP 200 exact in 5.8 ms (disk cache), then 3.3 ms
+[20:19:44]   cancel: canceled in 19.3 ms at 11%; new pyramids [], tmp 0
+[20:19:44]   mutation (clone): tile 200 -> 409 FILE_CHANGED, ROI 409 FILE_CHANGED
+[20:19:44]   disk cap: 228.0 MiB -> cap 113 MiB -> 72.0 MiB
+[20:19:45] diff Qwen2.5-0.5B vs Qwen2.5-0.5B-Instruct
+[20:19:49]   exit 0 in 4.39 s
+[20:19:49] diff Qwen2.5-Math-1.5B vs Qwen2.5-Math-1.5B-Instruct
+[20:20:02]   exit 0 in 12.92 s

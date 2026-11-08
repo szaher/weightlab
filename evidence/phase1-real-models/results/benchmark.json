@@ -1,0 +1,603 @@
+{
+ "machine": {
+  "os": "Darwin 26.0",
+  "machine": "arm64",
+  "python": "3.12.11",
+  "cpu_count": 12,
+  "ram_gib": 36.0,
+  "cpu": "Apple M3 Pro",
+  "storage": "SSD (internal, Apple Fabric)",
+  "torch": "2.15.0"
+ },
+ "settings": "defaults (memory_budget_mib 1024, direct_tile_max_mib 64, pyramid_exact_max_mib 1024, tile_cache_disk_mib 1024)",
+ "pyramids": [
+  {
+   "tensor": "model.embed_tokens.weight",
+   "transpose": false,
+   "build_s": 1.206,
+   "bytes_scanned": 272269312,
+   "estimated_bytes": 272269312,
+   "first_tile_after_build_ms": 5.18,
+   "warm_tile_ms": 3.42
+  },
+  {
+   "tensor": "model.embed_tokens.weight",
+   "transpose": false,
+   "build_s": 1.259,
+   "bytes_scanned": 272269312,
+   "estimated_bytes": 272269312,
+   "first_tile_after_build_ms": 4.54,
+   "warm_tile_ms": 3.29
+  },
+  {
+   "tensor": "model.embed_tokens.weight",
+   "transpose": false,
+   "build_s": 1.962,
+   "bytes_scanned": 466747392,
+   "estimated_bytes": 466747392,
+   "first_tile_after_build_ms": 4.87,
+   "warm_tile_ms": 3.88
+  },
+  {
+   "tensor": "model.embed_tokens.weight",
+   "transpose": false,
+   "build_s": 1.957,
+   "bytes_scanned": 466747392,
+   "estimated_bytes": 466747392,
+   "first_tile_after_build_ms": 4.68,
+   "warm_tile_ms": 3.69
+  }
+ ],
+ "tile_latency_ms": {
+  "L0": {
+   "n": 480,
+   "p50": 6.455,
+   "p95": 8.937999999999992,
+   "max": 25.21
+  },
+  "L3": {
+   "n": 234,
+   "p50": 38.235,
+   "p95": 65.6075,
+   "max": 224.49
+  },
+  "L4": {
+   "n": 160,
+   "p50": 58.0,
+   "p95": 100.80699999999997,
+   "max": 117.62
+  },
+  "L6": {
+   "n": 80,
+   "p50": 196.29500000000002,
+   "p95": 333.3755,
+   "max": 337.03
+  },
+  "L10": {
+   "n": 16,
+   "p50": 7.805,
+   "p95": 23.6125,
+   "max": 27.4
+  },
+  "L2": {
+   "n": 54,
+   "p50": 7.140000000000001,
+   "p95": 77.051,
+   "max": 79.66
+  },
+  "L5": {
+   "n": 20,
+   "p50": 61.614999999999995,
+   "p95": 66.3315,
+   "max": 70.92
+  }
+ },
+ "import": [
+  {
+   "model": "Qwen2.5-0.5B",
+   "seconds": 0.012,
+   "tensor_count": 290,
+   "status": "ready"
+  },
+  {
+   "model": "Qwen2.5-0.5B-Instruct",
+   "seconds": 0.012,
+   "tensor_count": 290,
+   "status": "ready"
+  },
+  {
+   "model": "Qwen2.5-Math-1.5B",
+   "seconds": 0.014,
+   "tensor_count": 338,
+   "status": "ready"
+  },
+  {
+   "model": "Qwen2.5-Math-1.5B-Instruct",
+   "seconds": 0.021,
+   "tensor_count": 338,
+   "status": "ready"
+  }
+ ],
+ "idle_rss_mib_start": 61.7,
+ "disk_cache_bytes_after_validation": 239063992,
+ "rss_mib_after_validation": 144.3,
+ "peak_rss_mib_validation": 158.8,
+ "rss_timeline_mib": [
+  [
+   0.0,
+   59.9
+  ],
+  [
+   1.0,
+   54.9
+  ],
+  [
+   2.1,
+   89.8
+  ],
+  [
+   3.2,
+   94.7
+  ],
+  [
+   4.2,
+   97.8
+  ],
+  [
+   5.2,
+   97.9
+  ],
+  [
+   6.3,
+   102.7
+  ],
+  [
+   7.3,
+   74.0
+  ],
+  [
+   8.4,
+   55.7
+  ],
+  [
+   9.4,
+   35.5
+  ],
+  [
+   10.5,
+   53.8
+  ],
+  [
+   11.5,
+   105.6
+  ],
+  [
+   12.5,
+   110.0
+  ],
+  [
+   13.6,
+   117.5
+  ],
+  [
+   14.6,
+   125.9
+  ],
+  [
+   15.7,
+   129.2
+  ],
+  [
+   16.7,
+   131.1
+  ],
+  [
+   17.8,
+   129.3
+  ],
+  [
+   18.8,
+   141.2
+  ],
+  [
+   19.9,
+   141.3
+  ],
+  [
+   20.9,
+   102.9
+  ],
+  [
+   21.9,
+   80.5
+  ],
+  [
+   22.9,
+   96.0
+  ],
+  [
+   24.0,
+   132.2
+  ],
+  [
+   25.0,
+   125.5
+  ],
+  [
+   26.0,
+   129.5
+  ],
+  [
+   27.1,
+   125.7
+  ],
+  [
+   28.1,
+   138.2
+  ],
+  [
+   29.2,
+   140.4
+  ],
+  [
+   30.2,
+   119.1
+  ],
+  [
+   31.2,
+   114.6
+  ],
+  [
+   32.3,
+   114.5
+  ],
+  [
+   33.3,
+   114.4
+  ],
+  [
+   34.3,
+   112.6
+  ],
+  [
+   35.4,
+   126.5
+  ],
+  [
+   36.4,
+   127.0
+  ],
+  [
+   37.5,
+   60.2
+  ],
+  [
+   38.5,
+   30.5
+  ],
+  [
+   39.6,
+   24.0
+  ],
+  [
+   40.6,
+   23.9
+  ],
+  [
+   41.6,
+   39.7
+  ],
+  [
+   42.7,
+   39.6
+  ],
+  [
+   43.7,
+   24.1
+  ],
+  [
+   44.7,
+   24.0
+  ],
+  [
+   45.8,
+   23.8
+  ],
+  [
+   46.8,
+   23.8
+  ],
+  [
+   47.8,
+   39.8
+  ],
+  [
+   48.9,
+   39.6
+  ],
+  [
+   49.9,
+   39.9
+  ],
+  [
+   51.0,
+   24.0
+  ],
+  [
+   52.0,
+   23.8
+  ],
+  [
+   53.0,
+   23.8
+  ],
+  [
+   54.1,
+   39.7
+  ],
+  [
+   55.1,
+   39.7
+  ],
+  [
+   56.1,
+   39.7
+  ],
+  [
+   57.1,
+   94.8
+  ],
+  [
+   58.1,
+   122.7
+  ],
+  [
+   59.2,
+   126.4
+  ],
+  [
+   60.2,
+   125.1
+  ],
+  [
+   61.3,
+   128.9
+  ],
+  [
+   62.3,
+   131.0
+  ],
+  [
+   63.4,
+   133.1
+  ],
+  [
+   64.4,
+   137.7
+  ],
+  [
+   65.5,
+   144.1
+  ],
+  [
+   66.5,
+   149.8
+  ],
+  [
+   67.6,
+   149.8
+  ],
+  [
+   68.6,
+   149.9
+  ],
+  [
+   69.7,
+   150.0
+  ],
+  [
+   70.7,
+   149.9
+  ],
+  [
+   71.8,
+   158.3
+  ],
+  [
+   72.8,
+   158.6
+  ],
+  [
+   73.8,
+   158.8
+  ],
+  [
+   74.9,
+   148.3
+  ],
+  [
+   75.9,
+   95.6
+  ],
+  [
+   76.9,
+   86.5
+  ],
+  [
+   77.9,
+   25.3
+  ],
+  [
+   79.0,
+   40.2
+  ],
+  [
+   80.0,
+   40.2
+  ],
+  [
+   81.1,
+   24.6
+  ],
+  [
+   82.1,
+   23.8
+  ],
+  [
+   83.1,
+   39.9
+  ],
+  [
+   84.2,
+   39.9
+  ],
+  [
+   85.2,
+   39.9
+  ],
+  [
+   86.2,
+   70.8
+  ],
+  [
+   87.3,
+   125.0
+  ],
+  [
+   88.3,
+   124.9
+  ],
+  [
+   89.3,
+   129.0
+  ],
+  [
+   90.3,
+   129.1
+  ],
+  [
+   91.3,
+   134.3
+  ],
+  [
+   92.4,
+   136.1
+  ],
+  [
+   93.4,
+   136.7
+  ],
+  [
+   94.4,
+   144.2
+  ],
+  [
+   95.4,
+   144.3
+  ],
+  [
+   96.5,
+   144.3
+  ]
+ ],
+ "peak_rss_mib_lifecycle": 93.2,
+ "peak_rss_mib": 158.8,
+ "lifecycle": {
+  "restart": {
+   "status": 200,
+   "quality": "exact",
+   "first_after_restart_ms": 5.78,
+   "repeat_ms": 3.3,
+   "peak_rss_mib": 59.6
+  },
+  "cancel": {
+   "state": "canceled",
+   "latency_ms": 19.28,
+   "progress_at_cancel": 0.11057287278854254,
+   "result": null,
+   "new_pyramids": [],
+   "tmp_files": 0
+  },
+  "mutation": {
+   "before": 200,
+   "tile_after": 409,
+   "tile_code": "FILE_CHANGED",
+   "roi_after": 409,
+   "roi_code": "FILE_CHANGED"
+  },
+  "disk_cap": {
+   "before_bytes": 239063992,
+   "cap_mib": 113,
+   "after_bytes": 75452280,
+   "ok": true
+  }
+ },
+ "diff": {
+  "Qwen2.5-0.5B__Qwen2.5-0.5B-Instruct": {
+   "exit": 0,
+   "seconds": 4.39,
+   "stderr_tail": "",
+   "summary": {
+    "compatibility": {
+     "lineage": {
+      "compatibility_class": "S",
+      "base_file_identity_verified": false,
+      "base_identity_method": "none",
+      "lineage_claim_source": "none",
+      "lineage_trust_level": "none",
+      "lineage_evidence": "none",
+      "transfer_eligibility": "T4",
+      "reasons": [
+       "no lineage evidence: shape-compatible only; deltas may be meaningless (permutation/alignment)"
+      ]
+     },
+     "counts": {
+      "matched": 290,
+      "missing_in_a": 0,
+      "missing_in_b": 0,
+      "tied": 0,
+      "shape_mismatch": 0,
+      "dtype_mismatch": 0
+     },
+     "not_compared": []
+    }
+   }
+  },
+  "Qwen2.5-Math-1.5B__Qwen2.5-Math-1.5B-Instruct": {
+   "exit": 0,
+   "seconds": 12.92,
+   "stderr_tail": "",
+   "summary": {
+    "compatibility": {
+     "lineage": {
+      "compatibility_class": "S",
+      "base_file_identity_verified": false,
+      "base_identity_method": "none",
+      "lineage_claim_source": "none",
+      "lineage_trust_level": "none",
+      "lineage_evidence": "none",
+      "transfer_eligibility": "T4",
+      "reasons": [
+       "no lineage evidence: shape-compatible only; deltas may be meaningless (permutation/alignment)"
+      ]
+     },
+     "counts": {
+      "matched": 338,
+      "missing_in_a": 0,
+      "missing_in_b": 0,
+      "tied": 0,
+      "shape_mismatch": 0,
+      "dtype_mismatch": 0
+     },
+     "not_compared": []
+    }
+   }
+  }
+ },
+ "roi_latency_ms": {
+  "n": 184,
+  "p50": 4.27,
+  "p95": 7.533999999999999,
+  "max": 27.86
+ }
+}
