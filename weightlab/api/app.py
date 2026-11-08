@@ -1,11 +1,12 @@
 """FastAPI application: routes of contracts/openapi.yaml 0.3.0 implemented in Phase 1 Task 2.
 
 Implemented: /health, /projects (+ /{id}), /projects/{id}/models, /models/{id}/relink, /models/{id}/tensors
-(+ /{tensor_id}), /tensors/roi (all four source kinds), /comparisons (+ /{id}, /{id}/entries),
-/projects/{id}/adapters, /projects/{id}/bookmarks (+ /{bookmark_id}), /settings.
-Deferred to later Phase 1 tasks (not registered, so they answer 404): /tiles, /tiles/{cache_key}/metadata
-(Task 4), /jobs, /jobs/{id}, /jobs/{id}/cancel (Tasks 5-6), /exports* (needs jobs), /dialogs/select-directory
-(optional capability, not advertised). `IMPLEMENTED` and `DEFERRED` list them; tests check both against
+(+ /{tensor_id}), /tensors/roi (all four source kinds), /tiles (+ /{cache_key}/metadata; the complete quality
+decision table for kind=tensor sources, see api/tiles.py), /jobs (+ /{id}, /{id}/cancel; kind pyramid_build),
+/comparisons (+ /{id}, /{id}/entries), /projects/{id}/adapters, /projects/{id}/bookmarks (+ /{bookmark_id}),
+/settings.
+Deferred (not registered, so they answer 404): /exports* (export jobs), /dialogs/select-directory (optional
+capability, not advertised). `IMPLEMENTED` and `DEFERRED` list them; tests check both against
 the contract.
 
 Bodies are parsed by the strict JSON reader (no NaN/Infinity, no duplicate keys) and validated by the
@@ -33,14 +34,17 @@ from weightlab.api.schemas import (
     AdapterImport,
     BookmarkCreate,
     ComparisonRequest,
+    JobRequest,
     ModelImport,
     ModelRelink,
     ProjectCreate,
     RoiRequest,
     SavedView,
     SettingsPatch,
+    TileRequest,
 )
 from weightlab.api.security import Guard
+from weightlab.api.tiles import TileService
 from weightlab.core.errors import ErrorCode, WeightLabError
 from weightlab.db import Database, quick_health, store
 from weightlab.formats.base import strict_json
@@ -72,17 +76,17 @@ IMPLEMENTED: frozenset[tuple[str, str]] = frozenset(
         ("delete", "/projects/{project_id}/bookmarks/{bookmark_id}"),
         ("get", "/settings"),
         ("patch", "/settings"),
+        ("post", "/tiles"),
+        ("get", "/tiles/{cache_key}/metadata"),
+        ("post", "/jobs"),
+        ("get", "/jobs/{job_id}"),
+        ("post", "/jobs/{job_id}/cancel"),
     }
 )
 DEFERRED: dict[tuple[str, str], str] = {
-    ("post", "/tiles"): "Phase 1 Task 4 (heatmap tiles)",
-    ("get", "/tiles/{cache_key}/metadata"): "Phase 1 Task 4 (heatmap tiles)",
-    ("post", "/jobs"): "Phase 1 Tasks 5-6 (stats jobs, cancellation, memory limiter)",
-    ("get", "/jobs/{job_id}"): "Phase 1 Tasks 5-6",
-    ("post", "/jobs/{job_id}/cancel"): "Phase 1 Tasks 5-6",
-    ("post", "/exports"): "needs the job runner (Tasks 5-6)",
-    ("get", "/exports/{export_id}"): "needs the job runner (Tasks 5-6)",
-    ("get", "/exports/{export_id}/download"): "needs the job runner (Tasks 5-6)",
+    ("post", "/exports"): "export jobs (a later milestone)",
+    ("get", "/exports/{export_id}"): "export jobs (a later milestone)",
+    ("get", "/exports/{export_id}/download"): "export jobs (a later milestone)",
     ("post", "/dialogs/select-directory"): "optional capability native_directory_dialog, not advertised",
 }
 
@@ -129,9 +133,15 @@ def create_app(config: ServerConfig, database: Database | None = None, assets: d
     async def work(fn: Callable[..., Any], *args: Any) -> Any:
         return await run_in_threadpool(run, fn, *args)
 
+    tiles = TileService(db, config.data_dir)
+
     @contextlib.asynccontextmanager
     async def lifespan(_: FastAPI) -> AsyncIterator[None]:
-        yield
+        tiles.runner.start()
+        try:
+            yield
+        finally:
+            await run_in_threadpool(tiles.runner.shutdown)
 
     app = FastAPI(
         title="WeightLab Local API",
@@ -141,6 +151,8 @@ def create_app(config: ServerConfig, database: Database | None = None, assets: d
         openapi_url=None,
         lifespan=lifespan,
     )
+
+    app.state.tiles = tiles  # caches and the job runner, for diagnostics and the benchmark
 
     @app.exception_handler(ApiError)
     async def _api_error(request: Request, exc: ApiError) -> JSONResponse:
@@ -210,7 +222,9 @@ def create_app(config: ServerConfig, database: Database | None = None, assets: d
             )
             return store.get_settings(conn, DEFAULT_SETTINGS)
 
-        return _json(await work(apply))
+        out = await work(apply)
+        tiles.settings_changed()
+        return _json(out)
 
     # -- projects ------------------------------------------------------------------------------
     @app.get(f"{p}/projects")
@@ -236,7 +250,12 @@ def create_app(config: ServerConfig, database: Database | None = None, assets: d
 
     @app.delete(f"{p}/projects/{{project_id}}")
     def delete_project(project_id: IdPath, purge_cache: Annotated[bool, Query()] = True) -> Response:
-        # No cache exists before Task 4; purge_cache is accepted and has nothing to remove yet.
+        # Jobs of the project are canceled first; purge_cache removes its pyramids and cached tiles. Nothing here
+        # opens, moves or deletes a checkpoint file.
+        with db.session() as conn:
+            if store.get_project(conn, project_id) is None:
+                raise ApiError(ErrorCode.NOT_FOUND, "project not found")
+        tiles.delete_project(project_id, purge_cache)
         with db.session() as conn:
             if not store.delete_project(conn, project_id):
                 raise ApiError(ErrorCode.NOT_FOUND, "project not found")
@@ -315,6 +334,37 @@ def create_app(config: ServerConfig, database: Database | None = None, assets: d
     async def read_roi(request: Request) -> JSONResponse:
         body = await parse(request, RoiRequest)
         return _json(await work(roi.compute, body))
+
+    # -- tiles and jobs --------------------------------------------------------------------------
+    @app.post(f"{p}/tiles")
+    async def post_tile(request: Request) -> Response:
+        body = await parse(request, TileRequest)
+        accept = request.headers.get("accept")
+        return await run_in_threadpool(tiles.tile, body, accept)
+
+    @app.get(f"{p}/tiles/{{cache_key}}/metadata")
+    def tile_metadata(cache_key: Annotated[str, Path(pattern=r"^[0-9a-f]{64}$")]) -> JSONResponse:
+        return _json(tiles.tile_metadata(cache_key))
+
+    @app.post(f"{p}/jobs")
+    async def post_job(request: Request) -> JSONResponse:
+        body = await parse(request, JobRequest)
+        view, _ = await run_in_threadpool(tiles.submit_job, body)
+        return _json(view, 202)
+
+    @app.get(f"{p}/jobs/{{job_id}}")
+    def get_job(job_id: IdPath) -> JSONResponse:
+        view = tiles.runner.get(job_id)
+        if view is None:
+            raise ApiError(ErrorCode.NOT_FOUND, "job not found")
+        return _json(view)
+
+    @app.post(f"{p}/jobs/{{job_id}}/cancel")
+    async def cancel_job(job_id: IdPath) -> JSONResponse:
+        view = await run_in_threadpool(tiles.runner.cancel, job_id)
+        if view is None:
+            raise ApiError(ErrorCode.NOT_FOUND, "job not found")
+        return _json(view)
 
     # -- comparisons ---------------------------------------------------------------------------
     @app.post(f"{p}/comparisons")
