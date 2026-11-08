@@ -58,6 +58,24 @@ SEEDS: dict[str, list[dict[str, Any]]] = {
                                  "view": VIEW}, "note": "look here"}],
     "SettingsPatch": [{"max_threads": 4}, {"memory_budget_mib": 2048, "export_absolute_paths": True,
                                            "tile_cache_disk_mib": 0, "max_lora_scan_gmac": 100000}],
+    "TileRequest": [
+        {"source": {"kind": "tensor", "model_id": "mod_a", "tensor_id": "tns_1"}, "view": VIEW,
+         "tile": {"level": 4, "x": 0, "y": 1, "size": 256}, "aggregation": "mean_abs", "quality": {"mode": "auto"}},
+        {"source": {"kind": "tensor", "model_id": "mod_a", "tensor_id": "tns_1"}, "view": VIEW,
+         "tile": {"level": 9, "x": 3, "y": 0, "size": 128}, "aggregation": "rms",
+         "quality": {"mode": "row_sampled", "sampled_rows_per_block": 8, "seed": 42}},
+        {"source": {"kind": "delta", "comparison_id": "cmp_1", "entry_id": "ent_2", "transform": "b_minus_a"},
+         "view": VIEW, "tile": {"level": 0, "x": 0, "y": 0, "size": 1}, "aggregation": "min",
+         "quality": {"mode": "exact"}},
+    ],
+    "Budget": [{"max_working_set_mib": 768, "max_threads": 2, "max_wall_seconds": 600}],
+    "JobRequest": [
+        {"kind": "pyramid_build", "source": {"kind": "tensor", "model_id": "mod_a", "tensor_id": "tns_1"},
+         "view": VIEW, "consistency": "verified",
+         "budget": {"max_working_set_mib": 768, "max_threads": 2, "max_wall_seconds": 600}},
+        {"kind": "file_hash", "model_id": "mod_a",
+         "budget": {"max_working_set_mib": 64, "max_threads": 1, "max_wall_seconds": 1}},
+    ],
 }  # fmt: skip
 
 

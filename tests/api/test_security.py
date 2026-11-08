@@ -28,7 +28,13 @@ def _err(r: Any, status: int, code: str) -> None:
 @pytest.mark.parametrize(("method", "path"), sorted(IMPLEMENTED - {("get", "/health")}))
 def test_token_required_on_every_route_but_health(client: TestClient, method: str, path: str) -> None:
     url = API_PREFIX + path.format(
-        project_id="prj_x", model_id="mod_x", tensor_id="tns_x", comparison_id="cmp_x", bookmark_id="bmk_x"
+        project_id="prj_x",
+        model_id="mod_x",
+        tensor_id="tns_x",
+        comparison_id="cmp_x",
+        bookmark_id="bmk_x",
+        job_id="job_x",
+        cache_key="0" * 64,
     )
     for headers in (
         {},

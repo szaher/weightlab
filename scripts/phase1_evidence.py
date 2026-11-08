@@ -87,6 +87,30 @@ AREAS = [
         "tests/perf/test_tile_bounded.py",
         "Task 4B foundation: 4 GiB sparse checkpoint, L0-L4 tiles: flat peak memory, reads = covered bytes, L5 refused",
     ),
+    (
+        "tests/integration/test_pyramid.py",
+        "Task 4B pyramids: L4+ records vs reference (257x263, transpose, rank-3, non-finite, >uint16, BF16/F16, I64/U64, F64 overflow), merges, chunk invariance, corruption, FILE_CHANGED",
+    ),
+    (
+        "tests/unit/test_sampling.py",
+        "Task 4B sampling: stride/SplitMix64 rows vs independent reference, pinned goldens, seeds, labels, budgets",
+    ),
+    (
+        "tests/unit/test_cache.py",
+        "Task 4B caches: memory LRU, atomic disk publication, crash leftovers, cap/eviction, session store, corruption, purge",
+    ),
+    (
+        "tests/integration/test_jobs.py",
+        "Task 4B jobs: state machine, dedup, cancel queued/running, timeout, memory, queue cap, restart, shutdown",
+    ),
+    (
+        "tests/api/test_tiles_api.py",
+        "Task 4B API: every decision-table branch, binary/JSON vs schemas, 202 dedup, polling, cancel, isolation, changes, corruption, delete, restart, offline",
+    ),
+    (
+        "tests/perf/test_pyramid_bounded.py",
+        "Task 4B perf (CI scale): bounded memory, exact vs NumPy, sampled rows, cancel latency, LRU under the disk cap",
+    ),
     ("tests/security/test_special_files.py", "Reader hardening: FIFOs/devices/directories refused without blocking"),
     (
         "tests/integration/test_evaluation_kit.py",

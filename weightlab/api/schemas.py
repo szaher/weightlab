@@ -165,6 +165,66 @@ class BookmarkCreate(Closed):
         return data
 
 
+# -- tiles and jobs ----------------------------------------------------------------------------
+class TileSpec(Closed):
+    level: Annotated[int, Field(ge=0, le=52)]
+    x: SafeInt
+    y: SafeInt
+    size: Annotated[int, Field(ge=1, le=256)]
+
+
+class Quality(Closed):
+    mode: Literal["auto", "exact", "row_sampled"]  # required by the contract despite its declared default
+    sampled_rows_per_block: Annotated[int, Field(ge=1, le=256)] | None = None
+    seed: Annotated[int, Field(ge=0, le=4294967295)] | None = None
+
+    @model_validator(mode="before")
+    @classmethod
+    def _no_nulls(cls, data: Any) -> Any:
+        if isinstance(data, dict):
+            nulls = [k for k in ("mode", "sampled_rows_per_block", "seed") if k in data and data[k] is None]
+            if nulls:
+                raise ValueError(f"{', '.join(nulls)} must not be null")
+        return data
+
+
+class TileRequest(Closed):
+    source: Source
+    view: View
+    tile: TileSpec
+    aggregation: Aggregation
+    quality: Quality
+
+
+class Budget(Closed):
+    max_working_set_mib: Annotated[int, Field(ge=64, le=65536)]
+    max_threads: Annotated[int, Field(ge=1, le=64)]
+    max_wall_seconds: Annotated[int, Field(ge=1, le=86400)]
+
+
+class JobRequest(Closed):
+    kind: Literal["tensor_stats", "pyramid_build", "compare_stats", "file_hash"]
+    source: Source | None = None
+    view: View | None = None
+    model_id: Id | None = None
+    consistency: Literal["best_effort", "verified"] = "best_effort"
+    budget: Budget
+
+    @model_validator(mode="before")
+    @classmethod
+    def _shape(cls, data: Any) -> Any:
+        if isinstance(data, dict):
+            nulls = [k for k in ("source", "view", "model_id", "consistency") if k in data and data[k] is None]
+            if nulls:
+                raise ValueError(f"{', '.join(nulls)} must not be null")
+            if data.get("kind") == "file_hash":
+                if "model_id" not in data or "source" in data:
+                    raise ValueError("file_hash takes model_id and no source")
+            elif "source" not in data:
+                raise ValueError("this job kind needs a source")
+        return data
+
+
 # -- settings ----------------------------------------------------------------------------------
 SETTINGS_BOUNDS: dict[str, tuple[int, int]] = {
     "memory_budget_mib": (256, 65536),
@@ -229,4 +289,7 @@ REQUEST_MODELS: dict[str, type[BaseModel]] = {
     "SavedView": SavedView,
     "BookmarkCreate": BookmarkCreate,
     "SettingsPatch": SettingsPatch,
+    "TileRequest": TileRequest,
+    "Budget": Budget,
+    "JobRequest": JobRequest,
 }
