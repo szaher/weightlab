@@ -36,7 +36,15 @@ from weightlab.api.config import DEFAULT_SETTINGS
 from weightlab.api.errors import ApiError
 from weightlab.api.schemas import Budget, JobRequest, TensorSource, TileRequest
 from weightlab.api.schemas import View as ViewModel
-from weightlab.cache import CachedTile, MemoryTileCache, PyramidCache, TileMetadataStore
+from weightlab.cache import (
+    BuildInProgress,
+    CachedTile,
+    DiskUnavailable,
+    MemoryTileCache,
+    PyramidCache,
+    Reservation,
+    TileMetadataStore,
+)
 from weightlab.core.errors import ErrorCode, WeightLabError, fail
 from weightlab.db import Database, store
 from weightlab.formats.checkpoint import Checkpoint
@@ -373,6 +381,7 @@ class TileService:
             "consistency": consistency,
             "pyramid_id": r.pyramid_id,
             "pyramid_bytes": nbytes,
+            "placement": where,  # what memory_bytes assumed; the build never silently changes it (see run)
         }  # fmt: skip
         return self.runner.submit(r.project_id, "pyramid_build", spec)
 
@@ -427,8 +436,43 @@ class TileService:
 class PyramidBuild:
     """The pyramid_build job kind: one streaming build, published atomically only on success."""
 
+    WAIT_SLICE_S = 0.05
+
     def __init__(self, svc: TileService) -> None:
         self.svc = svc
+
+    def _reserve(self, ctx: JobContext, spec: dict[str, Any], r: Resolved) -> Reservation | None:
+        """Reserve space for the build, or None when the pyramid became available while waiting.
+
+        * Builds are coordinated by pyramid id, across projects: when another job holds the reservation this job
+          waits (cancellable, within its wall time) and then uses the published pyramid. If that build was
+          canceled or failed instead (e.g. its project was deleted), this job builds it itself, so deleting one
+          project never takes away a build another project needs.
+        * Memory: a job admitted for disk placement may fall back to the session store only after re-admission
+          for the pyramid's size, within both its own budget and memory_budget_mib; otherwise it fails with
+          RESOURCE_LIMIT and allocates nothing."""
+        nbytes = int(spec["pyramid_bytes"])
+        cache = self.svc.pyramids
+        while True:
+            ctx.check()
+            with cache.open(r.pyramid_id, r.pyramid_identity) as h:
+                if h is not None:
+                    return None
+            try:
+                try:
+                    return cache.reserve(r.pyramid_id, nbytes, allow_memory=spec.get("placement") == "memory")
+                except DiskUnavailable:
+                    limit = int(spec["budget"]["max_working_set_mib"]) * MIB if "budget" in spec else 0
+                    if not ctx.grow_memory(nbytes, limit):
+                        raise fail(
+                            ErrorCode.RESOURCE_LIMIT,
+                            "the disk cache cannot take the pyramid now, and holding it in memory "
+                            f"({-(-nbytes // MIB)} MiB) would exceed the job's memory budget "
+                            "(max_working_set_mib) or memory_budget_mib",
+                        ) from None
+                    return cache.reserve(r.pyramid_id, nbytes, allow_memory=True)
+            except BuildInProgress:
+                cache.wait_for_build(r.pyramid_id, self.WAIT_SLICE_S)
 
     def run(self, ctx: JobContext, spec: dict[str, Any]) -> dict[str, Any]:
         try:
@@ -444,7 +488,10 @@ class PyramidBuild:
                 if h is not None:
                     self.svc.pyramids.add_owner(r.pyramid_id, r.project_id)
                     return result
-            res = self.svc.pyramids.reserve(r.pyramid_id, int(spec["pyramid_bytes"]))
+            res = self._reserve(ctx, spec, r)
+            if res is None:  # another job (possibly another project's) built it meanwhile: share its result
+                self.svc.pyramids.add_owner(r.pyramid_id, r.project_id)
+                return result
             sink: pyr.FileSink | pyr.MemorySink | None = None
             try:
                 sink = pyr.FileSink(res.tmp_path) if res.tmp_path is not None else pyr.MemorySink(res.nbytes)

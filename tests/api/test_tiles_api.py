@@ -9,6 +9,7 @@ tensors exercise every branch: `mid` (1024 x 2304 F32, 9 MiB) needs a pyramid at
 
 from __future__ import annotations
 
+import contextlib
 import hashlib
 import json
 import os
@@ -438,3 +439,133 @@ def test_app_shutdown_leaves_no_worker_threads(models: Path, tmp_path: Path, no_
     with TestClient(create_app(cfg), base_url=f"http://127.0.0.1:{PORT}") as c:
         env = Env(c, Api(c, TOKEN), models)
         env.job(env.req("big", 8, mode="exact"))
+
+
+# ----------------------------------------------------------------------------- PR #7 review: placement and sharing
+def _job_body(model: str, tensor: str, mib: int) -> dict[str, Any]:
+    budget = {"max_working_set_mib": mib, "max_threads": 1, "max_wall_seconds": 60}
+    return {"kind": "pyramid_build", "source": {"kind": "tensor", "model_id": model, "tensor_id": tensor},
+            "view": VIEW2D, "budget": budget}  # fmt: skip
+
+
+def _finished(api: Api, job_id: str, t: float = 60) -> dict[str, Any]:
+    end = time.monotonic() + t
+    while time.monotonic() < end:
+        j = api.get("/jobs/{job_id}", job_id=job_id, expect=200)
+        if j["state"] not in ("created", "queued", "running"):
+            return j  # type: ignore[no-any-return]
+        time.sleep(0.02)
+    raise AssertionError("job did not finish")
+
+
+def test_low_disk_never_lets_a_job_exceed_its_memory_budget(
+    env: Env, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The pyramid fits tile_cache_disk_mib, so the job is admitted for disk placement; at run time the disk has
+    no free space. Holding the pyramid in memory instead would exceed max_working_set_mib: the job must fail with
+    RESOURCE_LIMIT and allocate nothing, not silently build a session-memory pyramid."""
+    from weightlab import open_checkpoint
+    from weightlab.analysis import pyramid as P
+    from weightlab.cache import PyramidCache
+
+    shape = (8192, 8192)  # BF16, sparse zeros: a ~19 MiB pyramid, so memory placement cannot fit a 64 MiB budget
+    header = json.dumps(
+        {"z.weight": {"dtype": "BF16", "shape": list(shape), "data_offsets": [0, shape[0] * shape[1] * 2]}}
+    )
+    hb = header.encode() + b" " * (-len(header) % 8)
+    (tmp_path / "z").mkdir()
+    with (tmp_path / "z" / "model.safetensors").open("wb") as f:
+        f.write(struct.pack("<Q", len(hb)) + hb)
+        f.truncate(8 + len(hb) + shape[0] * shape[1] * 2)
+    model = import_model(env.api, env.project, tmp_path / "z", "model.safetensors")["id"]
+    tensor = tensors_by_key(env.api, model)["z.weight"]["id"]
+    with open_checkpoint(tmp_path / "z" / "model.safetensors") as ck:
+        ws = P.build_working_set(*shape, "rows", ck.limits.read_chunk_bytes)
+    nbytes = P.estimate_bytes(*shape)
+    tight = max(64, -(-ws // (1024 * 1024)) + 1)  # 64 MiB is the contract minimum
+    assert ws <= tight * 1024 * 1024 < ws + nbytes  # disk placement fits the budget, memory placement does not
+    monkeypatch.setattr(PyramidCache, "_free_space_ok", lambda self, n: False)
+    svc = env.client.app.app.state.tiles  # type: ignore[attr-defined]  # inside the security Guard
+
+    job = env.api.post("/jobs", json_body=_job_body(model, tensor, tight), expect=202)
+    done = _finished(env.api, job["job_id"])
+    assert done["state"] == "failed", done
+    assert done["error"]["code"] == "RESOURCE_LIMIT"
+    assert "memory budget" in done["error"]["message"]
+    assert done["result"] is None
+    st = svc.pyramids.stats()
+    assert (st.session_entries, st.disk_entries, st.disk_reserved) == (0, 0, 0)
+
+    roomy = env.api.post("/jobs", json_body=_job_body(model, tensor, 512), expect=202)
+    assert _finished(env.api, roomy["job_id"])["state"] == "completed"  # re-admitted with the pyramid's size
+    st = svc.pyramids.stats()
+    assert (st.session_entries, st.disk_entries) == (1, 0)
+
+
+def test_two_projects_one_checkpoint_two_workers_share_one_build(
+    models: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Pyramids are content-addressed, so two projects importing the same checkpoint need the same pyramid. With
+    two workers both jobs run at once: the second waits for the first build instead of failing with CONFLICT, both
+    complete, one build ran and both projects own the result. Deleting the building project cancels its job; the
+    other project's job then builds the pyramid itself."""
+    import weightlab.api.tiles as tiles_mod
+
+    real = tiles_mod.pyr.build_pyramid
+    calls: list[str] = []
+    release = threading.Event()
+
+    def gated(*a: Any, **k: Any) -> Any:
+        ctl = a[6] if len(a) > 6 else k["control"]
+        calls.append(ctl.job_id)
+        if len(calls) == 1:  # hold the first build until the test has both jobs running side by side
+            while not release.wait(0.01):
+                ctl.check()
+        return real(*a, **k)
+
+    monkeypatch.setattr(tiles_mod.pyr, "build_pyramid", gated)
+    cfg = ServerConfig(port=PORT, data_dir=tmp_path / "data", token=TOKEN)
+    with TestClient(create_app(cfg), base_url=f"http://127.0.0.1:{PORT}") as c:
+        Api(c, TOKEN).patch("/settings", json_body={"max_heavy_jobs": 2}, expect=200)
+    for delete_builder in (False, True):
+        calls.clear()
+        release.clear()
+        with TestClient(create_app(cfg), base_url=f"http://127.0.0.1:{PORT}") as c:  # two workers from the start
+            api = Api(c, TOKEN)
+            envs = [Env(c, api, models) for _ in range(2)]
+            assert envs[0].project != envs[1].project
+            svc = c.app.app.state.tiles  # type: ignore[attr-defined]
+            jobs = [e.job(e.req("mid", 4))["job_id"] for e in envs]
+            assert jobs[0] != jobs[1]  # separate jobs: each project owns, sees and cancels only its own
+            end = time.monotonic() + 10
+            while time.monotonic() < end and not (
+                calls and all(api.get("/jobs/{job_id}", job_id=j, expect=200)["state"] == "running" for j in jobs)
+            ):
+                time.sleep(0.01)
+            time.sleep(0.3)  # the second job reaches the reservation while the first build holds it
+            states = [api.get("/jobs/{job_id}", job_id=j, expect=200)["state"] for j in jobs]
+            assert states == ["running", "running"], states  # aff7a28: the second one failed with CONFLICT
+            builder = 0 if calls[0] == jobs[0] else 1
+            other = 1 - builder
+            if delete_builder:
+                api.delete("/projects/{project_id}", project_id=envs[builder].project, expect=204)
+                done = _finished(api, jobs[other])
+                assert done["state"] == "completed", done  # the surviving project built it itself
+                assert calls[1] == jobs[other]
+                owners = svc.pyramids.stats().owners
+                assert [sorted(v) for v in owners.values()] == [[envs[other].project]]
+            else:
+                release.set()
+                done = [_finished(api, j) for j in jobs]
+                assert [d["state"] for d in done] == ["completed", "completed"], done
+                assert done[0]["result"] == done[1]["result"]
+                assert len(calls) == 1  # one build, shared
+                owners = svc.pyramids.stats().owners
+                assert [sorted(v) for v in owners.values()] == [sorted(e.project for e in envs)]
+            for e in envs if not delete_builder else [envs[other]]:
+                _, _, _, meta = e.binary(e.req("mid", 4))
+                assert meta["quality"] == "exact"
+            release.set()
+            for e in envs:  # independent data dir per round: clean up so the next round builds again
+                with contextlib.suppress(AssertionError):
+                    api.delete("/projects/{project_id}", project_id=e.project, expect=204)

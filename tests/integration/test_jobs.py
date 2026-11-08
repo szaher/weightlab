@@ -273,3 +273,23 @@ def test_project_cancellation_stops_its_jobs(env: Any) -> None:
     runner.cancel_project(pid)
     assert runner.get(mine["job_id"])["state"] == "canceled"  # type: ignore[index]
     assert wait(runner, theirs["job_id"])["state"] == "completed"
+
+
+def test_a_running_job_can_grow_its_reservation_only_within_both_budgets(env: Any) -> None:
+    runner, _scan, _, pid = env
+    seen: list[tuple[bool, bool, bool, int]] = []
+
+    class Grow:
+        def run(self, ctx: JobContext, spec: dict[str, Any]) -> dict[str, Any]:
+            base = ctx.memory_bytes
+            over_job = ctx.grow_memory(65 * MIB, 128 * MIB)  # 64 + 65 > the job's own 128 MiB
+            over_all = ctx.grow_memory(961 * MIB, 2048 * MIB)  # 64 + 961 > memory_budget_mib (1024)
+            ok = ctx.grow_memory(64 * MIB, 128 * MIB)
+            seen.append((over_job, over_all, ok, ctx.memory_bytes - base))
+            return {"kind": "pyramid_build", "pyramid_id": "f" * 64}
+
+    runner.kinds["grow"] = Grow()
+    job, _ = runner.submit(pid, "grow", spec("g"))
+    assert wait(runner, job["job_id"])["state"] == "completed"
+    assert seen == [(False, False, True, 64 * MIB)]
+    assert not runner._running  # the grown reservation ended with the job

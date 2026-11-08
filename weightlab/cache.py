@@ -32,7 +32,7 @@ from pathlib import Path
 from typing import Any, Literal
 
 from weightlab.analysis import pyramid as pyr
-from weightlab.core.errors import ErrorCode, fail
+from weightlab.core.errors import ErrorCode, WeightLabError, fail
 
 MIB = 1024 * 1024
 ENTRY = re.compile(r"^([0-9a-f]{64})\.wlpyr$")
@@ -180,6 +180,14 @@ class CacheStats:
     owners: dict[str, list[str]] = field(default_factory=dict)
 
 
+class BuildInProgress(WeightLabError):
+    """Another job is building this pyramid right now (CONFLICT); wait for it rather than fail."""
+
+
+class DiskUnavailable(WeightLabError):
+    """The disk cache cannot take the pyramid now and the memory fallback was not allowed (RESOURCE_LIMIT)."""
+
+
 class PyramidHandle:
     """A validated pyramid with an open blob; use as a context manager (closes a file handle promptly)."""
 
@@ -204,6 +212,7 @@ class PyramidCache:
         self.disk_capacity = disk_capacity
         self.session_capacity = session_capacity
         self._lock = threading.RLock()
+        self._build_done = threading.Condition(self._lock)  # notified whenever a reservation ends
         self._disk: OrderedDict[str, _DiskEntry] = OrderedDict()
         self._session: OrderedDict[str, _SessionEntry] = OrderedDict()
         self._reserved: dict[str, Reservation] = {}
@@ -340,15 +349,23 @@ class PyramidCache:
             return "memory"
         return None
 
-    def reserve(self, pid: str, nbytes: int) -> Reservation:
+    def reserve(self, pid: str, nbytes: int, *, allow_memory: bool = True) -> Reservation:
         """Space for one build, after LRU eviction; RESOURCE_LIMIT when neither the disk cap nor the session store
-        can take it. Never exceeds either cap."""
+        can take it. Never exceeds either cap. With `allow_memory=False` only disk is tried: a caller whose memory
+        admission assumed disk placement must not silently fall back to holding the pyramid in memory.
+        BuildInProgress when another build of the same pyramid holds the reservation (see `wait_for_build`)."""
         with self._lock:
             if pid in self._reserved:
-                raise fail(ErrorCode.CONFLICT, "a build of this pyramid is already running")
+                raise BuildInProgress(ErrorCode.CONFLICT, "a build of this pyramid is already running")
             cap = self.disk_capacity()
             if nbytes <= cap and self._evict_disk(cap - nbytes) and self._free_space_ok(nbytes):
                 res = Reservation(pid, "disk", nbytes, self.root / f"{pid}.wlpyr.tmp-{secrets.token_hex(8)}")
+            elif not allow_memory:
+                raise DiskUnavailable(
+                    ErrorCode.RESOURCE_LIMIT,
+                    f"the exact pyramid needs {nbytes} bytes on disk, but the disk cache (tile_cache_disk_mib, "
+                    f"{cap // MIB} MiB) or the free disk space cannot take it now",
+                )
             else:
                 scap = self.session_capacity()
                 if nbytes > scap or not self._evict_session(scap - nbytes):
@@ -361,6 +378,15 @@ class PyramidCache:
                 res = Reservation(pid, "memory", nbytes)
             self._reserved[pid] = res
             return res
+
+    def building(self, pid: str) -> bool:
+        with self._lock:
+            return pid in self._reserved
+
+    def wait_for_build(self, pid: str, timeout: float) -> bool:
+        """Wait up to `timeout` s for another build of `pid` to publish or abort. True when none is running."""
+        with self._build_done:
+            return self._build_done.wait_for(lambda: pid not in self._reserved, timeout)
 
     def _free_space_ok(self, nbytes: int) -> bool:
         try:
@@ -422,6 +448,7 @@ class PyramidCache:
             del self._reserved[res.pyramid_id]
             self._owners.setdefault(res.pyramid_id, set()).add(owner)
             self._write_owners()
+            self._build_done.notify_all()
 
     def abort(self, res: Reservation, sink: pyr.FileSink | pyr.MemorySink | None) -> None:
         """Discard a failed, canceled or interrupted build: nothing becomes visible."""
@@ -433,6 +460,7 @@ class PyramidCache:
                     res.tmp_path.unlink(missing_ok=True)
             if self._reserved.get(res.pyramid_id) is res:
                 del self._reserved[res.pyramid_id]
+            self._build_done.notify_all()
 
     def enforce_caps(self) -> int:
         """Evict (LRU) until both stores are within their current caps, e.g. after tile_cache_disk_mib was lowered.

@@ -56,6 +56,7 @@ class JobContext:
 
     def __init__(self, runner: JobRunner, job_id: str, total_bytes: int, deadline: float) -> None:
         self._runner = runner
+        self.memory_bytes = 0  # the admitted reservation; set by the runner, grown only by grow_memory
         self.job_id = job_id
         self.total = max(1, total_bytes)
         self.done = 0
@@ -77,6 +78,12 @@ class JobContext:
             raise Canceled(self.interrupt)
         if time.monotonic() > self.deadline:
             raise fail(ErrorCode.RESOURCE_LIMIT, "the job exceeded its wall-time budget (max_wall_seconds)")
+
+    def grow_memory(self, extra: int, job_limit: int) -> bool:
+        """Re-admit this running job with `extra` more bytes of working memory: True (and reserved until the job
+        ends) only if its total stays within `job_limit` (the job's budget) and all running reservations together
+        stay within memory_budget_mib. Never blocks; on False nothing changes and the caller must not allocate."""
+        return self._runner._grow(self.job_id, extra, job_limit)
 
 
 class JobKind(Protocol):
@@ -271,8 +278,22 @@ class JobRunner:
                 self._queue.remove(p)
                 limit = min(p.wall_seconds, float(self.settings()["max_job_seconds"]))
                 p.ctx = JobContext(self, p.job_id, p.total_bytes, time.monotonic() + limit)
+                p.ctx.memory_bytes = p.memory_bytes
                 self._running[p.job_id] = p
             self._run(p)
+
+    def _grow(self, job_id: str, extra: int, job_limit: int) -> bool:
+        with self._cv:
+            p = self._running.get(job_id)
+            if p is None or p.ctx is None or extra < 0:
+                return False
+            budget = int(self.settings()["memory_budget_mib"]) * MIB
+            used = sum(q.memory_bytes for q in self._running.values())
+            if p.memory_bytes + extra > job_limit or used + extra > budget:
+                return False
+            p.memory_bytes += extra
+            p.ctx.memory_bytes = p.memory_bytes
+            return True
 
     def _run(self, p: _Pending) -> None:
         assert p.ctx is not None

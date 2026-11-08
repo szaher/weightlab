@@ -226,3 +226,36 @@ def test_lowering_the_cap_evicts_at_once(tmp_path: Path) -> None:
     cap[0] = 0
     c.enforce_caps()
     assert list(c.root.glob("*.wlpyr")) == []
+
+
+def test_disk_only_reservation_never_falls_back_to_memory(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    from weightlab.cache import DiskUnavailable
+
+    b = Built(tmp_path, "a", (512, 512))
+    c = make(tmp_path, disk_mib=64, session_mib=64)
+    monkeypatch.setattr(PyramidCache, "_free_space_ok", lambda self, n: False)  # the disk is full right now
+    with pytest.raises(DiskUnavailable) as e:
+        c.reserve(b.pid, b.nbytes, allow_memory=False)
+    assert e.value.code.value == "RESOURCE_LIMIT"
+    assert not c.building(b.pid)
+    assert c.stats().session_bytes == 0
+    assert c.reserve(b.pid, b.nbytes).where == "memory"  # only an explicit allowance falls back
+
+
+def test_a_second_build_of_the_same_pyramid_can_wait_for_the_first(tmp_path: Path) -> None:
+    import threading
+
+    from weightlab.cache import BuildInProgress
+
+    b = Built(tmp_path, "a", (64, 64))
+    c = make(tmp_path)
+    res = c.reserve(b.pid, b.nbytes)
+    with pytest.raises(BuildInProgress):
+        c.reserve(b.pid, b.nbytes)
+    assert c.building(b.pid)
+    assert c.wait_for_build(b.pid, 0.01) is False
+    t = threading.Timer(0.05, c.abort, (res, None))
+    t.start()
+    assert c.wait_for_build(b.pid, 5) is True  # woken by the abort, not by the timeout
+    t.join()
+    assert c.reserve(b.pid, b.nbytes).where == "disk"
