@@ -32,6 +32,16 @@ class FileIdentity:
         return cls(st.st_size, st.st_mtime_ns, st.st_ctime_ns, st.st_dev, st.st_ino)
 
 
+def change_time_ns(ident: FileIdentity) -> int | None:
+    """The inode change time recorded with a fingerprint, or None where there is none to compare.
+
+    POSIX: ctime moves on every content or metadata change and cannot be set from user space, so a same-size
+    rewrite with mtime restored is still visible (doc 03). Windows: st_ctime is the creation time, which an in-place
+    rewrite does not move (doc 03's documented limit), and path stat and handle fstat do not report it identically,
+    so it is neither recorded nor compared there."""
+    return None if sys.platform == "win32" else ident.ctime_ns
+
+
 def path_identity(path: Path) -> FileIdentity:
     """Identity of whatever the path resolves to now (symlinks followed).
 

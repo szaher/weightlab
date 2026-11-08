@@ -22,6 +22,7 @@ from weightlab.api.schemas import AdapterImport, ComparisonRequest
 from weightlab.core.errors import ErrorCode, WeightLabError
 from weightlab.db import store
 from weightlab.formats.checkpoint import Checkpoint, fingerprint_side_file, hub_cache_root, open_checkpoint
+from weightlab.formats.fileio import change_time_ns
 
 ADAPTER_FILES = ("adapter_config.json", "adapter_model.safetensors")
 API_MAX_RANK = 4096  # AdapterModule.rank maximum in the frozen contract
@@ -155,7 +156,9 @@ def adapter_files(d: Path, ck: Checkpoint, config: dict[str, Any]) -> dict[str, 
         "adapter_model.safetensors": {
             "size": ident.size,
             "mtime_ns": ident.mtime_ns,
-            "ctime_ns": ident.ctime_ns,  # doc 03: a same-size rewrite with mtime_ns restored still moves ctime_ns
+            "ctime_ns": change_time_ns(
+                ident
+            ),  # doc 03: a same-size rewrite with mtime_ns restored still moves ctime_ns
             "file_id": f"{ident.dev}:{ident.ino}",
             "sha256": next(iter(ck.digests().values())),
         },
@@ -311,7 +314,7 @@ def open_adapter_checked(row: dict[str, Any]) -> Checkpoint:
         want["mtime_ns"],
         want["file_id"],
     ) or (
-        want.get("ctime_ns") is not None and ident.ctime_ns != want["ctime_ns"]  # absent for earlier imports
+        want.get("ctime_ns") is not None and change_time_ns(ident) != want["ctime_ns"]  # absent for earlier imports
     ):
         ck.close()
         raise ApiError(ErrorCode.FILE_CHANGED, "adapter_model.safetensors changed since import")

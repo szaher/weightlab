@@ -146,7 +146,7 @@ The fix:
 - `ctime_ns` is part of the quick fingerprint, so tile and pyramid cache keys change with it.
 - Adapter weights record and compare it too.
 
-Rows imported before the migration keep NULL and the previous check (`test_rows_imported_before_ctime_was_recorded_keep_working`). A possible side effect: anything that changes only a file's ctime, such as `chmod`, `chown`, a new hard link or an xattr, now makes the model `changed` until it is re-imported. Re-importing reads only the header (0.01 s here). That is the safe direction: refused, never stale.
+ctime is recorded and compared on POSIX only. On Windows `st_ctime` is the creation time, which an in-place rewrite does not move (doc 03's documented limit), and path `stat` and handle `fstat` report it differently. Comparing it there made fresh imports read as `changed` in CI, so Windows keeps NULL and the previous check. Rows imported before the migration also keep NULL and the previous check (`test_rows_imported_before_ctime_was_recorded_keep_working`). A possible side effect: anything that changes only a file's ctime, such as `chmod`, `chown`, a new hard link or an xattr, now makes the model `changed` until it is re-imported. Re-importing reads only the header (0.01 s here). That is the safe direction: refused, never stale.
 
 ## 5. `weightlab diff` (base vs Instruct)
 

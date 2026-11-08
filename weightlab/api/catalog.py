@@ -24,7 +24,7 @@ from weightlab.core.errors import ErrorCode, WeightLabError
 from weightlab.db import store
 from weightlab.db.store import FileRow, TensorRow
 from weightlab.formats.checkpoint import Checkpoint, fingerprint_side_file, open_checkpoint
-from weightlab.formats.fileio import FileIdentity
+from weightlab.formats.fileio import FileIdentity, change_time_ns
 
 CONTRACT_ROLES = frozenset(
     {
@@ -114,7 +114,13 @@ def _file_rows(ck: Checkpoint, root: Path) -> list[FileRow]:
     idents = ck.file_identities()
     rows = [
         FileRow(
-            _relpath(ck, sid, root), ident.size, ident.mtime_ns, _file_id(ident), None, "size_mtime", ident.ctime_ns
+            _relpath(ck, sid, root),
+            ident.size,
+            ident.mtime_ns,
+            _file_id(ident),
+            None,
+            "size_mtime",
+            change_time_ns(ident),
         )
         for sid, ident in idents.items()
     ]

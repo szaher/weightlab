@@ -25,7 +25,7 @@ from weightlab.core.errors import ErrorCode, fail
 from weightlab.core.limits import DEFAULT_LIMITS, Limits
 from weightlab.formats.base import Consistency, TensorMeta, strict_json
 from weightlab.formats.dtypes import DType, decode
-from weightlab.formats.fileio import FileIdentity, PositionedFile
+from weightlab.formats.fileio import FileIdentity, PositionedFile, change_time_ns
 from weightlab.formats.safetensors_reader import Header, read_header
 from weightlab.formats.selection import (
     View,
@@ -271,7 +271,7 @@ class Checkpoint:
                     "relpath": rel,
                     "size": ident.size,
                     "mtime_ns": ident.mtime_ns,
-                    "ctime_ns": ident.ctime_ns,
+                    "ctime_ns": change_time_ns(ident),
                     "file_id": f"{ident.dev}:{ident.ino}",
                 }
             )
