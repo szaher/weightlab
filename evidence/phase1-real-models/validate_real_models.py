@@ -234,6 +234,7 @@ def ulps(got: np.ndarray, ref: np.ndarray) -> float:
 class Run:
     def __init__(self, server: Server) -> None:
         self.s = server
+        self.model = ""  # model being validated (recorded with every ROI and tile check)
         self.report: dict[str, Any] = {"roi": [], "tiles": [], "sampled": [], "shape_dtype": {}, "failures": []}
         self.bench: dict[str, Any] = {"pyramids": [], "tile_latency_ms": {}, "import": [], "roi_latency_ms": []}
 
@@ -329,6 +330,7 @@ class Run:
         ok = err <= limit
         self.report["tiles"].append(
             {
+                "model": self.model,
                 "tensor": key,
                 "transpose": transpose,
                 "level": level,
@@ -366,7 +368,7 @@ class Run:
         exp = a[r0:r1, c0:c1]
         same = got.shape == exp.shape and bool(np.all((got == exp) & (np.signbit(got) == np.signbit(exp))))
         maxerr = float(np.max(np.abs(got - exp))) if got.shape == exp.shape else float("inf")
-        rec = {"tensor": key, "transpose": transpose, "roi": [r0, r1, c0, c1], "values": int(exp.size), "max_abs_error": maxerr, "bit_exact": same,
+        rec = {"model": self.model, "tensor": key, "transpose": transpose, "roi": [r0, r1, c0, c1], "values": int(exp.size), "max_abs_error": maxerr, "bit_exact": same,
                "precision": body["numeric_precision"], "encoding": body["value_encoding"], "dtype": body["source_dtype"]}  # fmt: skip
         self.report["roi"].append(rec)
         if not same or body["numeric_precision"] != "lossless":
@@ -414,6 +416,7 @@ def import_model(run: Run, project: str, name: str, path: Path) -> dict[str, Any
 
 def validate_model(run: Run, model: dict[str, Any], name: str, path: Path, rng: random.Random) -> None:
     s = run.s
+    run.model = name
     ref = Reference(path)
     cat = tensors_by_key(s, model["id"])
     mism = []
@@ -487,9 +490,6 @@ def sampled_checks(run: Run, model: dict[str, Any], path: Path) -> None:
     view = {"row_axis": 0, "col_axis": 1, "fixed_indices": {}, "transpose": False}
     for level in (8, 9, top_level(*a.shape)):
         st, h, raw, ms = run.tile(src, view, level, 0, 0, "mean")
-        if st == 200 and h["x-weightlab-quality"] == "exact":
-            log(f"  sampled L{level}: exact (pyramid already cached), not a sampling check")
-            continue
         if st != 200 or h["x-weightlab-quality"] != "row_sampled":
             run.fail(f"sampled tile L{level}: HTTP {st} quality {h.get('x-weightlab-quality')} {raw[:200]!r}")
             continue
@@ -558,8 +558,36 @@ def lifecycle_checks(run: Run, project: str, model: dict[str, Any], path: Path, 
     )
     if c["state"] != "canceled" or c["result"] is not None or after - before or tmp:
         run.fail(f"cancellation: {out['cancel']}")
-    # Mutation on an APFS clone (or a copy) of the checkpoint: the original is never touched.
-    clone_dir = work / "mutation"
+    out["mutation"] = {}
+    for case in ("content", "mtime_only", "content_mtime_restored"):
+        out["mutation"][case] = mutation_case(run, project, path, work, case)
+    return out
+
+
+def payload_offset(path: Path, key: str) -> int:
+    """Absolute file offset of the first data byte of tensor `key` (SafeTensors: 8-byte header length + header)."""
+    with path.open("rb") as f:
+        n = int.from_bytes(f.read(8), "little")
+        header = json.loads(f.read(n))
+    return 8 + n + int(header[key]["data_offsets"][0])
+
+
+# What each mutation case proves (doc 03: identity = size, mtime_ns, ctime_ns, device + inode).
+MUTATION_GUARANTEE = {
+    "content": "a same-size rewrite of one payload byte (mtime moves as it naturally does) is detected",
+    "mtime_only": "a metadata-only change (bytes identical, mtime moved) is detected; detection is by file identity, "
+    "not by content",
+    "content_mtime_restored": "a same-size rewrite of one payload byte with mtime_ns restored afterwards is detected "
+    "(ctime_ns still moves; doc 03 limits undetectable rewrites to those preserving both)",
+}
+
+
+def mutation_case(run: Run, project: str, path: Path, work: Path, case: str) -> dict[str, Any]:
+    """Import a fresh APFS clone (or copy) of the checkpoint, warm one tile, mutate the clone, then request the same
+    tile (the cached path) and an ROI. The original checkpoint is never touched."""
+    s = run.s
+    key = "model.layers.0.self_attn.q_proj.weight"
+    clone_dir = work / f"mutation-{case}"
     clone_dir.mkdir()
     clone = clone_dir / "model.safetensors"
     if sys.platform == "darwin":
@@ -569,42 +597,65 @@ def lifecycle_checks(run: Run, project: str, model: dict[str, Any], path: Path, 
     m2 = s.json(
         "POST",
         f"/projects/{project}/models",
-        {"entry_path": str(clone), "selected_root": str(clone_dir), "display_name": "mutation-clone"},
+        {"entry_path": str(clone), "selected_root": str(clone_dir), "display_name": f"mutation-{case}"},
         expect=201,
     )
-    t2 = tensors_by_key(s, m2["id"])["model.layers.0.self_attn.q_proj.weight"]
+    t2 = tensors_by_key(s, m2["id"])[key]
     src2 = {"kind": "tensor", "model_id": m2["id"], "tensor_id": t2["id"]}
-    st, _, _, _ = run.tile(
-        src2, {"row_axis": 0, "col_axis": 1, "fixed_indices": {}, "transpose": False}, 0, 0, 0, "mean"
-    )
-    st_t = time.time() + 30
-    os.utime(clone, (st_t, st_t))
-    st_after, _, raw_after, _ = run.tile(
-        src2, {"row_axis": 0, "col_axis": 1, "fixed_indices": {}, "transpose": False}, 0, 0, 0, "max"
-    )
+    view = {"row_axis": 0, "col_axis": 1, "fixed_indices": {}, "transpose": False}
+    st_before, _, _, _ = run.tile(src2, view, 0, 0, 0, "mean")
+    st_warm, _, _, _ = run.tile(src2, view, 0, 0, 0, "mean")  # now served from the tile cache
+    before = os.stat(clone)
+    time.sleep(0.01)  # a distinct timestamp for the write
+    if case in ("content", "content_mtime_restored"):
+        off = payload_offset(clone, key)
+        fd = os.open(clone, os.O_RDWR)
+        try:
+            b = os.pread(fd, 1, off)
+            os.pwrite(fd, bytes([b[0] ^ 0x01]), off)  # flips the lowest mantissa bit of the first BF16 value
+            os.fsync(fd)
+        finally:
+            os.close(fd)
+        if case == "content_mtime_restored":
+            os.utime(clone, ns=(before.st_atime_ns, before.st_mtime_ns))
+    else:
+        t = time.time() + 30
+        os.utime(clone, (t, t))
+    after = os.stat(clone)
+    st_after, _, raw_after, _ = run.tile(src2, view, 0, 0, 0, "mean")  # same request as the cached one
     roi_st, _, roi_raw = s.call(
         "POST",
         "/tensors/roi",
-        {
-            "source": src2,
-            "view": {"row_axis": 0, "col_axis": 1, "fixed_indices": {}, "transpose": False},
-            "roi": {"r0": 0, "r1": 4, "c0": 0, "c1": 4},
-            "value_encoding": "auto",
-        },
+        {"source": src2, "view": view, "roi": {"r0": 0, "r1": 4, "c0": 0, "c1": 4}, "value_encoding": "auto"},
     )
-    code = lambda raw: json.loads(raw)["error"]["code"] if raw else None  # noqa: E731
-    out["mutation"] = {
-        "before": st,
+
+    def code(raw: bytes) -> str | None:
+        try:
+            return str(json.loads(raw)["error"]["code"])
+        except (ValueError, KeyError, TypeError):
+            return None
+
+    res = {
+        "guarantee": MUTATION_GUARANTEE[case],
+        "size_same": after.st_size == before.st_size,
+        "mtime_same": after.st_mtime_ns == before.st_mtime_ns,
+        "ctime_same": after.st_ctime_ns == before.st_ctime_ns,
+        "before": st_before,
+        "warm": st_warm,
         "tile_after": st_after,
         "tile_code": code(raw_after),
         "roi_after": roi_st,
         "roi_code": code(roi_raw),
     }
-    log(f"  mutation (clone): tile {st} -> {st_after} {code(raw_after)}, ROI {roi_st} {code(roi_raw)}")
-    if st != 200 or st_after != 409 or roi_st != 409 or code(raw_after) != "FILE_CHANGED":
-        run.fail(f"mutation: {out['mutation']}")
+    res["detected"] = (
+        st_after == 409 and res["tile_code"] == "FILE_CHANGED" and roi_st == 409 and res["roi_code"] == "FILE_CHANGED"
+    )
+    log(f"  mutation {case}: size/mtime/ctime same {res['size_same']}/{res['mtime_same']}/{res['ctime_same']}; "
+        f"tile {st_before}/{st_warm} -> {st_after} {res['tile_code']}, ROI {roi_st} {res['roi_code']}")  # fmt: skip
+    if st_before != 200 or st_warm != 200 or not res["size_same"] or not res["detected"]:
+        run.fail(f"mutation {case}: {res}")
     clone.unlink()
-    return out
+    return res
 
 
 def disk_cap_check(run: Run) -> dict[str, Any]:
@@ -686,6 +737,12 @@ def run_diff(base: Path, derived: Path, out: Path) -> dict[str, Any]:
     }
 
 
+PAIRS = (("Qwen2.5-0.5B", "Qwen2.5-0.5B-Instruct"), ("Qwen2.5-Math-1.5B", "Qwen2.5-Math-1.5B-Instruct"))
+MIN_TILES_PER_MODEL = 200  # a full run checks 230-290 per model
+MIN_ROIS_PER_MODEL = 40  # 46 per model
+MIN_SAMPLED = 3
+
+
 def machine() -> dict[str, Any]:
     info: dict[str, Any] = {"os": f"{platform.system()} {platform.mac_ver()[0] or platform.release()}", "machine": platform.machine(), "python": platform.python_version(),
                             "cpu_count": os.cpu_count(), "ram_gib": round(psutil.virtual_memory().total / 2**30, 1)}  # fmt: skip
@@ -710,7 +767,9 @@ def main() -> int:
     args.out.mkdir(parents=True, exist_ok=True)
     spec = json.loads((HERE / "models.json").read_text())
     pins = [m for m in spec["models"] if args.tier == "all" or m["tier"] == "initial"]
-    pins = [m for m in pins if (models_dir / m["name"] / "model.safetensors").exists()]
+    missing = [m["name"] for m in pins if not (models_dir / m["name"] / "model.safetensors").exists()]
+    if missing:  # a smaller run is never reported as the requested tier
+        sys.exit(f"--tier {args.tier}: missing checkpoints {missing} under {models_dir}; run fetch_models.py first")
     rng = random.Random(args.seed)
     before = {m["name"]: fingerprint(models_dir / m["name"] / "model.safetensors") for m in pins}
     for m in pins:
@@ -761,13 +820,19 @@ def main() -> int:
         run.bench["peak_rss_mib_validation"], run.bench["peak_rss_mib_lifecycle"], lifecycle["restart"]["peak_rss_mib"]
     )
     diffs = {}
-    for a, b in (("Qwen2.5-0.5B", "Qwen2.5-0.5B-Instruct"), ("Qwen2.5-Math-1.5B", "Qwen2.5-Math-1.5B-Instruct")):
-        if a in before and b in before:
-            log(f"diff {a} vs {b}")
-            diffs[f"{a}__{b}"] = run_diff(
-                models_dir / a / "model.safetensors", models_dir / b / "model.safetensors", args.out / f"diff_{a}__{b}"
-            )
-            log(f"  exit {diffs[f'{a}__{b}']['exit']} in {diffs[f'{a}__{b}']['seconds']} s")
+    for a, b in PAIRS:
+        if a not in before:  # pairs of the requested tier only (both members are present: checked above)
+            continue
+        log(f"diff {a} vs {b}")
+        d = diffs[f"{a}__{b}"] = run_diff(
+            models_dir / a / "model.safetensors", models_dir / b / "model.safetensors", args.out / f"diff_{a}__{b}"
+        )
+        counts = d["summary"].get("compatibility", {}).get("counts", {})
+        log(f"  exit {d['exit']} in {d['seconds']} s; counts {counts}")
+        n = run.report["shape_dtype"][a]["tensors"]
+        expected = {"matched": n, "missing_in_a": 0, "missing_in_b": 0, "shape_mismatch": 0, "dtype_mismatch": 0}
+        if d["exit"] != 0 or any(counts.get(k) != v for k, v in expected.items()):
+            run.fail(f"diff {a} vs {b}: exit {d['exit']}, counts {counts}, expected {expected}; {d['stderr_tail']}")
     after = {m["name"]: fingerprint(models_dir / m["name"] / "model.safetensors") for m in pins}
     unchanged = before == after
     if not unchanged:
@@ -776,6 +841,20 @@ def main() -> int:
 
     tiles = run.report["tiles"]
     rois = run.report["roi"]
+    # Coverage: a phase that silently checked nothing must not contribute to PASS.
+    for m in pins:
+        nt = sum(1 for t in tiles if t["model"] == m["name"])
+        nr = sum(1 for r in rois if r["model"] == m["name"])
+        if nt < MIN_TILES_PER_MODEL or nr < MIN_ROIS_PER_MODEL:
+            run.fail(
+                f"{m['name']}: only {nt} tile / {nr} ROI checks (minimum {MIN_TILES_PER_MODEL} / {MIN_ROIS_PER_MODEL})"
+            )
+    if len(run.report["sampled"]) < MIN_SAMPLED:
+        run.fail(f"only {len(run.report['sampled'])} row-sampled checks (minimum {MIN_SAMPLED})")
+    if len(diffs) != sum(1 for a, _ in PAIRS if a in before):
+        run.fail(f"diffs run: {sorted(diffs)}")
+    if set(lifecycle.get("mutation", {})) != set(MUTATION_GUARANTEE):
+        run.fail(f"mutation cases run: {sorted(lifecycle.get('mutation', {}))}")
     summary = {
         "models": [m["name"] for m in pins],
         "checkpoints_unchanged": unchanged,
@@ -791,6 +870,8 @@ def main() -> int:
             (t["max_ulps"] for t in tiles if t["aggregation"] in ("min", "max")), default=None
         ),
         "sampled_tiles": len(run.report["sampled"]),
+        "diffs_ok": {k: d["exit"] == 0 for k, d in diffs.items()},
+        "mutation_detected": {k: v["detected"] for k, v in lifecycle.get("mutation", {}).items()},
         "failures": run.report["failures"],
         "verdict": "PASS" if not run.report["failures"] else "FAIL",
         "wall_seconds": round(time.perf_counter() - t_all, 1),

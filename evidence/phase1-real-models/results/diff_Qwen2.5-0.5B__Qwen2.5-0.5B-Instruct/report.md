@@ -91,7 +91,7 @@ Whole model (analyzed tensors): rel L2 0.0418489, Δ L2 36.341, Δ RMS 0.001635,
 
 ## Provenance
 
-- weightlab 0.0.1.dev0 (parser v1, numerics v2), created 2026-11-08T20:19:49Z
+- weightlab 0.0.1.dev0 (parser v1, numerics v2), created 2026-11-08T22:36:17Z
 - Operation: delta, compute float64, coverage complete, consistency best_effort, epsilon_norm 1e-12
 - Files: model.safetensors 988097824 B sha256 not computed; model.safetensors 988097824 B sha256 not computed
 - Paths included: False; input files opened read-only.

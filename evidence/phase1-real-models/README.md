@@ -33,6 +33,8 @@ cd frontend && caffeinate -dims env WEIGHTLAB_REAL_MODELS=$HOME/weightlab-models
     WEIGHTLAB_SCREENSHOTS=../evidence/phase1-real-models/screenshots npx playwright test real
 ```
 
+The backend results in `results/` come from the final head, after the ctime fix. The browser soak (`browser.json`, screenshots) ran just before that fix, at `1eaeac1`. A 2-minute rerun of `real.spec.ts` on the fixed backend passed the whole workflow (section 6).
+
 Without `WEIGHTLAB_REAL_MODELS`, `real.spec.ts` skips, so CI never needs the weights. `caffeinate` (macOS) matters: in an earlier attempt the laptop went into idle sleep on battery four minutes into the soak. The frozen browser then failed a click at the "20-minute" mark. The spec now records the longest gap between soak iterations and rejects any run with a gap over 60 s.
 
 ## Files
@@ -41,7 +43,7 @@ Without `WEIGHTLAB_REAL_MODELS`, `real.spec.ts` skips, so CI never needs the wei
 |---|---|
 | `models.json` | pinned manifest: repo, revision, licence, size and SHA-256 per file |
 | `fetch_models.py` | resumable-safe download (`.part` then rename), size and SHA-256 verification, writes `<dest>/fetched.json` |
-| `validate_real_models.py` | backend validation; writes the three files below and fails non-zero on any mismatch |
+| `validate_real_models.py` | backend validation; writes the three files below and exits non-zero on any mismatch. It refuses to run when a checkpoint of the requested tier is missing, and it fails, rather than skips, when a phase checks less than its minimum (≥ 200 tiles and ≥ 40 ROIs per model, ≥ 3 row-sampled tiles, every diff pair with exit 0 and the expected matched counts, all three mutation cases) |
 | `results/numerical_report.json` | every ROI window, tile and sampled tile compared, with the error, tolerance and verdict per item |
 | `results/benchmark.json` | machine, import, pyramid builds, latency percentiles, RSS timeline, disk cache, lifecycle, diff timings |
 | `results/run.log` | human-readable log of the last run |
@@ -96,18 +98,18 @@ The tiles were checked at real BF16 shapes: 151936×896 and 151936×1536 embeddi
 
 | Metric | Value | Budget / target | Status |
 |---|---|---|---|
-| Backend peak RSS, whole validation (4 models, 1,048 tiles, 184 ROIs, 4 pyramid builds) | **158.8 MiB** (sampled every 50 ms) | 1 GiB backend target | within: 15.5 % |
-| Backend idle RSS after start / after validation | 61.7 / 144.3 MiB | — | — |
-| Pyramid build, 0.5B embedding (151936×896 BF16) | 1.21 s / 1.26 s; read **272,269,312 B** = the tensor's bytes exactly (estimate = actual) | — | — |
-| Pyramid build, Math-1.5B embedding (151936×1536 BF16) | 1.96 s / 1.96 s; read **466,747,392 B** = the tensor's bytes exactly | — | — |
-| Tile after build: first (cold memory, disk cache) / warm | 4.5–5.2 ms / 3.3–3.9 ms | — | — |
-| Tile after server restart (disk cache only) | 5.8 ms, exact; repeat 3.3 ms | — | — |
-| Direct tile latency p50 / p95 (cold, exact) | L0 6.5 / 8.9 ms · L2 7.1 / 77 ms · L3 38 / 66 ms · L4 58 / 101 ms · L5 62 / 66 ms · L6 196 / 333 ms · L10 (pyramid) 7.8 / 24 ms | — | — |
-| Row-sampled tile (L8–L10, 1.5B embedding) | 93–147 ms | — | — |
-| Exact ROI (≤ 64×64) p50 / p95 | 4.3 / 7.5 ms | — | — |
-| Disk cache after validation | 239,063,992 B (228 MiB), 4 pyramids + tiles | `tile_cache_disk_mib` 1024 | within |
+| Backend peak RSS, whole validation (4 models, 1,048 tiles, 184 ROIs, 4 pyramid builds) | **166.3 MiB** (sampled every 50 ms) | 1 GiB backend target | within: 16.2 % |
+| Backend idle RSS after start / after validation | 60.6 / 146.1 MiB | — | — |
+| Pyramid build, 0.5B embedding (151936×896 BF16) | 1.28 s / 1.53 s; read **272,269,312 B** = the tensor's bytes exactly (estimate = actual) | — | — |
+| Pyramid build, Math-1.5B embedding (151936×1536 BF16) | 2.02 s / 2.03 s; read **466,747,392 B** = the tensor's bytes exactly | — | — |
+| Tile after build: first (cold memory, disk cache) / warm | 4.9–7.7 ms / 3.2–4.0 ms | — | — |
+| Tile after server restart (disk cache only) | 6.0 ms, exact; repeat 3.5 ms | — | — |
+| Direct tile latency p50 / p95 (cold, exact) | L0 6.4 / 8.9 ms · L2 7.3 / 76 ms · L3 37 / 71 ms · L4 55 / 106 ms · L5 61 / 64 ms · L6 186 / 333 ms · L10 (pyramid) 8.5 / 35 ms | — | — |
+| Row-sampled tile (L8–L10, 0.5B embedding at a 64 MiB exact limit) | 90–188 ms | — | — |
+| Exact ROI (≤ 64×64) p50 / p95 | 4.3 / 6.2 ms | — | — |
+| Disk cache after validation | 239,064,116 B (228 MiB), 4 pyramids + tiles | `tile_cache_disk_mib` 1024 | within |
 | Bytes read by pyramid builds | each build read its tensor's bytes exactly once (`bytes_scanned` = tensor size) | — | — |
-| `weightlab diff`, 0.5B pair (2 × 942 MiB) / Math pair (2 × 2.88 GiB) | 4.4 s / 12.9 s | — | — |
+| `weightlab diff`, 0.5B pair (2 × 942 MiB) / Math pair (2 × 2.88 GiB) | 4.3 s / 13.2 s | — | — |
 
 The overview latency for the whole tensor is the tile latency at the auto level. A whole 4864×896 MLP fits in 1–2 tiles at L4/L5 (p50 58–62 ms). A whole embedding is 1–2 pyramid tiles at L9/L10 (≈ 5 ms warm, ≈ 1.2–2 s including the first build).
 
@@ -116,10 +118,35 @@ The overview latency for the whole tensor is the tile latency at the auto level.
 | Check | Result |
 |---|---|
 | Cold → warm pyramid | build once (202 + job), then 200 exact from memory; after restart, 200 exact from the disk cache, with no rebuild |
-| Cancellation | transposed embedding build cancelled at 11 % progress: state `canceled` in **19 ms**; no pyramid published, **0** temp files left |
-| Source mutation | an APFS clone of a checkpoint (`cp -c`, so the original is never touched) was imported, then one byte changed: tile **200 → 409 `FILE_CHANGED`**, ROI **409 `FILE_CHANGED`**. Nothing stale is served |
+| Cancellation | transposed embedding build cancelled at 10 % progress: state `canceled` in **22 ms**; no pyramid published, **0** temp files left |
+| Source mutation (3 cases) | see the table below |
 | Disk cap | `tile_cache_disk_mib` lowered to 113 MiB with 228 MiB cached → evicted to **72 MiB** (LRU), at most the cap |
 | Read-only | checkpoint SHA-256 and mtime identical before and after every run; inputs opened read-only (the diff provenance says so too) |
+
+**Source mutation.** Each case imports a fresh APFS clone of the Math-1.5B checkpoint (`cp -c`; the original is never touched). It then requests one tile twice, so the second answer comes from the memory tile cache, mutates the clone, and repeats the same tile request and an ROI request. Doc 03 defines the file identity as size, `mtime_ns`, `ctime_ns`, device and inode, and accepts only a same-size rewrite that preserves **both** `mtime_ns` and `ctime_ns` as undetectable.
+
+| Case | What changes | size / mtime / ctime unchanged | Tile (same cached request) / ROI | What it proves |
+|---|---|---|---|---|
+| `content` | one payload byte of `layers.0 q_proj` flipped in place | yes / no / no | **409 `FILE_CHANGED`** / **409** | an ordinary in-place content edit is detected and not served from caches |
+| `mtime_only` | bytes identical, mtime moved | yes / no / no | **409** / **409** | detection is by file identity, not content: a touched file must be re-imported even if its bytes are the same |
+| `content_mtime_restored` | one payload byte flipped, then mtime restored | yes / **yes** / no | **409** / **409** | a same-size rewrite that hides its mtime is still detected through ctime |
+
+The third case **failed before this PR** (tile 200 from the cache, ROI 200 with the new bytes). See "Bug found and fixed" below. No case proves content equality: an undetected rewrite would need both mtime and ctime preserved (POSIX user space cannot set ctime), or a Windows filesystem, where ctime is the creation time (doc 03's documented limit). Only a strong fingerprint (SHA-256, doc 10 §4) proves content.
+
+### Bug found and fixed
+
+`model_files` stored size, `mtime_ns` and `dev:ino`, but not `ctime_ns`. The cache identity (`Checkpoint.fingerprints`) also left it out. A same-size in-place rewrite with `mtime_ns` restored therefore passed every check: cached tiles of the old bytes were served, and ROI reads returned the new bytes with no `FILE_CHANGED`. Adapter weights (`adapter_model.safetensors`) had the same gap. The regression tests were written first and failed against the previous head:
+
+- `tests/api/test_tiles_api.py::test_a_same_size_rewrite_with_mtime_restored_is_file_changed`: cached pyramid tile, cached direct tile, ROI and model status;
+- `tests/api/test_review_pr3.py::test_adapter_weights_rewritten_in_place_with_mtime_restored_is_file_changed`.
+
+The fix:
+
+- Migration `0002` adds `model_files.ctime_ns`. It is recorded at import, compared by `open_model` and `live_status`, and refreshed by relink, since a move changes it.
+- `ctime_ns` is part of the quick fingerprint, so tile and pyramid cache keys change with it.
+- Adapter weights record and compare it too.
+
+Rows imported before the migration keep NULL and the previous check (`test_rows_imported_before_ctime_was_recorded_keep_working`). A possible side effect: anything that changes only a file's ctime, such as `chmod`, `chown`, a new hard link or an xattr, now makes the model `changed` until it is re-imported. Re-importing reads only the header (0.01 s here). That is the safe direction: refused, never stale.
 
 ## 5. `weightlab diff` (base vs Instruct)
 
@@ -150,6 +177,8 @@ Chromium (Playwright), the two 0.5B models alternating across 6 tensors (attenti
 Per-iteration time by phase (`ms_*` in `browser.json`) shows the app staying flat: a tensor + model switch takes 263 → 294 ms, and aggregation + settle 25–37 ms. One series does grow: 10 key presses take 20 → 120 ms, and the settle after them 3 → 19 ms. It follows two measurements of the **test harness**, not the app. A no-op `page.evaluate` round-trip goes from 0.6 to 6.8 ms, and the Node test process's heap from 84 to 209 MiB. Meanwhile the page heap, DOM, listeners, and the renderer's JS CPU stay flat. A CPU profile of 40 key presses at minute 8 against minute 1 showed the same "program" time (about 47 ms) and app functions, with the extra time all renderer idle. So the page is waiting on the Playwright client.
 
 The first soak attempts routed every request through a JS route handler in the test process, and the drift was larger (`ms_keys` 24 → 126 in 12 minutes, about 45 % lower throughput over 20 minutes). `loopbackOnly` now uses a URL RegExp that Playwright matches in the browser. Loopback traffic no longer passes through Node, and outside requests are still aborted and recorded. The drift that remains is Playwright's per-request client bookkeeping. A user's browser has no such layer.
+
+**After the ctime fix:** a 2-minute run of the same spec on the final backend passed the whole workflow (levels, 4 browser ROI values, embedding job 1.8 s, MIXED/ROW-SAMPLED labels), then 4,667 soak actions and 359 switches. Heap was flat (6.6 MiB), the cache peaked at 20.6 MiB, and at most 2 requests were in flight. The 20-minute numbers above are from the run before the fix, which changed only how files are identified, not the tile or rendering path.
 
 ## 7. Usability
 
@@ -190,8 +219,9 @@ Observations from building and running the automated workflow. These are mine, n
 | Navigation works with real shapes | role filter, overview levels, pan/zoom/selection on 896×896 … 151936×1536 | **PASS** |
 | ROI matches the independent reader | 518,656 values, max error 0 (and 4 more in the browser via a second decoder) | **PASS** |
 | Aggregates within the stated tolerance | 30.3 M tile cells, 0 ulp (tolerance 1 ulp; min/max exact) | **PASS** |
-| No checkpoint is modified | SHA-256 + mtime before/after; mutation test used an APFS clone | **PASS** |
-| Operations stay within budgets | backend peak 158.8 MiB < 1 GiB; decoded tile cache 54.9 MiB ≤ 64 MiB over a 20-minute soak; page heap flat (+0.4 MiB); disk cache ≤ cap | **PASS** |
+| No checkpoint is modified | SHA-256 + mtime before/after; mutation tests used APFS clones | **PASS** |
+| Changed sources are never served | content, mtime-only and content-with-mtime-restored mutations all 409 `FILE_CHANGED` for cached tiles and ROI (the third after the fix in this PR) | **PASS** |
+| Operations stay within budgets | backend peak 166.3 MiB < 1 GiB; decoded tile cache 54.9 MiB ≤ 64 MiB over a 20-minute soak; page heap flat (+0.4 MiB); disk cache ≤ cap | **PASS** |
 | Cache and job lifecycle verified | cold/warm/restart, cancel, FILE_CHANGED, disk-cap eviction | **PASS** |
 | CI stays green | see the PR checks | see PR |
 | Limitations recorded | above | **PASS** |

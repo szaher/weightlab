@@ -14,528 +14,582 @@
   {
    "tensor": "model.embed_tokens.weight",
    "transpose": false,
-   "build_s": 1.206,
+   "build_s": 1.283,
    "bytes_scanned": 272269312,
    "estimated_bytes": 272269312,
-   "first_tile_after_build_ms": 5.18,
-   "warm_tile_ms": 3.42
+   "first_tile_after_build_ms": 7.67,
+   "warm_tile_ms": 4.0
   },
   {
    "tensor": "model.embed_tokens.weight",
    "transpose": false,
-   "build_s": 1.259,
+   "build_s": 1.531,
    "bytes_scanned": 272269312,
    "estimated_bytes": 272269312,
-   "first_tile_after_build_ms": 4.54,
-   "warm_tile_ms": 3.29
+   "first_tile_after_build_ms": 5.02,
+   "warm_tile_ms": 3.23
   },
   {
    "tensor": "model.embed_tokens.weight",
    "transpose": false,
-   "build_s": 1.962,
+   "build_s": 2.018,
    "bytes_scanned": 466747392,
    "estimated_bytes": 466747392,
-   "first_tile_after_build_ms": 4.87,
-   "warm_tile_ms": 3.88
+   "first_tile_after_build_ms": 5.02,
+   "warm_tile_ms": 3.57
   },
   {
    "tensor": "model.embed_tokens.weight",
    "transpose": false,
-   "build_s": 1.957,
+   "build_s": 2.025,
    "bytes_scanned": 466747392,
    "estimated_bytes": 466747392,
-   "first_tile_after_build_ms": 4.68,
-   "warm_tile_ms": 3.69
+   "first_tile_after_build_ms": 4.94,
+   "warm_tile_ms": 3.45
   }
  ],
  "tile_latency_ms": {
   "L0": {
    "n": 480,
-   "p50": 6.455,
-   "p95": 8.937999999999992,
-   "max": 25.21
+   "p50": 6.375,
+   "p95": 8.886999999999995,
+   "max": 35.15
   },
   "L3": {
    "n": 234,
-   "p50": 38.235,
-   "p95": 65.6075,
-   "max": 224.49
+   "p50": 36.644999999999996,
+   "p95": 71.42,
+   "max": 245.95
   },
   "L4": {
    "n": 160,
-   "p50": 58.0,
-   "p95": 100.80699999999997,
-   "max": 117.62
+   "p50": 55.425,
+   "p95": 105.69999999999999,
+   "max": 145.37
   },
   "L6": {
    "n": 80,
-   "p50": 196.29500000000002,
-   "p95": 333.3755,
-   "max": 337.03
+   "p50": 185.905,
+   "p95": 332.68699999999995,
+   "max": 361.9
   },
   "L10": {
    "n": 16,
-   "p50": 7.805,
-   "p95": 23.6125,
-   "max": 27.4
+   "p50": 8.475000000000001,
+   "p95": 35.2825,
+   "max": 75.64
   },
   "L2": {
    "n": 54,
-   "p50": 7.140000000000001,
-   "p95": 77.051,
-   "max": 79.66
+   "p50": 7.275,
+   "p95": 76.008,
+   "max": 80.09
   },
   "L5": {
    "n": 20,
-   "p50": 61.614999999999995,
-   "p95": 66.3315,
-   "max": 70.92
+   "p50": 60.75,
+   "p95": 63.674,
+   "max": 65.08
   }
  },
  "import": [
   {
    "model": "Qwen2.5-0.5B",
-   "seconds": 0.012,
+   "seconds": 0.011,
    "tensor_count": 290,
    "status": "ready"
   },
   {
    "model": "Qwen2.5-0.5B-Instruct",
-   "seconds": 0.012,
+   "seconds": 0.011,
    "tensor_count": 290,
    "status": "ready"
   },
   {
    "model": "Qwen2.5-Math-1.5B",
-   "seconds": 0.014,
+   "seconds": 0.013,
    "tensor_count": 338,
    "status": "ready"
   },
   {
    "model": "Qwen2.5-Math-1.5B-Instruct",
-   "seconds": 0.021,
+   "seconds": 0.012,
    "tensor_count": 338,
    "status": "ready"
   }
  ],
- "idle_rss_mib_start": 61.7,
- "disk_cache_bytes_after_validation": 239063992,
- "rss_mib_after_validation": 144.3,
- "peak_rss_mib_validation": 158.8,
+ "idle_rss_mib_start": 60.6,
+ "disk_cache_bytes_after_validation": 239064116,
+ "rss_mib_after_validation": 146.1,
+ "peak_rss_mib_validation": 166.3,
  "rss_timeline_mib": [
   [
    0.0,
-   59.9
+   59.1
   ],
   [
    1.0,
-   54.9
+   55.5
   ],
   [
-   2.1,
-   89.8
+   2.0,
+   95.2
   ],
   [
-   3.2,
-   94.7
+   3.0,
+   99.1
   ],
   [
-   4.2,
-   97.8
+   4.1,
+   98.5
   ],
   [
-   5.2,
-   97.9
+   5.1,
+   95.0
   ],
   [
-   6.3,
-   102.7
+   6.1,
+   103.4
   ],
   [
-   7.3,
-   74.0
+   7.2,
+   92.4
   ],
   [
-   8.4,
-   55.7
+   8.2,
+   57.7
   ],
   [
-   9.4,
-   35.5
+   9.3,
+   38.8
   ],
   [
-   10.5,
-   53.8
+   10.3,
+   39.1
   ],
   [
-   11.5,
-   105.6
+   11.4,
+   95.2
   ],
   [
-   12.5,
-   110.0
+   12.4,
+   106.1
   ],
   [
-   13.6,
-   117.5
-  ],
-  [
-   14.6,
-   125.9
-  ],
-  [
-   15.7,
-   129.2
-  ],
-  [
-   16.7,
-   131.1
-  ],
-  [
-   17.8,
-   129.3
-  ],
-  [
-   18.8,
-   141.2
-  ],
-  [
-   19.9,
-   141.3
-  ],
-  [
-   20.9,
-   102.9
-  ],
-  [
-   21.9,
-   80.5
-  ],
-  [
-   22.9,
-   96.0
-  ],
-  [
-   24.0,
-   132.2
-  ],
-  [
-   25.0,
-   125.5
-  ],
-  [
-   26.0,
-   129.5
-  ],
-  [
-   27.1,
-   125.7
-  ],
-  [
-   28.1,
-   138.2
-  ],
-  [
-   29.2,
-   140.4
-  ],
-  [
-   30.2,
-   119.1
-  ],
-  [
-   31.2,
-   114.6
-  ],
-  [
-   32.3,
-   114.5
-  ],
-  [
-   33.3,
-   114.4
-  ],
-  [
-   34.3,
+   13.5,
    112.6
   ],
   [
-   35.4,
-   126.5
+   14.5,
+   123.3
   ],
   [
-   36.4,
-   127.0
-  ],
-  [
-   37.5,
-   60.2
-  ],
-  [
-   38.5,
-   30.5
-  ],
-  [
-   39.6,
-   24.0
-  ],
-  [
-   40.6,
-   23.9
-  ],
-  [
-   41.6,
-   39.7
-  ],
-  [
-   42.7,
-   39.6
-  ],
-  [
-   43.7,
-   24.1
-  ],
-  [
-   44.7,
-   24.0
-  ],
-  [
-   45.8,
-   23.8
-  ],
-  [
-   46.8,
-   23.8
-  ],
-  [
-   47.8,
-   39.8
-  ],
-  [
-   48.9,
-   39.6
-  ],
-  [
-   49.9,
-   39.9
-  ],
-  [
-   51.0,
-   24.0
-  ],
-  [
-   52.0,
-   23.8
-  ],
-  [
-   53.0,
-   23.8
-  ],
-  [
-   54.1,
-   39.7
-  ],
-  [
-   55.1,
-   39.7
-  ],
-  [
-   56.1,
-   39.7
-  ],
-  [
-   57.1,
-   94.8
-  ],
-  [
-   58.1,
-   122.7
-  ],
-  [
-   59.2,
-   126.4
-  ],
-  [
-   60.2,
-   125.1
-  ],
-  [
-   61.3,
-   128.9
-  ],
-  [
-   62.3,
-   131.0
-  ],
-  [
-   63.4,
-   133.1
-  ],
-  [
-   64.4,
-   137.7
-  ],
-  [
-   65.5,
-   144.1
-  ],
-  [
-   66.5,
-   149.8
-  ],
-  [
-   67.6,
-   149.8
-  ],
-  [
-   68.6,
-   149.9
-  ],
-  [
-   69.7,
-   150.0
-  ],
-  [
-   70.7,
-   149.9
-  ],
-  [
-   71.8,
-   158.3
-  ],
-  [
-   72.8,
-   158.6
-  ],
-  [
-   73.8,
-   158.8
-  ],
-  [
-   74.9,
-   148.3
-  ],
-  [
-   75.9,
-   95.6
-  ],
-  [
-   76.9,
-   86.5
-  ],
-  [
-   77.9,
-   25.3
-  ],
-  [
-   79.0,
-   40.2
-  ],
-  [
-   80.0,
-   40.2
-  ],
-  [
-   81.1,
-   24.6
-  ],
-  [
-   82.1,
-   23.8
-  ],
-  [
-   83.1,
-   39.9
-  ],
-  [
-   84.2,
-   39.9
-  ],
-  [
-   85.2,
-   39.9
-  ],
-  [
-   86.2,
-   70.8
-  ],
-  [
-   87.3,
-   125.0
-  ],
-  [
-   88.3,
+   15.5,
    124.9
   ],
   [
-   89.3,
+   16.5,
+   125.2
+  ],
+  [
+   17.6,
+   124.2
+  ],
+  [
+   18.6,
+   136.2
+  ],
+  [
+   19.6,
+   135.9
+  ],
+  [
+   20.6,
+   102.4
+  ],
+  [
+   21.7,
+   93.9
+  ],
+  [
+   22.7,
+   95.5
+  ],
+  [
+   23.7,
+   94.7
+  ],
+  [
+   24.7,
+   119.4
+  ],
+  [
+   25.8,
+   123.8
+  ],
+  [
+   26.8,
+   127.8
+  ],
+  [
+   27.8,
+   127.2
+  ],
+  [
+   28.9,
+   127.6
+  ],
+  [
+   29.9,
+   133.5
+  ],
+  [
+   31.0,
+   91.4
+  ],
+  [
+   32.0,
+   91.1
+  ],
+  [
+   33.1,
+   91.0
+  ],
+  [
+   34.1,
+   91.2
+  ],
+  [
+   35.2,
+   105.2
+  ],
+  [
+   36.2,
+   105.2
+  ],
+  [
+   37.2,
+   68.6
+  ],
+  [
+   38.3,
+   33.9
+  ],
+  [
+   39.3,
+   24.1
+  ],
+  [
+   40.3,
+   23.7
+  ],
+  [
+   41.3,
+   23.9
+  ],
+  [
+   42.4,
+   39.6
+  ],
+  [
+   43.4,
+   39.6
+  ],
+  [
+   44.4,
+   24.0
+  ],
+  [
+   45.5,
+   23.9
+  ],
+  [
+   46.5,
+   39.7
+  ],
+  [
+   47.5,
+   39.6
+  ],
+  [
+   48.6,
+   39.6
+  ],
+  [
+   49.6,
+   23.9
+  ],
+  [
+   50.7,
+   23.8
+  ],
+  [
+   51.7,
+   23.9
+  ],
+  [
+   52.7,
+   23.8
+  ],
+  [
+   53.8,
+   39.6
+  ],
+  [
+   54.8,
+   39.6
+  ],
+  [
+   55.9,
+   39.8
+  ],
+  [
+   56.9,
+   100.8
+  ],
+  [
+   58.0,
    129.0
   ],
   [
-   90.3,
-   129.1
+   59.0,
+   137.3
   ],
   [
-   91.3,
+   60.0,
+   137.7
+  ],
+  [
+   61.0,
+   136.2
+  ],
+  [
+   62.1,
+   140.5
+  ],
+  [
+   63.1,
+   141.8
+  ],
+  [
+   64.3,
+   142.0
+  ],
+  [
+   65.3,
+   148.1
+  ],
+  [
+   66.4,
+   154.5
+  ],
+  [
+   67.4,
+   160.6
+  ],
+  [
+   68.4,
+   160.7
+  ],
+  [
+   69.5,
+   160.7
+  ],
+  [
+   70.5,
+   160.4
+  ],
+  [
+   71.6,
+   160.3
+  ],
+  [
+   72.6,
+   160.3
+  ],
+  [
+   73.6,
+   166.1
+  ],
+  [
+   74.6,
+   166.3
+  ],
+  [
+   75.7,
+   127.9
+  ],
+  [
+   76.7,
+   97.5
+  ],
+  [
+   77.7,
+   66.5
+  ],
+  [
+   78.7,
+   39.8
+  ],
+  [
+   79.8,
+   38.9
+  ],
+  [
+   80.8,
+   24.2
+  ],
+  [
+   81.9,
+   23.9
+  ],
+  [
+   82.9,
+   23.9
+  ],
+  [
+   83.9,
+   39.8
+  ],
+  [
+   85.0,
+   39.8
+  ],
+  [
+   86.0,
+   39.7
+  ],
+  [
+   87.0,
+   23.9
+  ],
+  [
+   88.1,
+   39.8
+  ],
+  [
+   89.1,
+   39.6
+  ],
+  [
+   90.1,
+   39.6
+  ],
+  [
+   91.2,
+   70.0
+  ],
+  [
+   92.2,
+   112.0
+  ],
+  [
+   93.2,
+   132.8
+  ],
+  [
+   94.3,
    134.3
   ],
   [
-   92.4,
-   136.1
+   95.3,
+   135.0
   ],
   [
-   93.4,
-   136.7
+   96.4,
+   140.5
   ],
   [
-   94.4,
-   144.2
+   97.4,
+   142.2
   ],
   [
-   95.4,
-   144.3
+   98.4,
+   141.3
   ],
   [
-   96.5,
-   144.3
+   99.5,
+   147.3
+  ],
+  [
+   100.5,
+   147.4
+  ],
+  [
+   101.5,
+   146.2
   ]
  ],
- "peak_rss_mib_lifecycle": 93.2,
- "peak_rss_mib": 158.8,
+ "peak_rss_mib_lifecycle": 95.5,
+ "peak_rss_mib": 166.3,
  "lifecycle": {
   "restart": {
    "status": 200,
    "quality": "exact",
-   "first_after_restart_ms": 5.78,
-   "repeat_ms": 3.3,
+   "first_after_restart_ms": 6.0,
+   "repeat_ms": 3.51,
    "peak_rss_mib": 59.6
   },
   "cancel": {
    "state": "canceled",
-   "latency_ms": 19.28,
-   "progress_at_cancel": 0.11057287278854254,
+   "latency_ms": 21.95,
+   "progress_at_cancel": 0.10172704296545915,
    "result": null,
    "new_pyramids": [],
    "tmp_files": 0
   },
   "mutation": {
-   "before": 200,
-   "tile_after": 409,
-   "tile_code": "FILE_CHANGED",
-   "roi_after": 409,
-   "roi_code": "FILE_CHANGED"
+   "content": {
+    "guarantee": "a same-size rewrite of one payload byte (mtime moves as it naturally does) is detected",
+    "size_same": true,
+    "mtime_same": false,
+    "ctime_same": false,
+    "before": 200,
+    "warm": 200,
+    "tile_after": 409,
+    "tile_code": "FILE_CHANGED",
+    "roi_after": 409,
+    "roi_code": "FILE_CHANGED",
+    "detected": true
+   },
+   "mtime_only": {
+    "guarantee": "a metadata-only change (bytes identical, mtime moved) is detected; detection is by file identity, not by content",
+    "size_same": true,
+    "mtime_same": false,
+    "ctime_same": false,
+    "before": 200,
+    "warm": 200,
+    "tile_after": 409,
+    "tile_code": "FILE_CHANGED",
+    "roi_after": 409,
+    "roi_code": "FILE_CHANGED",
+    "detected": true
+   },
+   "content_mtime_restored": {
+    "guarantee": "a same-size rewrite of one payload byte with mtime_ns restored afterwards is detected (ctime_ns still moves; doc 03 limits undetectable rewrites to those preserving both)",
+    "size_same": true,
+    "mtime_same": true,
+    "ctime_same": false,
+    "before": 200,
+    "warm": 200,
+    "tile_after": 409,
+    "tile_code": "FILE_CHANGED",
+    "roi_after": 409,
+    "roi_code": "FILE_CHANGED",
+    "detected": true
+   }
   },
   "disk_cap": {
-   "before_bytes": 239063992,
+   "before_bytes": 239064116,
    "cap_mib": 113,
-   "after_bytes": 75452280,
+   "after_bytes": 75452311,
    "ok": true
   }
  },
  "diff": {
   "Qwen2.5-0.5B__Qwen2.5-0.5B-Instruct": {
    "exit": 0,
-   "seconds": 4.39,
+   "seconds": 4.27,
    "stderr_tail": "",
    "summary": {
     "compatibility": {
@@ -565,7 +619,7 @@
   },
   "Qwen2.5-Math-1.5B__Qwen2.5-Math-1.5B-Instruct": {
    "exit": 0,
-   "seconds": 12.92,
+   "seconds": 13.16,
    "stderr_tail": "",
    "summary": {
     "compatibility": {
@@ -596,8 +650,8 @@
  },
  "roi_latency_ms": {
   "n": 184,
-  "p50": 4.27,
-  "p95": 7.533999999999999,
-  "max": 27.86
+  "p50": 4.255,
+  "p95": 6.237,
+  "max": 25.44
  }
 }
