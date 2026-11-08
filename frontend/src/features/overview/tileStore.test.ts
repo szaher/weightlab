@@ -116,6 +116,34 @@ describe("tile scheduler", () => {
     expect(again.s.cached("0/0/0")?.cacheKey).toBe("b".repeat(64));
   });
 
+  it("recovers a re-opened namespace whose requested region was never cached, without exposing the old tiles", async () => {
+    const cache = new DecodedTileCache();
+    const first = harness(cache);
+    first.s.setNamespace("ns", { viewRows: 1, viewCols: 100_000 });
+    first.s.setWanted([want(0)]); // tensor A, region X
+    first.pending[0]!.resolve({ kind: "tile", tile: tile("a".repeat(64)) });
+    await flush();
+    expect(cache.peek("ns|0/0/0")).toBeDefined();
+    // Switch away (another tensor), then come back to A and go straight to region Y, never cached.
+    first.s.setNamespace("other", { viewRows: 1, viewCols: 100_000 });
+    const back = harness(cache);
+    back.s.setNamespace("ns", { viewRows: 1, viewCols: 100_000 });
+    back.s.setWanted([want(5), want(6)]);
+    expect(back.s.cached("0/0/0")).toBeUndefined(); // hidden until confirmed
+    back.pending[0]!.resolve({ kind: "tile", tile: tile("y".repeat(64)) });
+    back.pending[1]!.resolve({ kind: "tile", tile: tile("z".repeat(64)) });
+    await flush();
+    // Y renders (before the fix it stayed hidden behind "Loading overview" forever).
+    expect(back.s.cached("0/5/0")?.cacheKey).toBe("y".repeat(64));
+    expect(back.s.cached("0/6/0")?.cacheKey).toBe("z".repeat(64));
+    expect(back.results.map((r) => r[0])).toEqual(["0/5/0", "0/6/0"]);
+    // The unconfirmed region-X tile was dropped, so going back to X re-reads it instead of showing old bytes.
+    expect(back.s.cached("0/0/0")).toBeUndefined();
+    expect(cache.peek("ns|0/0/0")).toBeUndefined();
+    back.s.setWanted([want(0)]);
+    expect(back.pending.length).toBe(3);
+  });
+
   it("parks tiles answered with a job until the job ends, and retries 429 instead of failing", async () => {
     const { s, pending, results } = harness();
     s.setNamespace("ns", { viewRows: 1, viewCols: 1000 });

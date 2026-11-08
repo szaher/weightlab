@@ -145,6 +145,45 @@ describe("whole-tensor overview", () => {
     expect(calls.some((c) => c.url.pathname.endsWith("/cancel"))).toBe(false);
   });
 
+  it("keeps polling after a temporary status failure, with backoff, and completes", async () => {
+    let built = false;
+    let polls = 0;
+    const calls = server({
+      tile: (b) => (built ? tileResponse(b, { rows: 1024, cols: 2304 }) : json(job("queued"), 202)),
+      job: () => {
+        polls++;
+        if (polls === 1) throw new TypeError("connection reset"); // the client turns this into NETWORK
+        built = true;
+        return json(job("completed", { result: { kind: "pyramid_build", pyramid_id: "f".repeat(64) } }));
+      },
+    });
+    render(<TensorWorkbench modelId="mod_1" tensor={tensor()} />);
+    expect(await screen.findByTestId("job-poll-error")).toHaveTextContent("checking again shortly");
+    expect(screen.getByTestId("job-panel")).toHaveAttribute("data-state", "queued");
+    expect(await screen.findByTestId("coverage-badge", {}, { timeout: 4000 })).toHaveTextContent("EXACT coverage");
+    expect(polls).toBe(2);
+    expect(calls.some((c) => c.url.pathname.endsWith("/cancel"))).toBe(false);
+  });
+
+  it("offers a manual status check that restarts polling at once", async () => {
+    let fail = true;
+    let polls = 0;
+    server({
+      tile: () => json(job("running"), 202),
+      job: () => {
+        polls++;
+        if (fail) throw new TypeError("connection reset");
+        return json(job("canceled"));
+      },
+    });
+    render(<TensorWorkbench modelId="mod_1" tensor={tensor()} />);
+    const again = await screen.findByTestId("job-check-again");
+    fail = false;
+    fireEvent.click(again);
+    await waitFor(() => expect(screen.getByTestId("job-panel")).toHaveAttribute("data-state", "canceled"), { timeout: 1500 });
+    expect(polls).toBe(2);
+  });
+
   it("explains failed and interrupted builds", async () => {
     server({ tile: () => json(job("running"), 202), job: () => json(job("interrupted")) });
     render(<TensorWorkbench modelId="mod_1" tensor={tensor()} />);
@@ -246,5 +285,15 @@ describe("whole-tensor overview", () => {
     expect(screen.queryByRole("tab", { name: "Overview" })).toBeNull();
     render(<TensorWorkbench modelId="mod_1" tensor={tensor("tns_e", [0, 4])} />);
     expect(await screen.findByTestId("roi-empty")).toBeInTheDocument();
+  });
+});
+
+describe("job status polling backoff", () => {
+  it("follows poll_after_ms, backs off after failures and is bounded", async () => {
+    const { pollBackoff, MAX_POLL_FAILURES } = await import("./Overview");
+    const j = job("running", { poll_after_ms: 500 });
+    expect([0, 1, 2, 3, 4, 5].map((f) => pollBackoff(j, f))).toEqual([500, 1000, 2000, 4000, 8000, 8000]);
+    expect(pollBackoff(job("running", { poll_after_ms: 50_000 }), 0)).toBe(10_000);
+    expect(MAX_POLL_FAILURES).toBe(5);
   });
 });

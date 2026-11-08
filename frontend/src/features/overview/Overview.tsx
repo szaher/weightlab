@@ -111,8 +111,15 @@ interface JobBox {
   job: Job | null;
   error: unknown;
   canceling: boolean;
+  /** Consecutive failed status polls; polling backs off and stops after MAX_POLL_FAILURES. */
+  failures: number;
+  /** Bumped by "Check again" to restart polling after it gave up. */
+  pollNonce: number;
 }
-const emptyBox = (ns: string): JobBox => ({ ns, job: null, error: null, canceling: false });
+const emptyBox = (ns: string): JobBox => ({ ns, job: null, error: null, canceling: false, failures: 0, pollNonce: 0 });
+export const MAX_POLL_FAILURES = 5;
+/** Delay before the next status poll: poll_after_ms normally, 1, 2, 4, 8 s after consecutive failures. */
+export const pollBackoff = (j: Job, failures: number): number => (failures === 0 ? pollDelay(j) : Math.min(8_000, 1_000 * 2 ** (failures - 1)));
 
 const pollDelay = (j: Job) => Math.min(10_000, Math.max(100, j.poll_after_ms ?? 500));
 const isPending = (j: Job | null) => !!j && PENDING_JOB_STATES.includes(j.state);
@@ -139,7 +146,7 @@ export function Overview({ modelId, tensor, view, dims, settings, aggregation: a
   const [confirmExact, setConfirmExact] = useState(false);
   // The pyramid job of the current namespace (tensor, view, aggregation, quality). Kept with the namespace it
   // belongs to, so a job of an earlier namespace is never shown for the current one.
-  const [jobBox, setJobBox] = useState<JobBox>({ ns: "", job: null, error: null, canceling: false });
+  const [jobBox, setJobBox] = useState<JobBox>(() => emptyBox(""));
   const [tick, setTick] = useState(0); // a tile arrived / failed
   const [announce, setAnnounce] = useState("");
 
@@ -224,6 +231,8 @@ export function Overview({ modelId, tensor, view, dims, settings, aggregation: a
   const job = box.job;
   const jobError = box.error;
   const canceling = box.canceling;
+  const pollFailures = box.failures;
+  const pollNonce = box.pollNonce;
   const patchJob = useCallback((at: string, patch: Partial<JobBox>) => {
     setJobBox((b) => ({ ...(b.ns === at ? b : emptyBox(at)), ...patch }));
   }, []);
@@ -381,15 +390,16 @@ export function Overview({ modelId, tensor, view, dims, settings, aggregation: a
     };
   }, []);
 
-  // ---- jobs: poll while pending; never cancel on unmount
+  // ---- jobs: poll while pending; never cancel on unmount. A failed poll is retried with backoff (bounded);
+  // after MAX_POLL_FAILURES the panel offers "Check again". Terminal states and unmount stop polling.
   useEffect(() => {
-    if (!job || !isPending(job)) return;
+    if (!job || !isPending(job) || pollFailures >= MAX_POLL_FAILURES) return;
     const ctl = new AbortController();
     const t = window.setTimeout(() => {
       getJob(job.job_id, ctl.signal).then(
         (next) => {
           if (ctl.signal.aborted) return;
-          patchJob(ns, { job: next, error: null });
+          patchJob(ns, { job: next, error: null, failures: 0 });
           if (next.state === "completed") {
             setAnnounce("Exact overview ready.");
             sched.retryPending();
@@ -397,15 +407,18 @@ export function Overview({ modelId, tensor, view, dims, settings, aggregation: a
         },
         (e: unknown) => {
           if (ctl.signal.aborted || isAbort(e)) return;
-          patchJob(ns, { error: e });
+          patchJob(ns, { error: e, failures: pollFailures + 1 });
         },
       );
-    }, pollDelay(job));
+    }, pollBackoff(job, pollFailures));
     return () => {
       ctl.abort();
       window.clearTimeout(t);
     };
-  }, [job, sched, ns, patchJob]);
+  }, [job, sched, ns, patchJob, pollFailures, pollNonce]);
+  function onCheckAgain() {
+    patchJob(ns, { failures: 0, error: null, pollNonce: pollNonce + 1 });
+  }
 
   function onCancelJob() {
     if (!job || canceling) return;
@@ -420,7 +433,7 @@ export function Overview({ modelId, tensor, view, dims, settings, aggregation: a
     );
   }
   function onRetryBuild() {
-    patchJob(ns, { job: null, error: null, canceling: false });
+    patchJob(ns, { job: null, error: null, canceling: false, failures: 0 });
     states.current.clear();
     sched.retryPending();
   }
@@ -817,7 +830,18 @@ export function Overview({ modelId, tensor, view, dims, settings, aggregation: a
         </p>
       ) : null}
 
-      {job ? <JobPanel job={job} error={jobError} canceling={canceling} onCancel={onCancelJob} onRetry={onRetryBuild} /> : null}
+      {job ? (
+        <JobPanel
+          job={job}
+          error={jobError}
+          pollStopped={pollFailures >= MAX_POLL_FAILURES}
+          retrying={pollFailures > 0 && pollFailures < MAX_POLL_FAILURES}
+          canceling={canceling}
+          onCancel={onCancelJob}
+          onRetry={onRetryBuild}
+          onCheckAgain={onCheckAgain}
+        />
+      ) : null}
 
       {transposeSampleError ? (
         <div className="notice notice-warn" role="alert" data-testid="sampling-unsupported">
@@ -995,7 +1019,18 @@ export function Overview({ modelId, tensor, view, dims, settings, aggregation: a
   );
 }
 
-function JobPanel({ job, error, canceling, onCancel, onRetry }: { job: Job; error: unknown; canceling: boolean; onCancel: () => void; onRetry: () => void }) {
+interface JobPanelProps {
+  job: Job;
+  error: unknown;
+  pollStopped: boolean;
+  retrying: boolean;
+  canceling: boolean;
+  onCancel: () => void;
+  onRetry: () => void;
+  onCheckAgain: () => void;
+}
+
+function JobPanel({ job, error, pollStopped, retrying, canceling, onCancel, onRetry, onCheckAgain }: JobPanelProps) {
   const pct = Math.floor(job.progress * 100);
   const io =
     job.estimated_bytes !== undefined ? (
@@ -1021,7 +1056,21 @@ function JobPanel({ job, error, canceling, onCancel, onRetry }: { job: Job; erro
         <button type="button" className="btn btn-small btn-danger-outline" onClick={onCancel} disabled={canceling} data-testid="job-cancel">
           {canceling ? "Canceling…" : "Cancel build"}
         </button>
-        {error ? <ErrorPanel error={error} /> : null}
+        {error ? (
+          <div data-testid="job-poll-error">
+            <p className="help" role="status">
+              {pollStopped
+                ? "The build's status could not be read; WeightLab stopped checking. The build itself keeps running on the server."
+                : retrying
+                  ? "The build's status could not be read; checking again shortly."
+                  : null}
+            </p>
+            <ErrorPanel error={error} />
+            <button type="button" className="btn btn-small" onClick={onCheckAgain} data-testid="job-check-again">
+              Check status again
+            </button>
+          </div>
+        ) : null}
       </div>
     );
   }

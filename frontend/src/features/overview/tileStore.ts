@@ -3,9 +3,10 @@
 //
 // * Bounded: least-recently-used eviction to DECODED_CACHE_BYTES of decoded arrays (values + status).
 // * Scoped: every entry belongs to a namespace (model, tensor, view, aggregation, quality request). A namespace is
-//   re-validated when an overview opens it again: its cached tiles are not shown until one tile of it has been
-//   re-read from the server and returned the same cache key (the server's key covers the files' fingerprints);
-//   a different key, or FILE_CHANGED / a missing file, drops the whole namespace. Stale bytes are never redrawn.
+//   re-validated when an overview opens it again: its cached tiles are not shown until the server answers the
+//   first tile request. Same cache key as the cached copy of that tile (the server's key covers the files'
+//   fingerprints): the cached tiles are confirmed. A different key, no cached copy to compare with, an error or
+//   FILE_CHANGED: the older tiles are dropped and the namespace continues fresh. Stale bytes are never redrawn.
 // * Network: at most MAX_CONCURRENT requests in flight, identical tile identities share one request, and tiles
 //   that leave the wanted set are aborted (or dropped from the queue) at once.
 import { ApiRequestError, isAbort } from "../../lib/api/client";
@@ -288,9 +289,14 @@ export class TileScheduler {
     if (o.kind === "tile") {
       const key = this.key(id);
       if (!this.validated) {
+        // The first fresh tile of a re-opened namespace decides what happens to its older cached tiles. If it has
+        // a cached counterpart with the same key, the server confirmed them (same files): keep them. Otherwise
+        // (a different key, or nothing cached for this tile, e.g. the user moved to a region not seen before)
+        // they cannot be confirmed: drop them and continue as a fresh, validated session. Either way the
+        // namespace never stays hidden once the server has answered with a tile.
         const old = this.cache.peek(key);
-        if (old && old.tile.cacheKey !== o.tile.cacheKey) this.cache.purge((n) => n === ns); // the source changed
-        if (old) this.validated = true;
+        if (!old || old.tile.cacheKey !== o.tile.cacheKey) this.cache.purge((n) => n === ns);
+        this.validated = true;
       }
       this.cache.put(key, ns, o.tile);
     } else if (o.kind === "job") {
