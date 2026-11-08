@@ -13,7 +13,7 @@ from __future__ import annotations
 
 import hashlib
 import os
-from collections.abc import Iterator, Mapping
+from collections.abc import Callable, Iterator, Mapping
 from dataclasses import dataclass
 from pathlib import Path
 from types import TracebackType
@@ -317,6 +317,45 @@ class Checkpoint:
             shard.file.check()
             yield decode(np.frombuffer(buf, dtype=storage), entry.dtype)
         self._end(shard, before)
+
+    def read_elements(self, key: str, start: int, count: int) -> npt.NDArray[np.generic]:
+        """Elements [start, start + count) of `key` in C order, decoded, by one positioned read of at most
+        `read_chunk_bytes` (streaming scans of a contiguous region). The file is checked after the read."""
+        meta = self.tensor(key)
+        shard = self._shards[meta.shard_id]
+        entry = shard.header.entries[key]
+        esize = entry.dtype.size
+        if start < 0 or count < 0 or start + count > meta.numel:
+            raise fail(ErrorCode.INVALID_ROI, "element range outside the tensor")
+        if count * esize > self.limits.read_chunk_bytes:
+            raise fail(ErrorCode.RESOURCE_LIMIT, "element read above read_chunk_bytes")
+        buf = shard.file.read(meta.data_offset + start * esize, count * esize)
+        shard.file.check()
+        return decode(np.frombuffer(buf, dtype=np.dtype(entry.dtype.storage)), entry.dtype)
+
+    def input_digests(self, keys: list[str], tick: Callable[[int], None] | None = None) -> dict[str, str]:
+        """SHA-256 of every file holding `keys` (and the shard index), by bounded streaming reads, keyed like
+        `fingerprints` (root-relative path). `tick(n)` is called after each chunk of n bytes, so a caller can report
+        progress and cancel (by raising) between chunks. Used by `verified` jobs before and after their work."""
+        out: dict[str, str] = {}
+        chunk = self.limits.read_chunk_bytes
+        for sid in sorted({self.tensor(k).shard_id for k in keys}):
+            f = self._shards[sid].file
+            h = hashlib.sha256()
+            for off in range(0, f.identity.size, chunk):
+                n = min(chunk, f.identity.size - off)
+                h.update(f.read(off, n))
+                if tick is not None:
+                    tick(n)
+            f.check()
+            out[os.path.relpath(f.path, self.root).replace(os.sep, "/")] = h.hexdigest()
+        if self.index is not None:
+            out[os.path.relpath(self.index.path, self.root).replace(os.sep, "/")] = self.index.sha256
+        return out
+
+    def input_bytes(self, keys: list[str]) -> int:
+        """Total size of the files holding `keys` (the bytes a verified job hashes once)."""
+        return sum(self._shards[sid].file.identity.size for sid in {self.tensor(k).shard_id for k in keys})
 
     # -- lifecycle -------------------------------------------------------------------------
     def close(self) -> None:

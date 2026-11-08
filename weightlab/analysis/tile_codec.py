@@ -100,10 +100,23 @@ def validate_metadata(meta: Mapping[str, Any], rows: int, cols: int) -> None:
         raise _bad("row/col ranges do not match rows/cols at this level")
     if meta["row_start"] % block or meta["col_start"] % block:
         raise _bad("ranges are not anchored at a block boundary")
-    if meta["finite_count"] + meta["nonfinite_count"] != h * w:
-        raise _bad("finite + non-finite counts differ from the covered element count")
-    if meta["quality"] == "exact" and any(meta.get(k) is not None for k in ("sampled_rows", "sampling_policy", "seed")):
-        raise _bad("an exact tile carries sampling fields")
+    counted = meta["finite_count"] + meta["nonfinite_count"]
+    if meta["quality"] == "exact":
+        if counted != h * w:
+            raise _bad("finite + non-finite counts differ from the covered element count")
+        if any(meta.get(k) is not None for k in ("sampled_rows", "sampling_policy", "seed")):
+            raise _bad("an exact tile carries sampling fields")
+    elif meta["quality"] == "row_sampled":
+        if not 0 < counted < h * w:  # a preview that read every element would be exact, and must say so
+            raise _bad("a row-sampled tile must count fewer elements than it covers")
+        if not isinstance(meta.get("sampled_rows"), int) or meta["sampled_rows"] < 1:
+            raise _bad("a row-sampled tile needs sampled_rows")
+        if meta.get("sampling_policy") not in ("stride", "splitmix64_rows"):
+            raise _bad("a row-sampled tile needs its sampling_policy")
+        if (meta["sampling_policy"] == "splitmix64_rows") != (meta.get("seed") is not None):
+            raise _bad("a seed is present exactly for splitmix64_rows sampling")
+    else:
+        raise _bad("quality")
     if meta["value_precision"] != "float32_visualization":
         raise _bad("value_precision")
 
@@ -150,9 +163,9 @@ def metadata(tile: Tile, *, cache_key: str, source: Mapping[str, Any], view: Vie
         "level": g.level,
         "quality": tile.quality,
         "value_precision": tile.value_precision,
-        "sampled_rows": None,
-        "sampling_policy": None,
-        "seed": None,
+        "sampled_rows": tile.sampled_rows,
+        "sampling_policy": tile.sampling_policy,
+        "seed": tile.seed,
         "aggregation": tile.aggregation,
         "finite_count": tile.finite_count,
         "nonfinite_count": tile.nonfinite_count,
@@ -236,6 +249,29 @@ def canonical_json(obj: Any) -> str:
     return json.dumps(obj, sort_keys=True, separators=(",", ":"), ensure_ascii=False, allow_nan=False)
 
 
+def pyramid_identity(
+    *,
+    source_kind: str,
+    files: Sequence[Mapping[str, Any]],
+    tensor_keys: Sequence[str],
+    view: View | None,
+    operation: Mapping[str, Any] | None = None,
+) -> dict[str, Any]:
+    """What one exact pyramid is valid for (doc 03 section 5): source kind, every input file's fingerprint, tensor
+    key(s), view, operation parameters, numerics_version and pyramid_record_format. Opaque database IDs are
+    deliberately absent: the same files, tensor and view give the same pyramid; any fingerprint change a new one."""
+    return {
+        "kind": "pyramid",
+        "source_kind": source_kind,
+        "files": sorted((dict(f) for f in files), key=lambda f: str(f["relpath"])),
+        "tensor_keys": list(tensor_keys),
+        "view": view_json(view),
+        "operation": dict(operation or {}),
+        "numerics_version": TILE_NUMERICS_VERSION,
+        "pyramid_record_format": PYRAMID_RECORD_FORMAT,
+    }
+
+
 def tile_identity(
     *,
     source_kind: str,
@@ -251,17 +287,15 @@ def tile_identity(
     seed: int | None = None,
     operation: Mapping[str, Any] | None = None,
 ) -> dict[str, Any]:
-    """Everything that determines a tile's bytes (doc 10 section 6). Opaque database IDs are deliberately absent:
-    the same files, tensor and view give the same key; any input fingerprint change gives a new one."""
+    """Everything that determines a tile's bytes (doc 10 section 6): the pyramid identity plus level, x, y, size,
+    aggregation, quality mode (the delivered quality: `exact` or `row_sampled`) and sampling seed. A row-sampled
+    tile's sampling parameters (rows per block, policy) go into `operation`."""
+    base = pyramid_identity(
+        source_kind=source_kind, files=files, tensor_keys=tensor_keys, view=view, operation=operation
+    )
     return {
+        **base,
         "kind": "tile",
-        "source_kind": source_kind,
-        "files": sorted((dict(f) for f in files), key=lambda f: str(f["relpath"])),
-        "tensor_keys": list(tensor_keys),
-        "view": view_json(view),
-        "operation": dict(operation or {}),
-        "numerics_version": TILE_NUMERICS_VERSION,
-        "pyramid_record_format": PYRAMID_RECORD_FORMAT,
         "tile_format": TILE_FORMAT,
         "level": level,
         "x": x,

@@ -344,9 +344,12 @@ class Tile:
     numeric_precision: Literal["lossless", "rounded", "overflowed"]
     covered_bytes: int
     bytes_read: int
-    quality: Literal["exact"] = "exact"
+    quality: Literal["exact", "row_sampled"] = "exact"
     value_precision: Literal["float32_visualization"] = "float32_visualization"
     warnings: tuple[str, ...] = field(default=())
+    sampled_rows: int | None = None  # row_sampled only: rows read per block
+    sampling_policy: Literal["stride", "splitmix64_rows"] | None = None
+    seed: int | None = None
 
 
 def _as_float64(vals: npt.NDArray[Any], dt: DType) -> tuple[F64, bool]:
@@ -362,19 +365,29 @@ def _as_float64(vals: npt.NDArray[Any], dt: DType) -> tuple[F64, bool]:
     return vals.astype(np.float64), rounded
 
 
+def storage_strides(shape: tuple[int, ...]) -> list[int]:
+    strides = [1] * len(shape)
+    for k in range(len(shape) - 2, -1, -1):
+        strides[k] = strides[k + 1] * shape[k + 1]
+    return strides
+
+
+def columns_are_slow(rv: ResolvedView, shape: tuple[int, ...]) -> bool:
+    """True when the view's columns, not its rows, are the slow axis in storage (e.g. a transposed matrix)."""
+    strides = storage_strides(shape)
+    rs = strides[rv.row_axis] if rv.row_axis is not None else math.inf
+    cs = strides[rv.col_axis] if rv.col_axis is not None else 1
+    return cs > rs
+
+
 def _rectangles(
     rv: ResolvedView, shape: tuple[int, ...], g: TileGeometry, band_cells: int
 ) -> list[tuple[int, int, int, int]]:
     """Read rectangles covering the tile's raw region, each <= band_cells, long along the view axis that is
     contiguous in storage (smaller stride), so each rectangle reads few, dense stripes."""
-    strides = [1] * len(shape)
-    for k in range(len(shape) - 2, -1, -1):
-        strides[k] = strides[k + 1] * shape[k + 1]
-    rs = strides[rv.row_axis] if rv.row_axis is not None else math.inf
-    cs = strides[rv.col_axis] if rv.col_axis is not None else 1
     height, width = g.row_end - g.row_start, g.col_end - g.col_start
     out: list[tuple[int, int, int, int]] = []
-    if cs <= rs:  # rows are the slow axis: wide rectangles, row bands outside
+    if not columns_are_slow(rv, shape):  # rows are the slow axis: wide rectangles, row bands outside
         w = min(width, band_cells)
         h = max(1, min(height, band_cells // w))
         for r in range(g.row_start, g.row_end, h):
@@ -451,7 +464,21 @@ def compute_tile(
         part = BlockAggregates.of_values(vals, rel_r % g.block, rel_c % g.block, g.block)
         acc.merge_into(part, rel_r // g.block, rel_c // g.block)
     ck.check()  # a change after the last read also invalidates the tile
+    return finish_tile(g, aggregation, acc, dt.name, rounded=rounded, covered_bytes=covered, bytes_read=bytes_read)
 
+
+def finish_tile(
+    g: TileGeometry,
+    aggregation: Aggregation,
+    acc: BlockAggregates,
+    source_dtype: str,
+    *,
+    rounded: bool,
+    covered_bytes: int,
+    bytes_read: int,
+) -> Tile:
+    """An exact tile from the merged records of its blocks (direct reads or a pyramid): display values, status,
+    counts, numeric_precision and warnings."""
     values, status = acc.display(aggregation)
     finite = int(acc.finite.sum())
     not_repr = int(np.count_nonzero(status & NOT_REPRESENTABLE))
@@ -459,27 +486,31 @@ def compute_tile(
     precision: Literal["lossless", "rounded", "overflowed"] = (
         "overflowed" if not_repr else "rounded" if rounded or not exact_agg else "lossless"
     )
+    return Tile(
+        geometry=g,
+        aggregation=aggregation,
+        source_dtype=source_dtype,
+        values=values,
+        status=status,
+        finite_count=finite,
+        nonfinite_count=g.covered_cells - finite,
+        numeric_precision=precision,
+        covered_bytes=covered_bytes,
+        bytes_read=bytes_read,
+        warnings=tuple(precision_warnings(rounded=rounded, not_representable=not_repr)),
+    )
+
+
+def precision_warnings(*, rounded: bool, not_representable: int) -> list[str]:
     warnings: list[str] = []
     if rounded:
         warnings.append(
             "64-bit integer values beyond +/-(2^53-1) were rounded to float64 before aggregation; "
             "exact values come from /tensors/roi"
         )
-    if not_repr:
+    if not_representable:
         warnings.append(
-            f"{not_repr} cell(s) overflowed float64 or exceed the float32 display range; "
+            f"{not_representable} cell(s) overflowed float64 or exceed the float32 display range; "
             "they are withheld (NOT_REPRESENTABLE)"
         )
-    return Tile(
-        geometry=g,
-        aggregation=aggregation,
-        source_dtype=dt.name,
-        values=values,
-        status=status,
-        finite_count=finite,
-        nonfinite_count=g.covered_cells - finite,
-        numeric_precision=precision,
-        covered_bytes=covered,
-        bytes_read=bytes_read,
-        warnings=tuple(warnings),
-    )
+    return warnings
