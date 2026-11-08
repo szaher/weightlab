@@ -4,7 +4,7 @@ import { KeyText } from "../../components/KeyText";
 import { api } from "../../lib/api/endpoints";
 import { formatBytes, formatInt, formatShape } from "../../lib/format";
 import { useResource } from "../../lib/useResource";
-import { RoiExplorer } from "../roi/RoiExplorer";
+import { TensorWorkbench } from "./TensorWorkbench";
 
 interface Props {
   modelId: string;
@@ -12,7 +12,8 @@ interface Props {
   tensorId: string | null;
 }
 
-/** One tensor: its metadata (GET /models/{id}/tensors/{tensor_id}) and the exact-window explorer (POST /tensors/roi). */
+/** One tensor: its metadata (GET /models/{id}/tensors/{tensor_id}), the whole-tensor overview (POST /tiles) and
+ * the exact-window explorer (POST /tensors/roi). */
 export function TensorInspector({ modelId, modelName, tensorId }: Props) {
   const res = useResource(tensorId ? `${modelId}/${tensorId}` : null, (signal) => api.getTensor(modelId, tensorId ?? "", signal));
   const t = res.data;
@@ -21,7 +22,7 @@ export function TensorInspector({ modelId, modelName, tensorId }: Props) {
       <h2 id="inspector-h" className="pane-title">
         Tensor details
       </h2>
-      {!tensorId ? <p className="muted">Select a tensor name in the table to see its metadata and exact values.</p> : null}
+      {!tensorId ? <p className="muted">Select a tensor name in the table to see its metadata, its whole-tensor overview and exact values.</p> : null}
       {res.error ? <ErrorPanel error={res.error} onRetry={res.reload} /> : null}
       {tensorId && !t && !res.error ? (
         <p className="muted" role="status">
@@ -42,7 +43,7 @@ export function TensorInspector({ modelId, modelName, tensorId }: Props) {
               Shape {formatShape(t.shape)} · {t.dtype}
             </p>
           </div>
-          <RoiExplorer key={`${modelId}/${t.id}`} modelId={modelId} tensor={t} />
+          <TensorWorkbench key={`${modelId}/${t.id}`} modelId={modelId} tensor={t} />
           <h3 className="h3">Metadata</h3>
           <dl className="facts facts-grid">
             <div>

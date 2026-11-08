@@ -2,7 +2,7 @@
 // backend's reader), a loopback-only network guard, and file hashing for "source files untouched" checks.
 import { spawn, type ChildProcessWithoutNullStreams } from "node:child_process";
 import { createHash } from "node:crypto";
-import { copyFileSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
+import { closeSync, copyFileSync, ftruncateSync, mkdtempSync, openSync, readFileSync, writeFileSync, writeSync } from "node:fs";
 import { request as httpRequest } from "node:http";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
@@ -179,8 +179,8 @@ export async function loopbackOnly(context: BrowserContext): Promise<string[]> {
 export function watchConsole(page: Page): string[] {
   const problems: string[] = [];
   page.on("console", (m) => {
-    // Expected: API errors the UI handles (401/404/409/422) and refused connections while a test stops the server.
-    const expected = /the server responded with a status of (401|404|409|422)|net::ERR_CONNECTION_REFUSED/;
+    // Expected: API errors the UI handles (401/404/409/413/422) and refused connections while a test stops the server.
+    const expected = /the server responded with a status of (401|404|409|413|422)|net::ERR_CONNECTION_REFUSED/;
     if (m.type() === "error" && !expected.test(m.text())) problems.push(m.text());
   });
   page.on("pageerror", (e) => problems.push(String(e)));
@@ -255,3 +255,44 @@ export function sameValue(text: string, expected: Elem): boolean {
   if (expected === -Infinity) return text === "−Infinity";
   return Object.is(Number(text), expected);
 }
+
+/** Writes a SafeTensors file of 2D F32 tensors whose element (r, c) is `fill(r, c)` (rounded to float32). With
+ * `sparseRows`, only those rows are written and the rest of the file is a hole (zeros), so very large tensors cost
+ * almost no disk. The test computes its expectations from the same `fill`, never from the API. */
+export function writeF32(path: string, tensors: { key: string; shape: [number, number]; fill: (r: number, c: number) => number; sparseRows?: (r: number) => number }[]): void {
+  const header: Record<string, unknown> = { __metadata__: { source: "WeightLab E2E synthetic, not a model" } };
+  let offset = 0;
+  for (const t of tensors) {
+    const n = t.shape[0] * t.shape[1] * 4;
+    header[t.key] = { dtype: "F32", shape: t.shape, data_offsets: [offset, offset + n] };
+    offset += n;
+  }
+  let json = Buffer.from(JSON.stringify(header), "utf8");
+  json = Buffer.concat([json, Buffer.alloc((8 - (json.length % 8)) % 8, 0x20)]);
+  const len = Buffer.alloc(8);
+  len.writeBigUInt64LE(BigInt(json.length));
+  const fd = openSync(path, "w");
+  try {
+    writeSync(fd, Buffer.concat([len, json]));
+    const base = 8 + json.length;
+    ftruncateSync(fd, base + offset);
+    let at = base;
+    for (const t of tensors) {
+      const [rows, cols] = t.shape;
+      const row = Buffer.alloc(cols * 4);
+      for (let r = 0; r < rows; r++) {
+        const width = t.sparseRows ? t.sparseRows(r) : cols;
+        if (width > 0) {
+          for (let c = 0; c < width; c++) row.writeFloatLE(t.fill(r, c), c * 4);
+          writeSync(fd, row, 0, width * 4, at + r * cols * 4);
+        }
+      }
+      at += rows * cols * 4;
+    }
+  } finally {
+    closeSync(fd);
+  }
+}
+
+/** float32 rounding, as the server's float32 display values. */
+export const f32 = (x: number): number => Math.fround(x);

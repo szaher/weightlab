@@ -31,6 +31,9 @@ async function openTensor(page: Page, key: string) {
   await page.getByLabel("Search tensor names").fill(key);
   await page.getByRole("button", { name: key, exact: true }).click();
   await expect(page.getByTestId("inspector-key")).toHaveText(key);
+  // 2D tensors open on the whole-tensor Overview (PR #8); this suite exercises the Exact ROI tab.
+  const tab = page.getByRole("tab", { name: "Exact ROI" });
+  if ((await tab.count()) > 0) await tab.click();
 }
 
 async function clickCell(page: Page, i: number, j: number) {
@@ -269,11 +272,12 @@ test("exact ROI explorer: heatmap, navigation, values, slicing, precision and fa
   await expect(page.getByTestId("roi-empty")).toContainText("no elements");
   expect(apiCalls.filter((c) => c.path === "/api/v1/tensors/roi").length).toBe(before);
 
-  // Resource evidence: every ROI request within the budget; no deferred endpoint was called.
+  // Resource evidence: every ROI request within the budget; no deferred endpoint was called (tiles and jobs are
+  // the overview's, implemented since PR #8 and covered by overview.spec.ts).
   const rois = apiCalls.filter((c) => c.path === "/api/v1/tensors/roi").map((c) => c.body as { roi: { r0: number; r1: number; c0: number; c1: number } });
   expect(rois.length).toBeGreaterThan(10);
   for (const r of rois) expect((r.roi.r1 - r.roi.r0) * (r.roi.c1 - r.roi.c0)).toBeLessThanOrEqual(4096);
-  expect(apiCalls.filter((c) => /\/tiles|\/jobs|\/stats|\/exports/.test(c.path))).toEqual([]);
+  expect(apiCalls.filter((c) => /\/stats|\/exports/.test(c.path))).toEqual([]);
 
   // FILE_CHANGED: the checkpoint changes on disk; the next read is refused and no stale values remain visible.
   await page.getByLabel("Model", { exact: true }).selectOption({ label: "tiny_base.safetensors" });
