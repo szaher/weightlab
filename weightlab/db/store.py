@@ -119,6 +119,7 @@ class FileRow:
     file_id: str | None
     sha256: str | None
     fingerprint_method: str
+    ctime_ns: int | None = None  # migration 0002; None for side files whose content is checked instead
 
 
 @dataclass(frozen=True)
@@ -162,9 +163,9 @@ def insert_model(
         )  # fmt: skip
         conn.executemany(
             "INSERT INTO model_files (id, model_id, relpath, size_bytes, mtime_ns, file_id, sha256, fingerprint_method,"
-            " verified_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, NULL)",
-            [(new_id("mfl"), mid, f.relpath, f.size_bytes, f.mtime_ns, f.file_id, f.sha256, f.fingerprint_method)
-             for f in files],
+            " verified_at, ctime_ns) VALUES (?, ?, ?, ?, ?, ?, ?, ?, NULL, ?)",
+            [(new_id("mfl"), mid, f.relpath, f.size_bytes, f.mtime_ns, f.file_id, f.sha256, f.fingerprint_method,
+              f.ctime_ns) for f in files],
         )  # fmt: skip
         batch: list[tuple[Any, ...]] = []
         sql = (
@@ -208,17 +209,23 @@ def model_files(conn: sqlite3.Connection, model_id: str) -> list[dict[str, Any]]
 
 
 def relink_model(
-    conn: sqlite3.Connection, model_id: str, entry_path: str, selected_root: str, file_ids: dict[str, str | None]
+    conn: sqlite3.Connection,
+    model_id: str,
+    entry_path: str,
+    selected_root: str,
+    file_ids: dict[str, str | None],
+    ctimes: dict[str, int | None] | None = None,
 ) -> None:
-    """Point a model at its new place and record the new file identities, atomically (one transaction)."""
+    """Point a model at its new place and record the new file identities (file ID and ctime_ns, which a move
+    changes), atomically (one transaction)."""
     with transaction(conn):
         conn.execute(
             "UPDATE models SET entry_path = ?, selected_root = ?, status = 'ready' WHERE id = ?",
             (entry_path, selected_root, model_id),
         )
         conn.executemany(
-            "UPDATE model_files SET file_id = ? WHERE model_id = ? AND relpath = ?",
-            [(fid, model_id, rel) for rel, fid in file_ids.items()],
+            "UPDATE model_files SET file_id = ?, ctime_ns = ? WHERE model_id = ? AND relpath = ?",
+            [(fid, (ctimes or {}).get(rel), model_id, rel) for rel, fid in file_ids.items()],
         )
 
 

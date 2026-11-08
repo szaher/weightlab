@@ -155,6 +155,7 @@ def adapter_files(d: Path, ck: Checkpoint, config: dict[str, Any]) -> dict[str, 
         "adapter_model.safetensors": {
             "size": ident.size,
             "mtime_ns": ident.mtime_ns,
+            "ctime_ns": ident.ctime_ns,  # doc 03: a same-size rewrite with mtime_ns restored still moves ctime_ns
             "file_id": f"{ident.dev}:{ident.ino}",
             "sha256": next(iter(ck.digests().values())),
         },
@@ -305,7 +306,13 @@ def open_adapter_checked(row: dict[str, Any]) -> Checkpoint:
             raise ApiError(ErrorCode.FILE_CHANGED, "adapter files are missing (moved or deleted)") from None
         raise
     ident = next(iter(ck.file_identities().values()))
-    if (ident.size, ident.mtime_ns, f"{ident.dev}:{ident.ino}") != (want["size"], want["mtime_ns"], want["file_id"]):
+    if (ident.size, ident.mtime_ns, f"{ident.dev}:{ident.ino}") != (
+        want["size"],
+        want["mtime_ns"],
+        want["file_id"],
+    ) or (
+        want.get("ctime_ns") is not None and ident.ctime_ns != want["ctime_ns"]  # absent for earlier imports
+    ):
         ck.close()
         raise ApiError(ErrorCode.FILE_CHANGED, "adapter_model.safetensors changed since import")
     return ck

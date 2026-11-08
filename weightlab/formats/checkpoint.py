@@ -260,13 +260,20 @@ class Checkpoint:
 
     def fingerprints(self, keys: list[str]) -> list[dict[str, object]]:
         """Quick fingerprint (doc 10 section 6) of every file holding `keys`, as recorded when it was opened:
-        selected-root-relative path, size, mtime_ns and file ID. Sorted by path; plain JSON values."""
+        selected-root-relative path, size, mtime_ns, ctime_ns and file ID. Sorted by path; plain JSON values.
+        ctime_ns is part of it so that cache keys change with a same-size rewrite whose mtime_ns was restored."""
         out: list[dict[str, object]] = []
         for sid in sorted({self.tensor(k).shard_id for k in keys}):
             ident = self._shards[sid].file.identity
             rel = os.path.relpath(self._shards[sid].file.path, self.root).replace(os.sep, "/")
             out.append(
-                {"relpath": rel, "size": ident.size, "mtime_ns": ident.mtime_ns, "file_id": f"{ident.dev}:{ident.ino}"}
+                {
+                    "relpath": rel,
+                    "size": ident.size,
+                    "mtime_ns": ident.mtime_ns,
+                    "ctime_ns": ident.ctime_ns,
+                    "file_id": f"{ident.dev}:{ident.ino}",
+                }
             )
         if self.index is not None:  # the index maps keys to shards, so it is an input too
             rel = os.path.relpath(self.index.path, self.root).replace(os.sep, "/")

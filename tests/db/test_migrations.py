@@ -128,8 +128,8 @@ def test_non_sqlite_file_is_refused_unmodified(tmp_path: Path) -> None:
 
 
 def _with_extra(monkeypatch: pytest.MonkeyPatch, sql: str) -> None:
-    extra = Migration(2, "0002_test.sql", sql)
     base = migrations()
+    extra = Migration(len(base) + 1, f"{len(base) + 1:04d}_test.sql", sql)
     monkeypatch.setattr(mig, "migrations", lambda: [*base, extra])
 
 
@@ -140,12 +140,14 @@ def test_upgrade_takes_a_backup_first(tmp_path: Path, monkeypatch: pytest.Monkey
         c.execute("INSERT INTO projects VALUES ('prj_1', 'keep me', 't', 't', '{}')")
     _with_extra(monkeypatch, "CREATE TABLE added_later (id TEXT PRIMARY KEY);")
     result = migrate(path)
-    assert result.applied == (2,)
+    assert result.applied == (mig.latest_version(),)  # the extra one
     assert result.backup is not None
     assert result.backup.exists()
     old = sqlite3.connect(result.backup)
     assert old.execute("SELECT name FROM projects").fetchall() == [("keep me",)]
-    assert old.execute("SELECT MAX(version) FROM schema_migrations").fetchone()[0] == 1
+    assert (
+        old.execute("SELECT MAX(version) FROM schema_migrations").fetchone()[0] == mig.latest_version() - 1
+    )  # before the extra one
     old.close()
     c = connect(path)
     assert "added_later" in tables(c)
@@ -160,7 +162,9 @@ def test_failed_migration_rolls_back_completely(tmp_path: Path, monkeypatch: pyt
         migrate(path)
     c = connect(path)
     assert "half_done" not in tables(c)  # the first statement was rolled back with the failing one
-    assert c.execute("SELECT MAX(version) FROM schema_migrations").fetchone()[0] == 1
+    assert (
+        c.execute("SELECT MAX(version) FROM schema_migrations").fetchone()[0] == mig.latest_version() - 1
+    )  # before the extra one
     c.close()
 
 
