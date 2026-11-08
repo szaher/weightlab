@@ -22,8 +22,7 @@ const ROOT = (process.env.WEIGHTLAB_REAL_MODELS ?? "").replace(/^~/, homedir());
 const OUT = process.env.WEIGHTLAB_REAL_OUT;
 const SHOTS = process.env.WEIGHTLAB_SCREENSHOTS;
 const SOAK_MIN = Number(process.env.WEIGHTLAB_SOAK_MIN ?? "20");
-// Tracing off: with ~30k soak actions the trace recorder itself slowed the run by ~45 % over 20 minutes (a 6-minute
-// control run without it stayed flat), which would read as an app slowdown.
+// No trace: ~30k soak actions would make a multi-GB trace.
 test.use({ trace: "off" });
 test.skip(!ROOT || !existsSync(join(ROOT, "Qwen2.5-0.5B", "model.safetensors")), "set WEIGHTLAB_REAL_MODELS to the fetched model directory");
 
@@ -208,10 +207,22 @@ test("real checkpoints: workflow, exact drill-down and a soak session", async ({
     const tensors = ["model.layers.0.self_attn.q_proj.weight", "model.layers.12.mlp.gate_proj.weight", "model.layers.23.mlp.down_proj.weight", "model.embed_tokens.weight", "model.layers.5.self_attn.k_proj.weight", "model.layers.17.mlp.up_proj.weight"];
     const models = [BASE, INSTRUCT];
     const samples: Record<string, number>[] = [];
+    // Mean ms per soak iteration by phase since the previous sample, to tell where any slowdown comes from.
+    const ph = { switch: 0, agg: 0, keys: 0, settle: 0, n: 0 };
+    const metric = async (name: string) => (await cdp.send("Performance.getMetrics")).metrics.find((m) => m.name === name)?.value ?? NaN;
+    const roundTrip = async () => {
+      const t0 = performance.now();
+      for (let i = 0; i < 20; i++) await page.evaluate(() => 1);
+      return Math.round(((performance.now() - t0) / 20) * 100) / 100;
+    };
     const sample = async (minute: number, actions: number) => {
-      await page.evaluate(() => (globalThis as { gc?: () => void }).gc?.());
+      await cdp.send("HeapProfiler.collectGarbage");
       const gg = (await page.getByTestId("overview-canvas").count()) > 0 ? await geom(page) : null;
-      samples.push({ minute, actions, js_heap_mib: await heap(), backend_rss_mib: backendRss(dataDir), decoded_cache_mib: gg ? Math.round((gg.cacheBytes / 2 ** 20) * 10) / 10 : NaN, decoded_cache_tiles: gg?.cacheEntries ?? NaN, peak_inflight: gg?.peak ?? NaN });
+      const per = (v: number) => (ph.n ? Math.round(v / ph.n) : NaN);
+      samples.push({ minute, actions, js_heap_mib: await heap(), backend_rss_mib: backendRss(dataDir), decoded_cache_mib: gg ? Math.round((gg.cacheBytes / 2 ** 20) * 10) / 10 : NaN, decoded_cache_tiles: gg?.cacheEntries ?? NaN, peak_inflight: gg?.peak ?? NaN,
+        noop_roundtrip_ms: await roundTrip(), node_heap_mib: Math.round(process.memoryUsage().heapUsed / 2 ** 20),
+        dom_nodes: await metric("Nodes"), js_listeners: await metric("JSEventListeners"), ms_switch: per(ph.switch), ms_agg_settle: per(ph.agg), ms_keys: per(ph.keys), ms_keys_settle: per(ph.settle) }); // prettier-ignore
+      Object.assign(ph, { switch: 0, agg: 0, keys: 0, settle: 0, n: 0 });
     };
     const keys = ["+", "+", "Shift+ArrowRight", "Shift+ArrowDown", "Shift+ArrowLeft", "-", "Shift+ArrowUp", "+", "Shift+ArrowRight", "0"];
     const start = Date.now();
@@ -231,18 +242,29 @@ test("real checkpoints: workflow, exact drill-down and a soak session", async ({
         nextSample = minute + 1;
       }
       const model = models[k % models.length]!;
+      let t = Date.now();
+      const lap = (key: "switch" | "agg" | "keys" | "settle") => {
+        const now = Date.now();
+        ph[key] += now - t;
+        t = now;
+      };
       await page.getByLabel("Model", { exact: true }).selectOption({ label: model });
       await openTensor(page, tensors[k % tensors.length]!);
+      lap("switch");
       const agg = ["mean", "mean_abs", "rms", "min", "max"][k % 5]!;
       await page.getByTestId("agg-select").selectOption(agg);
       await settled(page, 300_000);
+      lap("agg");
       const cv = page.getByTestId("overview-canvas");
       await cv.focus();
       for (const key of keys) {
         await page.keyboard.press(key);
         actions++;
       }
+      lap("keys");
       await settled(page, 300_000);
+      lap("settle");
+      ph.n++;
       actions += 3;
       k++;
     }

@@ -162,10 +162,16 @@ export function copyFixture(name: string, destDir: string): string {
   return dest;
 }
 
-/** Aborts every request that does not go to the local server, and records it. */
+/** Requests that do not go to the local server over http (data: and blob: URLs are local too). */
+export const NON_LOOPBACK = /^(?!http:\/\/(?:127\.0\.0\.1|localhost|\[::1\])(?::\d+)?\/)(?!data:|blob:)/;
+
+/** Aborts every request that does not go to the local server, and records it. The URL pattern is a RegExp, which
+ * Playwright matches in the browser: loopback requests are never routed through this process. A catch-all route
+ * with a JS handler made every tile request round-trip through Node, and long sessions (tens of thousands of
+ * requests) slowed down steadily as Playwright's per-request client objects accumulated. */
 export async function loopbackOnly(context: BrowserContext): Promise<string[]> {
   const blocked: string[] = [];
-  await context.route("**/*", (route) => {
+  await context.route(NON_LOOPBACK, (route) => {
     const u = new URL(route.request().url());
     if (u.protocol === "http:" && ["127.0.0.1", "localhost", "[::1]"].includes(u.hostname)) return route.continue();
     if (u.protocol === "data:" || u.protocol === "blob:") return route.continue();
