@@ -145,3 +145,63 @@ export interface RoiResponse {
   nonfinite_mask: (NonfiniteKind | null)[][] | null;
   warnings: string[];
 }
+
+// ---- Tiles and jobs (POST /tiles, GET /tiles/{cache_key}/metadata, /jobs; doc 09 sections 3 and 5).
+
+export const AGGREGATIONS = ["mean", "mean_abs", "rms", "min", "max"] as const;
+export type Aggregation = (typeof AGGREGATIONS)[number];
+export type QualityMode = "auto" | "exact" | "row_sampled";
+export type TileQuality = "exact" | "row_sampled";
+export type SamplingPolicy = "stride" | "splitmix64_rows";
+
+export interface TileRequest {
+  source: TensorSource;
+  view: RoiView;
+  tile: { level: number; x: number; y: number; size: number };
+  aggregation: Aggregation;
+  quality: { mode: QualityMode; sampled_rows_per_block?: number; seed?: number };
+}
+
+/** GET /tiles/{cache_key}/metadata (TileMetadata). */
+export interface TileMetadata {
+  schema_version: 2;
+  cache_key: string;
+  rows: number;
+  cols: number;
+  row_start: number;
+  row_end: number;
+  col_start: number;
+  col_end: number;
+  level: number;
+  quality: TileQuality;
+  value_precision: "float32_visualization";
+  sampled_rows?: number | null;
+  sampling_policy?: SamplingPolicy | null;
+  seed?: number | null;
+  aggregation: Aggregation;
+  finite_count: number;
+  nonfinite_count: number;
+  invalid_pair_count?: number;
+  source: unknown;
+  view: unknown;
+  warnings?: string[];
+}
+
+export type JobState = "created" | "queued" | "running" | "completed" | "canceled" | "failed" | "interrupted";
+export const PENDING_JOB_STATES: readonly JobState[] = ["created", "queued", "running"];
+
+export interface Job {
+  job_id: string;
+  kind: "tensor_stats" | "pyramid_build" | "compare_stats" | "file_hash" | "export";
+  state: JobState;
+  progress: number;
+  poll_after_ms?: number;
+  estimated_bytes?: number;
+  bytes_scanned?: number;
+  created_at: string;
+  started_at?: string | null;
+  finished_at?: string | null;
+  deduplicated?: boolean;
+  result?: { kind: string; pyramid_id?: string } | null;
+  error?: ErrorBody | null;
+}

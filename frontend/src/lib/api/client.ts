@@ -97,9 +97,17 @@ export function onUnauthorized(fn: () => void): () => void {
   return () => unauthorizedListeners.delete(fn);
 }
 
-export async function request<T>(path: string, opts: RequestOptions = {}): Promise<T> {
+export interface SendOptions extends RequestOptions {
+  /** The Accept header; JSON unless a route negotiates another format (binary tiles). */
+  accept?: string;
+}
+
+/** Sends one same-origin request and returns the raw response once it is known to be 2xx. Errors (network,
+ * HTTP, envelope) become ApiRequestError exactly as for JSON routes; 401 notifies the reconnect screen.
+ * The body is not read: callers decide how (JSON, or bytes for binary tiles). */
+export async function send(path: string, opts: SendOptions = {}): Promise<Response> {
   if (!path.startsWith("/") || path.startsWith("//")) throw new Error("API paths are same-origin and absolute");
-  const headers: Record<string, string> = { Accept: "application/json" };
+  const headers: Record<string, string> = { Accept: opts.accept ?? "application/json" };
   if (opts.auth !== false) {
     const token = getToken();
     if (token === null) {
@@ -128,6 +136,7 @@ export async function request<T>(path: string, opts: RequestOptions = {}): Promi
     res = await fetchImpl(API_PREFIX + path + qs, init);
   } catch (e) {
     if (e instanceof DOMException && e.name === "AbortError") throw e;
+    if (opts.signal?.aborted) throw new DOMException("aborted", "AbortError");
     throw new ApiRequestError({
       status: 0,
       code: "NETWORK",
@@ -140,6 +149,11 @@ export async function request<T>(path: string, opts: RequestOptions = {}): Promi
     if (res.status === 401) unauthorizedListeners.forEach((fn) => fn());
     throw err;
   }
+  return res;
+}
+
+export async function request<T>(path: string, opts: RequestOptions = {}): Promise<T> {
+  const res = await send(path, opts);
   if (res.status === 204) return undefined as T;
   try {
     return (await res.json()) as T;
