@@ -355,6 +355,63 @@ def test_a_changed_source_is_never_served_from_old_results(env: Env, models: Pat
     assert e["error"]["code"] == "FILE_CHANGED"
 
 
+@pytest.mark.skipif(sys.platform == "win32", reason="Windows ctime is the creation time: doc 03's documented limit")
+def test_a_same_size_rewrite_with_mtime_restored_is_file_changed(env: Env, models: Path, tmp_path: Path) -> None:
+    """Doc 03: only a same-size rewrite preserving BOTH mtime_ns and ctime_ns may go undetected. Rewriting one
+    payload byte in place and restoring mtime_ns still moves ctime_ns, so cached tiles, the pyramid and ROI reads
+    of the old bytes must all be refused (found by the real-checkpoint validation, PR #9)."""
+    import shutil
+
+    copy = tmp_path / "mid3"
+    shutil.copytree(models / "mid", copy)
+    path = copy / "model.safetensors"
+    m = import_model(env.api, env.project, copy, "model.safetensors")["id"]
+    t = tensors_by_key(env.api, m)["mid.weight"]["id"]
+    src = {"kind": "tensor", "model_id": m, "tensor_id": t}
+    body = {**env.req("mid", 4), "source": src}
+    env.finish(env.job(body)["job_id"])
+    env.binary(body)  # served from the pyramid
+    direct = {**env.req("mid", 0), "source": src}
+    env.binary(direct)  # direct tile, now in the memory tile cache
+    roi = {"source": src, "view": VIEW2D, "roi": {"r0": 0, "r1": 2, "c0": 0, "c1": 2}, "value_encoding": "auto"}
+    env.api.post("/tensors/roi", json_body=roi, expect=200)
+
+    before = path.stat()
+    time.sleep(0.02)
+    n = int.from_bytes(path.read_bytes()[:8], "little")
+    with path.open("r+b") as f:  # same size, same inode: one payload byte flipped in place
+        f.seek(8 + n)
+        b = f.read(1)
+        f.seek(8 + n)
+        f.write(bytes([b[0] ^ 0x01]))
+    os.utime(path, ns=(before.st_atime_ns, before.st_mtime_ns))
+    after = path.stat()
+    assert (after.st_size, after.st_mtime_ns, after.st_ino) == (before.st_size, before.st_mtime_ns, before.st_ino)
+    if after.st_ctime_ns == before.st_ctime_ns:
+        pytest.skip("this filesystem did not move ctime_ns")
+
+    for req in (body, direct):
+        e = env.api.post("/tiles", json_body=req, expect=409)
+        assert e["error"]["code"] == "FILE_CHANGED"
+    e = env.api.post("/tensors/roi", json_body=roi, expect=409)
+    assert e["error"]["code"] == "FILE_CHANGED"
+    listed = env.api.get("/projects/{project_id}/models", project_id=env.project, expect=200)
+    rows = listed["items"] if isinstance(listed, dict) else listed
+    assert next(x for x in rows if x["id"] == m)["status"] == "changed"
+
+
+def test_rows_imported_before_ctime_was_recorded_keep_working(env: Env, config: ServerConfig) -> None:
+    """Migration 0002 leaves ctime_ns NULL for earlier imports: those models still open (size, mtime_ns and file ID
+    are compared as before) instead of all turning FILE_CHANGED after an upgrade."""
+    import sqlite3
+
+    c = sqlite3.connect(config.data_dir / "weightlab.sqlite3")
+    with c:
+        c.execute("UPDATE model_files SET ctime_ns = NULL WHERE model_id = ?", (env.mid,))
+    c.close()
+    env.binary(env.req("mid", 0))
+
+
 def test_a_corrupt_cached_pyramid_is_rebuilt_not_served(env: Env, config: ServerConfig) -> None:
     body = env.req("mid", 4)
     env.finish(env.job(body)["job_id"])

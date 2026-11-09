@@ -36,6 +36,31 @@ def _rewrite_keeping_stat(path: Path, data: bytes) -> None:
     os.utime(path, ns=(st.st_atime_ns, st.st_mtime_ns))
 
 
+# -- adapter weights (PR #9: found by the real-checkpoint mutation check) ------------------------
+@pytest.mark.skipif(os.name == "nt", reason="Windows ctime is the creation time: doc 03's documented limit")
+def test_adapter_weights_rewritten_in_place_with_mtime_restored_is_file_changed(
+    api: Api, project: str, models_dir: Path, tmp_path: Path
+) -> None:
+    base = import_model(api, project, models_dir, "tiny_base.safetensors")
+    d = tmp_path / "tiny_lora"
+    shutil.copytree(models_dir / "tiny_lora", d)
+    body = {"base_model_id": base["id"], "adapter_directory": str(d)}
+    ad = api.post("/projects/{project_id}/adapters", project_id=project, json_body=body, expect=201)
+    mod = ad["modules"][0]
+    src = {"kind": "lora_delta", "adapter_id": ad["id"], "module_id": mod["module_id"], "experiment_multiplier": 1.0}
+    api.post("/tensors/roi", json_body=_roi_body(src), expect=200)
+
+    w = d / "adapter_model.safetensors"
+    before = w.stat()
+    data = bytearray(w.read_bytes())
+    data[-1] ^= 0x01  # last payload byte; same size
+    _rewrite_keeping_stat(w, bytes(data))
+    if w.stat().st_ctime_ns == before.st_ctime_ns:
+        pytest.skip("this filesystem did not move ctime_ns")
+    e = api.post("/tensors/roi", json_body=_roi_body(src), expect=409)
+    assert e["error"]["code"] == "FILE_CHANGED"
+
+
 # -- adapter_config.json ----------------------------------------------------------------------
 @pytest.mark.parametrize("keep_stat", [False, True], ids=["mtime_changes", "same_size_and_mtime"])
 def test_adapter_config_edit_is_file_changed_for_both_adapter_sources(

@@ -3,7 +3,7 @@
 Import reads only headers through the Phase 0 reader (strict SafeTensors, selected-root containment,
 regular files only). Paths are stored in the local database and never returned by the API.
 Every later use of a model reopens it and compares each shard's quick fingerprint (relpath, size,
-mtime_ns, device:inode) with the stored rows; any difference is FILE_CHANGED, never a stale result.
+mtime_ns, ctime_ns, device:inode) with the stored rows; any difference is FILE_CHANGED, never a stale result.
 """
 
 from __future__ import annotations
@@ -24,7 +24,7 @@ from weightlab.core.errors import ErrorCode, WeightLabError
 from weightlab.db import store
 from weightlab.db.store import FileRow, TensorRow
 from weightlab.formats.checkpoint import Checkpoint, fingerprint_side_file, open_checkpoint
-from weightlab.formats.fileio import FileIdentity
+from weightlab.formats.fileio import FileIdentity, change_time_ns
 
 CONTRACT_ROLES = frozenset(
     {
@@ -113,7 +113,15 @@ def _file_rows(ck: Checkpoint, root: Path) -> list[FileRow]:
     shards went undetected (PR #3 review)."""
     idents = ck.file_identities()
     rows = [
-        FileRow(_relpath(ck, sid, root), ident.size, ident.mtime_ns, _file_id(ident), None, "size_mtime")
+        FileRow(
+            _relpath(ck, sid, root),
+            ident.size,
+            ident.mtime_ns,
+            _file_id(ident),
+            None,
+            "size_mtime",
+            change_time_ns(ident),
+        )
         for sid, ident in idents.items()
     ]
     if ck.index is not None:
@@ -175,6 +183,8 @@ def live_status(conn: sqlite3.Connection, model: dict[str, Any]) -> str:
         if (st.st_size, st.st_mtime_ns) != (f["size_bytes"], f["mtime_ns"]) or f"{st.st_dev}:{st.st_ino}" != f[
             "file_id"
         ]:
+            return "changed"
+        if f["ctime_ns"] is not None and st.st_ctime_ns != f["ctime_ns"]:
             return "changed"
     return str(model["status"])
 
@@ -251,8 +261,10 @@ def _assert_same_files(
         raise ApiError(ErrorCode.FILE_CHANGED, "the model's shard set differs from the imported one")
     for rel, f in stored.items():
         r = now[rel]
+        # compare_file_id=False (relink): a move changes the inode and the ctime, so neither is compared.
         if (r.size_bytes, r.mtime_ns) != (f["size_bytes"], f["mtime_ns"]) or (
-            compare_file_id and r.file_id != f["file_id"]
+            compare_file_id
+            and (r.file_id != f["file_id"] or (f["ctime_ns"] is not None and r.ctime_ns != f["ctime_ns"]))
         ):
             raise ApiError(ErrorCode.FILE_CHANGED, f"{Path(rel).name} changed since import (size, time or identity)")
         if f["sha256"] is not None and r.sha256 != f["sha256"]:  # the index: bytes re-read on every open
@@ -284,8 +296,14 @@ def relink(conn: sqlite3.Connection, model_id: str, req: ModelRelink) -> dict[st
         if total != len(now) or catalog != now:
             raise ApiError(ErrorCode.FILE_CHANGED, "tensor catalog differs from the imported model; re-import it")
         # One transaction: a failure must not leave the new path with the old file identities.
+        rows_now = _file_rows(ck, root)
         store.relink_model(
-            conn, model_id, str(ck.entry), str(root), {r.relpath: r.file_id for r in _file_rows(ck, root)}
+            conn,
+            model_id,
+            str(ck.entry),
+            str(root),
+            {r.relpath: r.file_id for r in rows_now},
+            {r.relpath: r.ctime_ns for r in rows_now},
         )
     return model_view(conn, model_id)
 
