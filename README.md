@@ -1,147 +1,243 @@
-# WeightLab — Build-Ready Product & Engineering Blueprint
+<div align="center">
 
-**Version:** 1.2-final (frozen specification; see `CHANGELOG.md` and ADR-019)  
-**Date:** 2026-11-05  
-**Status:** Design specification; NOT an implementation and NOT a tested production application  
-**Default product:** Local-first, CPU-only, resource-bounded LLM weight exploration, comparison, and eventually scientific experimentation.
+![WeightLab — Explore what changed inside your LLM](assets/weightlab-hero.svg)
 
-## Specification freeze
+**Explore LLM weights locally. Visualize tensor structure, inspect exact values, and measure checkpoint changes.**
 
-This blueprint is frozen at **1.2-final**. Changes require a demonstrated implementation correctness or security blocker, a versioned ADR, updated contracts/fixtures/tests and a `CHANGELOG.md` entry (ADR-019). Run the specification checks with the commands in `docs/13_TEST_STRATEGY.md` section 10; CI runs them in `.github/workflows/spec-checks.yml`.
+[Quickstart](#quickstart) · [Screenshots](#see-it-in-action) · [Checkpoint comparison](#compare-checkpoints) · [Python API](#python-api) · [Limitations](#current-scope-and-limitations)
 
-## Implementation status: Phase 0 (reader)
+[![CI](https://github.com/szaher/weightlab/actions/workflows/ci.yml/badge.svg)](https://github.com/szaher/weightlab/actions/workflows/ci.yml)
+[![Python 3.12+](https://img.shields.io/badge/Python-3.12%2B-3776AB)](pyproject.toml)
+[![CPU only](https://img.shields.io/badge/GPU-not%20required-0F766E)](#quickstart)
+[![Local first](https://img.shields.io/badge/local-first-2563EB)](#privacy-and-security)
+[![Pre-release](https://img.shields.io/badge/status-pre--release-F59E0B)](#current-scope-and-limitations)
 
-The `weightlab/` package implements Phase 0 only: a strict, read-only SafeTensors catalog with sharded index validation and exact, lossless ROI reads behind a Python interface. No tiles, API or UI yet. Gate G0 evidence lives in `evidence/g0/`.
+</div>
+
+## Why WeightLab?
+
+You fine-tuned a model. **What changed inside its weights?** Which matrices moved the most? Can you inspect individual parameter values without loading the whole checkpoint into memory?
+
+**WeightLab is a local-first, CPU-only toolkit for answering those questions.** It reads SafeTensors checkpoints in place and offers a browser-based tensor explorer alongside a Python library and command-line checkpoint/LoRA change reports.
+
+- **See the structure:** browse tensor metadata and explore entire matrices as multiresolution heatmaps.
+- **Get the actual numbers:** select a region to inspect and copy lossless source values.
+- **Measure the change:** rank checkpoint differences by tensor, layer, and role, with reproducible JSON, CSV, and Markdown reports.
+- **Control the cost:** use bounded reads, cancellable pyramid builds, caching, and clearly labeled sampled previews.
+- **Keep weights local:** no account, GPU, model inference runtime, or hosted backend required.
+
+> **Scientific boundary:** A change in weight magnitude does **not** demonstrate improved reasoning, accuracy, or behavior. WeightLab measures parameters; behavioral claims require independent evaluation and controlled experiments.
+
+## See it in action
+
+These are **real screenshots** captured by browser tests on pinned [Qwen2.5 checkpoints](evidence/phase1-real-models/README.md), not design mockups.
+
+<table>
+<tr>
+<td width="50%"><a href="evidence/phase1-real-models/screenshots/real-02-mlp-gate-overview.png"><img src="evidence/phase1-real-models/screenshots/real-02-mlp-gate-overview.png" width="100%" alt="Interactive multiresolution heatmap of a Qwen MLP gate projection"/></a><br/><b>Whole-tensor heatmaps</b><br/>Pan, zoom, change aggregation, and select regions.</td>
+<td width="50%"><a href="evidence/phase1-real-models/screenshots/real-04-exact-roi.png"><img src="evidence/phase1-real-models/screenshots/real-04-exact-roi.png" width="100%" alt="Exact values for a selected Qwen tensor region"/></a><br/><b>Exact region inspection</b><br/>Go from visual patterns to original tensor values.</td>
+</tr>
+<tr>
+<td width="50%"><a href="evidence/phase1-real-models/screenshots/real-06-embedding-exact.png"><img src="evidence/phase1-real-models/screenshots/real-06-embedding-exact.png" width="100%" alt="Exact-coverage visualization of a large Qwen embedding tensor"/></a><br/><b>Large embedding matrices</b><br/>Build an exact overview using resource-bounded pyramids.</td>
+<td width="50%"><a href="evidence/phase1-real-models/screenshots/real-08-math-embedding-sampled.png"><img src="evidence/phase1-real-models/screenshots/real-08-math-embedding-sampled.png" width="100%" alt="Row-sampled visualization of a large Qwen embedding tensor"/></a><br/><b>Sampling you can see</b><br/>Previews disclose quality, row sampling, and coverage.</td>
+</tr>
+</table>
+
+[Workspace](evidence/phase1-real-models/screenshots/real-01-workspace.png) · [Selecting a region](evidence/phase1-real-models/screenshots/real-03-attention-selected.png) · [Pyramid build](evidence/phase1-real-models/screenshots/real-05-embedding-building.png) · [ROI screenshots](evidence/phase1-roi/screenshots/) · [More UI screenshots](evidence/phase1-ui/screenshots/)
+
+## What works today
+
+| Feature | Available | Interface |
+| --- | --- | --- |
+| Create projects, import local SafeTensors, inspect/search/filter tensor metadata | Yes | Browser app |
+| Explore whole 2-D tensors (and 2-D slices of higher-rank tensors), pan/zoom/transpose, five aggregations | Yes | Browser app |
+| Exact ROI heatmap and accessible per-cell values table | Yes | Browser app / Python |
+| Exact tiles, streamed pyramids, labeled row-sampled previews, cancellable jobs | Yes | Browser app / local API |
+| Base vs. fine-tuned checkpoint difference reports | Yes | CLI / Python |
+| Supported PEFT LoRA effective-delta analysis | Yes | CLI / Python |
+| Graphical checkpoint-delta overlays, Compare and Adapters screens | **Not yet** | Planned |
+| Whole-tensor stats jobs, image/report export from UI, inference, activations, causal evaluations | **Not yet** | Planned |
+
+**Important distinction:** You can compare checkpoints and supported LoRA adapters **today via the CLI**. The current UI visualizes *individual checkpoint tensors*, not a side-by-side checkpoint comparison.
+
+## Quickstart
+
+**Requirements:** Python **3.12+**, [uv](https://docs.astral.sh/uv/), and Git. No GPU or Node.js is needed to **run** the app. Repository CI covers macOS, Linux, and Windows; the real-checkpoint visual evaluation was run on macOS/Chromium.
 
 ```bash
-uv sync --locked                     # Python 3.12+, pinned toolchain
-uv run pytest                        # full suite, includes the 12 GiB sparse-file RSS test
-uv run ruff format --check . && uv run ruff check . && uv run mypy
-uv run python scripts/g0_evidence.py --out evidence/g0   # writes G0_<os>.md
+git clone https://github.com/szaher/weightlab.git
+cd weightlab
+uv sync --locked
+uv run weightlab start
 ```
+
+Open the link printed in your terminal, which looks like:
+
+```text
+http://127.0.0.1:<port>/#token=...
+```
+
+WeightLab serves the browser UI and local FastAPI backend on the same loopback origin. The URL contains a **per-launch access token**: open it locally, don't share it, and keep the terminal running.
+
+### Your first five minutes
+
+1. Click **Create project** in the browser.
+2. Import a checkpoint by **absolute path**, specifying an allowed **selected root**. You can use the repository's bundled `examples/fixtures/tiny_base.safetensors` and make `examples/fixtures` the selected root. This reads the file *in place*; there is no upload.
+3. Open **Explore**, select a 2-D weight tensor, and inspect its shape, dtype, and metadata.
+4. Open **Overview** to pan, zoom, change aggregation (mean, mean-absolute, RMS, min, max), and select a region.
+5. Choose **Inspect exact values** to see the original source values in the Exact ROI heatmap or values table.
+
+Print the fixture's absolute paths if needed:
+
+```bash
+uv run python -c "from pathlib import Path; p=Path('examples/fixtures').resolve(); print('Root:',p); print('Model:',p/'tiny_base.safetensors')"
+```
+
+**No models to download:** the bundled deterministic fixtures are enough to try the UI and CLI. To reproduce the real-Qwen workflow, see the [pinned checkpoint validation](evidence/phase1-real-models/README.md).
+
+### Install a local wheel
+
+```bash
+uv build --wheel
+uv tool install dist/weightlab-*.whl
+weightlab start
+```
+
+The wheel includes the compiled web UI, so **Node.js is only needed to rebuild it**. WeightLab is currently `0.0.1.dev0` (pre-release); do not assume it has a published PyPI package.
+
+## Compare checkpoints
+
+Use `weightlab diff` to measure numerical changes between two checkpoints, including compatible sharded SafeTensors directories:
+
+```bash
+uv run weightlab diff \
+  examples/fixtures/tiny_base.safetensors \
+  examples/fixtures/tiny_ft.safetensors \
+  --out ./weightlab-report
+
+# report.json, report.md, tensors.csv, layers.csv, roles.csv
+```
+
+For your own checkpoints:
+
+```bash
+uv run weightlab diff /path/to/base /path/to/fine-tuned --out /path/to/reports
+```
+
+Or inspect a supported **PEFT LoRA** adapter's effective weight changes against its base:
+
+```bash
+uv run weightlab diff \
+  examples/fixtures/tiny_base.safetensors \
+  --adapter examples/fixtures/tiny_lora \
+  --out ./weightlab-lora-report
+```
+
+Reports include per-tensor and rollup **delta L2, delta RMS, relative L2, cosine similarity, max absolute delta, and non-finite counts**. Compatibility classes distinguish verified file identity from declared lineage or mere shape matching. Support for LoRA variants is intentionally limited and unsupported modules are reported rather than silently interpreted.
+
+**Exit codes:** `0` means complete; `3` means a report was written but is **incomplete**; `2` means error; `130` means cancelled. Check `complete` and any caveats before interpreting results.
+
+Full details: [CLI reference, metrics and LoRA support](docs/cli/weightlab-diff.md).
+
+## Python API
+
+Read a bounded region from a checkpoint without loading the whole model:
 
 ```python
 from weightlab import open_checkpoint
 from weightlab.analysis.roi import encode_roi
 
-with open_checkpoint("/models/my-model", selected_root="/models") as ck:
-    print(ck.metadata()[:3])
-    roi = ck.read_roi_raw("model.embed_tokens.weight", 0, 4, 0, 8)
-    print(encode_roi(roi).to_json())   # lossless typed values (doc 09 section 2)
+with open_checkpoint(
+    "examples/fixtures/tiny_base.safetensors",
+    selected_root="examples/fixtures",
+) as checkpoint:
+    print(checkpoint.metadata()[:3])
+    roi = checkpoint.read_roi_raw("demo.layers.0.mlp.up_proj.weight", 0, 4, 0, 8)
+    print(encode_roi(roi).to_json())
 ```
 
-## Implementation status: Phase 0.5 (change report, WL-024)
+Compute a structured change report:
 
-`weightlab diff` compares two checkpoints, or a base and a PEFT LoRA adapter, on top of the Phase 0 reader. It provides strict compatibility classes (X/V/L/S), exact streaming metrics (delta L2/RMS, relative L2, cosine, max-abs, non-finite counts), layer and role rankings, and JSON/CSV/Markdown exports with provenance. Memory stays bounded, inputs are read-only, and no model is run. No frontend, inference or transfer yet. The reference is `docs/cli/weightlab-diff.md`; Gate G0.5 evidence, example reports and known limitations are in `evidence/g0.5/` (macOS only; Windows validation is deferred and not passed).
+```python
+from weightlab.analysis.change_report import Options, run
+
+report = run(
+    "examples/fixtures/tiny_base.safetensors",
+    "examples/fixtures/tiny_ft.safetensors",
+    options=Options(sort="relative_l2"),
+)
+print(report["complete"])
+```
+
+The Python API remains **pre-release**. See [change report documentation](docs/cli/weightlab-diff.md) and [reader implementation](weightlab/formats/checkpoint.py).
+
+## How it works
+
+```mermaid
+flowchart LR
+    A["Local SafeTensors files"] --> B["Strict read-only reader"]
+    B --> C["Catalog and project metadata"]
+    B --> D["Bounded tile + pyramid engine"]
+    D --> E["Whole-tensor heatmaps"]
+    E --> F["Exact ROI drilldown"]
+    B --> F
+    B --> G["Streaming diff / LoRA analysis"]
+    G --> H["JSON / CSV / Markdown reports"]
+```
+
+- **Strict file reader:** validates metadata, shards, offsets, and paths; reads only bounded file regions.
+- **Visual layer:** multiresolution `256 × 256` tiles, optional exact pyramids, explicit row-sampled previews, and distinct coverage/precision labels.
+- **Numerical layer:** raw ROI values are lossless; tile aggregate visualizations use float32 and must not be mistaken for exact individual parameters. Non-finite values and unrepresentable numbers get explicit states.
+- **Application:** local FastAPI + React, SQLite for projects, bounded job handling and cache budgets.
+
+### Privacy and security
+
+WeightLab runs locally by default and does not require a cloud account. The server accepts **loopback-only** binds and protects its local API with a launch token. Imported model files are read in place, not uploaded, rewritten, or deleted when a project is deleted. The application is designed without background telemetry or model-data exfiltration. Reports contain tensor names, shapes, statistics, file names, sizes, and possibly digests, so **review reports before sharing**. See [security design](docs/12_SECURITY_AND_PRIVACY.md).
+
+### Verified on real models
+
+The project contains reproducible validation against pinned **Qwen2.5-0.5B / Instruct** and **Qwen2.5-Math-1.5B / Instruct** checkpoints. The recorded macOS run compared **1,256 tensor metadata entries**, **184 exact ROI windows**, and **1,048 tiles** with an independent reader. It reported zero mismatches for the described numerical checks. During that run the backend's **peak RSS was 166.3 MiB**, with a **36 GiB RAM / Apple M3 Pro** host; this is a benchmark observation, **not** a general memory guarantee or proof of the 8 GiB laptop target.
+
+Reproduce the measurements and inspect limitations in [real model evidence](evidence/phase1-real-models/README.md) and [the machine-readable benchmark](evidence/phase1-real-models/results/benchmark.json). Browser validation was in Chromium; a practitioner usability study has **not** been completed.
+
+## Current scope and limitations
+
+- **Format:** SafeTensors (single files or sharded indexes). No GGUF, PyTorch `.bin`, or general quantized checkpoint format support.
+- **Overview:** whole-tensor heatmap aggregation is not a lossless display of every original scalar. Use **Exact ROI** for actual values.
+- **Comparison:** numerical deltas are not causal evidence of improved behavior; independent checkpoints may be poorly aligned even when shapes match.
+- **UI:** Compare/Adapters pages, graphical delta/LoRA overlays, stats jobs, and UI export are not built.
+- **Experimental features:** inference, activations, transfer experiments, and evaluation are not present.
+- **Maturity:** pre-release; field-tested practitioner feedback, non-Chromium browser coverage, and the intended 8 GiB laptop target remain unverified.
+
+## Development and contributing
+
+The code is under active development. Use reproducible fixtures, add tests for numerical and security behavior, and avoid weakening validation to satisfy an acceptance gate.
 
 ```bash
-uv run weightlab diff base/ derived/ --out report/              # report.json, tensors/layers/roles.csv, report.md
-uv run weightlab diff base/ --adapter lora/ --json lora.json     # LoRA effective delta vs base
-uv run python scripts/g05_evidence.py --out evidence/g0.5        # tests + diff benchmark -> G0.5_<os>.md
+uv sync --locked
+uv run pytest
+uv run ruff format --check .
+uv run ruff check .
+uv run mypy
 ```
 
-## Implementation status: Phase 1 (Tasks 1–3) and practitioner evaluation kit
-
-Three pieces are built:
-
-- **Database (`weightlab/db/`):** the SQLite project database with checksummed migrations (Phase 1 task 1).
-- **Local API (`weightlab/api/`):** the FastAPI routes of `contracts/openapi.yaml` 0.3.0, with strict request schemas, a loopback-only security boundary and generated contract tests (task 2).
-- **Browser UI (`frontend/`, served from `weightlab/ui/static`):** the first usable application (task 3). Create projects, import a local SafeTensors checkpoint by absolute path (read in place, never uploaded), relink moved models, and search, filter, sort and page the tensor catalog on the server, with a metadata inspector.
-- **Exact ROI explorer (Phase 1 task 4A, `frontend/src/features/roi/`):** select a tensor to see an exact window of its values (64 × 64 by default, never more than `roi_max_cells`) as a Canvas heatmap and as an accessible table. It supports pan, zoom, jump-to-cell, transpose, row/column axis and fixed-index slicing for rank > 2, colour scales (auto for the visible region, sign-symmetric, fixed) and exact copy. Values come from `POST /tensors/roi` unchanged: −0.0 keeps its sign, I64/U64 stay decimal strings, NaN/±Inf are labelled patterns.
-
-`weightlab start` serves the API and the UI on the same loopback origin. It prints `http://127.0.0.1:<port>/#token=...`, and the page moves the per-launch token into `sessionStorage` and removes it from the address bar. The wheel ships the production build, so Node.js is needed only to rebuild the UI, never to run it.
-
-- **Tile engine foundation (Phase 1 task 4B, `weightlab/analysis/tile.py`, `tile_codec.py`):** exact heatmap tiles by direct bounded reads (origin-anchored 256 x 256 tiles, `block = 2^level`, count-weighted mean / mean_abs / RMS from sums of squares / min / max over finite values, NaN/+Inf/-Inf counts, overflow and float32-range withholding), the frozen binary tile body and its JSON form, and canonical SHA-256 tile identities.
-- **Exact pyramids, sampling, jobs and caches (Phase 1 task 4B, PR #7):** `POST /api/v1/tiles` implements the frozen quality decision table for `kind=tensor` sources: direct exact reads (L0-L3 and small tiles), exact tiles from a streaming pyramid (`weightlab/analysis/pyramid.py`, record format v1: 56 B base / 80 B coarse records), `202` + a deduplicated `pyramid_build` job when the pyramid is not ready, and labelled row-sampled previews (`weightlab/analysis/sampling.py`, stride or seeded SplitMix64 rows) only for sources above `pyramid_exact_max_mib`. `/api/v1/jobs` runs bounded, cancellable `pyramid_build` jobs (`weightlab/jobs.py`); `weightlab/cache.py` holds the memory tile LRU and the disk pyramid LRU. Delta / LoRA tiles and other job kinds answer 422, never a substitute. Evidence: `evidence/phase1-pyramids/`.
-
-- **Whole-tensor overview (Phase 1, PR #8, `frontend/src/features/overview/`):** Explore opens every 2D tensor (and every 2D view of a higher-rank one) on an **Overview** tab: a multiresolution Canvas heatmap assembled from binary `POST /tiles` answers, with pan (drag, Shift+arrows), zoom toward the pointer (Ctrl/⌘/Alt + wheel, buttons, +/−), fit/reset, automatic or explicit level, the five aggregations, and block or rectangle selection with raw half-open bounds. Every picture says whether it is **EXACT coverage** or a **ROW-SAMPLED preview** (rows per block, policy, seed), that values are float32 visualizations, and which aggregation and block size it shows. A `202` shows the pyramid build's progress and I/O with a Cancel button; sources above `pyramid_exact_max_mib` get a labelled sampled preview, a seed control, and an explicit, costed "Build the exact overview" action. **Inspect exact values** opens the **Exact ROI** tab on exactly the selected raw bounds and view (regions above `roi_max_cells` are never truncated silently). Evidence: `evidence/phase1-overview/`.
-- **Real-checkpoint validation (Phase 1, PR #9):** the whole workflow on official Qwen2.5-0.5B / -Instruct and Qwen2.5-Math-1.5B / -Instruct checkpoints at pinned revisions (`evidence/phase1-real-models/models.json`; weights are fetched outside the repository, never committed). `validate_real_models.py` checks every ROI, tile and aggregate against an independent reader (`safetensors` + PyTorch), plus pyramids, caches, cancellation, source mutation and read-only behaviour; `frontend/tests/e2e/real.spec.ts` (skipped unless `WEIGHTLAB_REAL_MODELS` is set) drives the UI and a 20-minute pan/zoom/switch soak. Evidence and PASS/FAIL assessment: `evidence/phase1-real-models/README.md`.
-
-The overview's cells are aggregates; exact numbers only ever come from Exact ROI. Stats jobs, exports, Compare and Adapters are not built yet: export routes answer 404 `deferred`, other job kinds 422, and their navigation entries are marked "planned".
-
-The Phase 0.5 practitioner evaluation (doc 14, Phase 0.5 task 6) has a self-contained kit in `evaluation-kit/`:
-
-- installation instructions;
-- three reproducible examples, checked against generator values;
-- a 10-minute questionnaire;
-- a structured feedback-summary template.
-
-No feedback has been collected yet, and the G0.5 practitioner item stays open.
-
-Further reading:
-
-- review guide, spec gaps and limitations: `evidence/phase1/README.md`;
-- UI evidence, screenshots and limitations: `evidence/phase1-ui/README.md`.
+Frontend changes require Node.js (see [frontend documentation](frontend/README.md)):
 
 ```bash
-uv run weightlab start                                   # open the printed http://127.0.0.1:<port>/#token=... link
-uv run python evaluation-kit/run_examples.py             # the kit's three examples, self-checking
-uv run python scripts/build_evaluation_kit.py            # -> dist/weightlab-evaluation-kit-<version>.zip
-uv run python scripts/phase1_evidence.py --out evidence/phase1
-
-cd frontend && npm ci                                    # UI development (Node 22+; build-time only)
-npm run lint && npm run typecheck && npm test            # ESLint, strict tsc, Vitest
-npm run build                                            # -> weightlab/ui/static (committed; CI checks it is current)
-npx playwright install chromium && npm run e2e           # browser E2E against a real `weightlab start`
+cd frontend
+npm ci
+npm run lint
+npm run typecheck
+npm test
+npm run build
+npx playwright install chromium
+npm run e2e
 ```
 
-## Read this first
+**Explore further:** [evaluation kit](evaluation-kit/README.md) · [test evidence](evidence/) · [OpenAPI contract](contracts/openapi.yaml) · [architecture](docs/03_SYSTEM_ARCHITECTURE.md) · [numerical methods](docs/05_NUMERICAL_METHODS.md) · [roadmap](docs/14_DELIVERY_ROADMAP.md) · [issue tracker](https://github.com/szaher/weightlab/issues).
 
-This package is designed to hand to an engineer or coding agent without leaving important product, numerical, systems, or delivery decisions implicit. It does **not** guarantee a bug-free first attempt: the acceptance gates and automated tests make failures observable before release.
+The detailed version **1.2-final specification** remains a frozen engineering baseline; it is **not** the current implementation status. Some historical planning documents and examples describe future behavior, so treat the tested source code and evidence above as the authority for currently working features.
 
-### Source of truth and reading order
+## License
 
-1. `docs/01_PRODUCT_VISION_PRD.md` — users, jobs, outcomes, release boundaries, measurable acceptance.
-2. `docs/02_FUNCTIONAL_REQUIREMENTS.md` — exhaustive requirements (IDs, priorities, user stories, negative cases).
-3. `docs/03_SYSTEM_ARCHITECTURE.md` — precise technical architecture and decisions.
-4. `docs/04_FILE_FORMATS_AND_TENSORS.md` — safe reads, model format support, shard index, dtype and compatibility.
-5. `docs/05_NUMERICAL_METHODS.md` — exact maths, visual semantics, statistics, error bounds.
-6. `docs/06_TRANSFER_RESEARCH_PROTOCOL.md` — task vectors, LoRA transfer, evidence and controls.
-7. `docs/07_ACTIVATIONS_AND_EVALUATION.md` — optional costly experiments and causal interpretation.
-8. `docs/08_UX_UI_DESIGN.md` — workflows, screen-level specs, accessibility and sketches.
-9. `docs/09_API_CONTRACT.md` + `contracts/openapi.yaml` — REST and job contracts.
-10. `docs/10_PERSISTENCE_DATA_MODEL.md` — durable entities, schema, provenance, migrations.
-11. `docs/11_PERFORMANCE_BUDGET.md` — memory/CPU/IO constraints and benchmark design.
-12. `docs/12_SECURITY_AND_PRIVACY.md` — threat model and secure local operation.
-13. `docs/13_TEST_STRATEGY.md` — golden fixtures, correctness, security and E2E.
-14. `docs/14_DELIVERY_ROADMAP.md` — staged deliverables, dependencies and release gates.
-15. `docs/15_BACKLOG_AND_TRACEABILITY.md` — tickets with definition of done.
-16. `docs/16_DECISIONS_RISKS_AND_OPEN_QUESTIONS.md` — architecture decision records and explicit trade-offs.
-17. `docs/17_RESEARCH_AND_REFERENCES.md` — evidence and technical citations.
-18. `docs/18_OPERATIONS_AND_PACKAGING.md` — install, release, observability and support.
-19. `agent/IMPLEMENTATION_AGENT_HANDOFF.md` — directly usable coding-agent instruction sequence.
-20. `contracts/*.json` and `contracts/examples/*.json` — experiment schema, sample manifest, positive and negative contract examples (validated by `scripts/check_contracts.py`).
-21. `examples/*.md` — user-facing walkthroughs and acceptance scenarios.
-
-### Product scope at a glance
-
-| Release | Core capability | Runtime requirement |
-|---|---|---|
-| R0, fixture-first | Generate fixture, open SafeTensors model, metadata / tensor list | CPU, no GPU |
-| R0.5, change report | `weightlab diff`: ranked per-tensor/per-layer change table, compatibility report, JSON/CSV/Markdown; validate with practitioners | CPU, no UI |
-| R1, first useful release | Single tensor heatmap, precise ROI, exact/sample statistics, compare compatible checkpoints and LoRA overlays, local persistence | CPU, 8 GB laptop target |
-| R2, analysis | Layer dashboards, training checkpoint timelines, similarity maps, enhanced aggregate plots and portable exports | CPU; bounded jobs |
-| R3, research | Task-vector virtual overlays, alpha sweep, optional local evaluation, intervention experiment records | Optional CPU inference; separate budget |
-| R4, advanced research | Activation capture, patching and supported cross-family alignment experiments | Optional heavier dependencies; explicit opt-in |
-
-**Do not ship R3/R4 as if they were proven or fully supported in R1.**
-
-### Nonnegotiables
-
-- 100% local operation by default; no background network calls or telemetry without explicit opt-in.
-- Model bytes never leave the local machine unless the user explicitly exports them.
-- Full model weights are never loaded into process RAM by default.
-- Tensor metadata inspection works without PyTorch, transformers, or a GPU.
-- All large computations are chunked, interruptible, and governed by explicit budgets.
-- Never label a sampled/statistical estimate as exact.
-- Cross-checkpoint numerical comparisons are gated by explicit compatibility checks and clear interpretation warnings.
-- Raw weights, LoRA deltas, activations and model behavior are distinct scientific objects.
-- Ship a reproducible synthetic dataset and demo; no paid cloud account required.
-
-### Suggested implementation order
-
-Read `agent/IMPLEMENTATION_AGENT_HANDOFF.md`, implement one milestone at a time, run tests and benchmarks at each gate, and publish evidence. Never bypass a failed gate by weakening a test or disabling validation.
-
-### License guidance
-
-The documentation is provided as a design artifact. Before publishing an implementation choose an explicit repository license and review dependency/model/dataset licensing. A permissive code license such as Apache-2.0 is an **option**, not selected here.
+No explicit repository-wide open-source license has been selected in the current source tree. **Do not assume the code is licensed for reuse or redistribution** until a license is added. Contributions and distribution should be discussed with the maintainer.
