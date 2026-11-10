@@ -1,14 +1,14 @@
 """WeightLab: local-first, CPU-only LLM checkpoint explorer.
 
-Phase 0 surface: a strict, read-only SafeTensors reader with sharded index validation and
-exact, lossless region-of-interest (ROI) reads. No tiles, API or UI yet.
+Supports strict SafeTensors reads, exact ROI values, local heatmaps, and
+checkpoint/LoRA change reports. The graphical comparison UI is still planned.
 """
 
 from weightlab.core.errors import ErrorCode, WeightLabError
 from weightlab.formats.base import Consistency, TensorMeta
 from weightlab.formats.checkpoint import Checkpoint, open_checkpoint
 
-__version__ = "0.0.1.dev0"
+__version__ = "0.1.0a1"
 PARSER_VERSION = 1
 
 __all__ = [
