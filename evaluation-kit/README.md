@@ -1,6 +1,6 @@
 # WeightLab evaluation kit (Phase 0.5 practitioner feedback)
 
-Thank you for trying WeightLab. We are asking 5–10 LLM engineers and researchers to try one command, `weightlab diff`, and tell us which questions it did and did not answer. Your answers decide what the first graphical version (Phase 1/2) shows first.
+Thank you for trying WeightLab. We are asking 5–10 LLM engineers and researchers to try one command, `weightlab diff`, and tell us which questions it did and did not answer. Your answers help prioritize future graphical checkpoint comparison and analysis workflows.
 
 **Time: about 30 minutes.** Install: 5 min. Three examples: 15 min. Questionnaire: 10 min.
 
@@ -14,9 +14,9 @@ Thank you for trying WeightLab. We are asking 5–10 LLM engineers and researche
 
 It runs on the CPU, reads files only (it never modifies them and never runs a model), needs no network or account, and keeps memory bounded (under 100 MiB on a 0.5B pair).
 
-This is a pre-release command-line tool:
+This kit evaluates the pre-release **command-line comparison tool**, not the separate browser tensor explorer:
 
-- There is no UI yet.
+- A local browser UI exists for individual checkpoint tensor exploration, heatmaps, and exact ROI inspection. **Graphical side-by-side checkpoint comparison and LoRA overlays are not implemented yet.**
 - Only SafeTensors files are read. No `.bin`, GGUF or quantized formats.
 - No activations, evaluations or inference.
 - Supported LoRA is a documented subset. Anything else is reported as unsupported, never guessed.
