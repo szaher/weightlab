@@ -234,7 +234,7 @@ npx playwright install chromium
 npm run e2e
 ```
 
-**Explore further:** [evaluation kit](evaluation-kit/README.md) · [test evidence](evidence/) · [OpenAPI contract](contracts/openapi.yaml) · [architecture](docs/03_SYSTEM_ARCHITECTURE.md) · [numerical methods](docs/05_NUMERICAL_METHODS.md) · [roadmap](docs/14_DELIVERY_ROADMAP.md) · [issue tracker](https://github.com/szaher/weightlab/issues).
+**Explore further:** [visualization roadmap](ROADMAP.md) · [evaluation kit](evaluation-kit/README.md) · [test evidence](evidence/) · [OpenAPI contract](contracts/openapi.yaml) · [architecture](docs/03_SYSTEM_ARCHITECTURE.md) · [numerical methods](docs/05_NUMERICAL_METHODS.md) · [roadmap](docs/14_DELIVERY_ROADMAP.md) · [issue tracker](https://github.com/szaher/weightlab/issues).
 
 For publishing and packaging instructions, see [RELEASING.md](RELEASING.md).
 
