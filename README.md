@@ -103,7 +103,7 @@ uv tool install dist/weightlab-*.whl
 weightlab start
 ```
 
-The wheel includes the compiled web UI, so **Node.js is only needed to rebuild it**. WeightLab is currently `0.0.1.dev0` (pre-release); do not assume it has a published PyPI package.
+The wheel includes the compiled web UI, so **Node.js is only needed to rebuild it**. WeightLab **`0.1.0a1` (alpha)** is being prepared for PyPI. After the first release is published, install with `uv tool install "weightlab==0.1.0a1"` or `python -m pip install "weightlab==0.1.0a1"`. Until then, use the source or local wheel instructions above.
 
 ## Compare checkpoints
 
@@ -235,6 +235,8 @@ npm run e2e
 ```
 
 **Explore further:** [evaluation kit](evaluation-kit/README.md) · [test evidence](evidence/) · [OpenAPI contract](contracts/openapi.yaml) · [architecture](docs/03_SYSTEM_ARCHITECTURE.md) · [numerical methods](docs/05_NUMERICAL_METHODS.md) · [roadmap](docs/14_DELIVERY_ROADMAP.md) · [issue tracker](https://github.com/szaher/weightlab/issues).
+
+For publishing and packaging instructions, see [RELEASING.md](RELEASING.md).
 
 The detailed version **1.2-final specification** remains a frozen engineering baseline; it is **not** the current implementation status. Some historical planning documents and examples describe future behavior, so treat the tested source code and evidence above as the authority for currently working features.
 
