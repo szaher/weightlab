@@ -1,0 +1,73 @@
+# Publish tagged GitHub prereleases to PyPI using a trusted OIDC identity.
+# PyPI publisher: owner=szaher, repository=weightlab, workflow=publish.yml, environment=pypi.
+name: publish
+
+on:
+  release:
+    types: [published]
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Build and validate distributions
+    if: ${{ github.event.release.prerelease && startsWith(github.event.release.tag_name, 'v') }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Verify tag belongs to main
+        shell: bash
+        run: |
+          git fetch --no-tags origin main
+          git merge-base --is-ancestor HEAD origin/main || {
+            echo "Release tag must point to a commit already on main" >&2
+            exit 1
+          }
+
+      - uses: astral-sh/setup-uv@v6
+        with:
+          version: "0.13.4"
+      - name: Verify locked environment and run tests
+        run: |
+          uv sync --locked --python 3.12
+          uv run pytest
+
+      - name: Build wheel and sdist
+        run: uv build --out-dir dist
+
+      - name: Validate distributions, version, UI and migrations
+        run: uv run python scripts/check_release_artifacts.py --dist dist --tag "${{ github.event.release.tag_name }}"
+
+      - name: Check distribution metadata
+        run: uvx --from twine twine check --strict dist/*
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: python-distributions
+          path: dist/*
+          if-no-files-found: error
+          retention-days: 7
+
+  publish:
+    name: Publish to PyPI
+    needs: [build]
+    runs-on: ubuntu-latest
+    environment:
+      name: pypi
+      url: https://pypi.org/project/weightlab/
+    permissions:
+      id-token: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: python-distributions
+          path: dist/
+      - name: Publish distributions (OIDC, no API token)
+        uses: pypa/gh-action-pypi-publish@release/v1

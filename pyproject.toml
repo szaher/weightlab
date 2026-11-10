@@ -1,9 +1,18 @@
 [project]
 name = "weightlab"
-version = "0.0.1.dev0"
-description = "Local-first, CPU-only LLM checkpoint explorer: strict SafeTensors reader, change reports, local API."
+version = "0.1.0a1"
+description = "Explore LLM weights locally: heatmaps, exact tensor inspection, checkpoint and LoRA change reports."
 readme = "README.md"
 requires-python = ">=3.12"
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "Intended Audience :: Science/Research",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+]
 # Exact pins; uv.lock records the full resolved set with hashes.
 dependencies = [
     "numpy==2.5.4",
@@ -14,6 +23,12 @@ dependencies = [
     # Platform-native application data directory (doc 18 section 4).
     "platformdirs==4.14.5",
 ]
+
+[project.urls]
+Homepage = "https://github.com/szaher/weightlab"
+Source = "https://github.com/szaher/weightlab"
+Documentation = "https://github.com/szaher/weightlab#readme"
+Issues = "https://github.com/szaher/weightlab/issues"
 
 [project.scripts]
 weightlab = "weightlab.cli:main"
