@@ -116,3 +116,22 @@ jobs:
             frontend/playwright-report
             frontend/test-results
             ${{ runner.temp }}/ui-screenshots
+
+  package:
+    name: Validate PyPI-ready wheel and sdist
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          version: "0.13.4"
+      - name: Install locked environment
+        run: uv sync --locked --python 3.12
+      - name: Build distributions
+        run: uv build --out-dir dist
+      - name: Verify wheel, sdist, UI and migrations
+        run: uv run python scripts/check_release_artifacts.py --dist dist
+      - name: Inspect package metadata
+        run: uvx --from twine twine check --strict dist/*
