@@ -79,7 +79,12 @@ def create_comparison(conn: sqlite3.Connection, req: ComparisonRequest) -> dict[
                 "analyzable": e.analyzable,
             }
         )
-    compat = {"lineage": lineage_view(lineage), "counts": structure.counts(), "policy": req.policy}
+    compat = {
+        "lineage": lineage_view(lineage),
+        "counts": structure.counts(),
+        "policy": req.policy,
+        "user_attestation": req.user_attestation,  # a comparison_report job reassesses with the same inputs
+    }
     row = store.insert_comparison(
         conn,
         project_id=req.project_id,

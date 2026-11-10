@@ -1,4 +1,4 @@
-// Response and request shapes of contracts/openapi.yaml 0.3.0 used by the UI shell (Phase 1 Task 3).
+// Response and request shapes of contracts/openapi.yaml 0.4.0 used by the UI shell (Phase 1 Task 3).
 // Clients tolerate unknown optional response fields (doc 09), so these list only what the UI reads.
 
 export const DTYPES = ["F64", "F32", "F16", "BF16", "I64", "I32", "I16", "I8", "U64", "U32", "U16", "U8", "BOOL"] as const;
@@ -192,7 +192,7 @@ export const PENDING_JOB_STATES: readonly JobState[] = ["created", "queued", "ru
 
 export interface Job {
   job_id: string;
-  kind: "tensor_stats" | "pyramid_build" | "compare_stats" | "file_hash" | "export";
+  kind: "tensor_stats" | "pyramid_build" | "compare_stats" | "file_hash" | "export" | "comparison_report";
   state: JobState;
   progress: number;
   poll_after_ms?: number;

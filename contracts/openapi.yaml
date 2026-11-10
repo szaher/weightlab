@@ -1,9 +1,10 @@
 openapi: 3.1.0
 info:
   title: WeightLab Local API
-  version: 0.3.0-spec-1.2-final
+  version: 0.4.0-spec-1.2-final-adr-020
   description: >-
-    R1 API contract, frozen with blueprint 1.2-final. Design artifact, not an implemented service.
+    R1 API contract, frozen with blueprint 1.2-final; 0.4.0 adds the comparison_report job and
+    GET /comparisons/{comparison_id}/report (ADR-020, additive).
     All request bodies are closed (additionalProperties false) and size-bounded. Every ID is an opaque
     server-issued string; a referenced object must belong to the same project as the request scope,
     otherwise 404 (no cross-project existence oracle). docs/09_API_CONTRACT.md is authoritative for
@@ -396,10 +397,13 @@ components:
       additionalProperties: false
       required: [kind, budget]
       properties:
-        kind: {type: string, enum: [tensor_stats, pyramid_build, compare_stats, file_hash]}
+        kind: {type: string, enum: [tensor_stats, pyramid_build, compare_stats, file_hash, comparison_report]}
         source: {$ref: '#/components/schemas/Source'}
         view: {$ref: '#/components/schemas/View'}
         model_id: {$ref: '#/components/schemas/Id'}
+        comparison_id:
+          $ref: '#/components/schemas/Id'
+          description: comparison_report only (ADR-020); the report covers every analyzable entry of the comparison.
         consistency:
           type: string
           enum: [best_effort, verified]
@@ -409,6 +413,12 @@ components:
       allOf:
       - if: {properties: {kind: {const: file_hash}}}
         then: {required: [model_id], not: {required: [source]}}
+      - if: {properties: {kind: {const: comparison_report}}}
+        then:
+          required: [comparison_id]
+          not: {anyOf: [{required: [source]}, {required: [view]}, {required: [model_id]}]}
+        else: {not: {required: [comparison_id]}}
+      - if: {properties: {kind: {enum: [file_hash, comparison_report]}}}
         else: {required: [source]}
     Metric:
       type: object
@@ -472,6 +482,13 @@ components:
         properties:
           kind: {const: export}
           export_id: {$ref: '#/components/schemas/Id'}
+      - type: object
+        additionalProperties: false
+        required: [kind, comparison_id, complete]
+        properties:
+          kind: {const: comparison_report}
+          comparison_id: {$ref: '#/components/schemas/Id'}
+          complete: {type: boolean, description: The report's own `complete` flag; false means incomplete, never partial.}
     Job:
       description: >-
         States: created -> queued -> running -> completed | failed | canceled; queued -> canceled; running ->
@@ -482,7 +499,7 @@ components:
       required: [job_id, kind, state, progress, created_at]
       properties:
         job_id: {$ref: '#/components/schemas/Id'}
-        kind: {type: string, enum: [tensor_stats, pyramid_build, compare_stats, file_hash, export]}
+        kind: {type: string, enum: [tensor_stats, pyramid_build, compare_stats, file_hash, export, comparison_report]}
         state: {type: string, enum: [created, queued, running, completed, canceled, failed, interrupted]}
         progress: {type: number, minimum: 0, maximum: 1}
         poll_after_ms: {type: integer, minimum: 100, maximum: 10000}
@@ -580,6 +597,29 @@ components:
         tied_to: {type: [string, 'null'], maxLength: 4096, description: Source key when status=tied (positive evidence only).}
         tie_evidence: {type: [string, 'null'], enum: [config_and_known_mapping, trusted_alias_metadata, null]}
         reasons: {type: array, maxItems: 20, items: {type: string, maxLength: 500}}
+    ComparisonReport:
+      description: >-
+        The change report of a comparison, published atomically by its latest completed comparison_report job
+        (ADR-020). `report` is the weightlab/schemas/change_report.schema.json document (report_kind
+        weightlab_change_report, mode checkpoint_pair) exactly as `weightlab diff` writes it with paths redacted;
+        it is versioned by its own schema_version. `complete` repeats report.complete: an incomplete report
+        (withheld metrics or entries not compared) must never be presented as complete.
+      type: object
+      additionalProperties: false
+      required: [comparison_id, job_id, complete, created_at, report]
+      properties:
+        comparison_id: {$ref: '#/components/schemas/Id'}
+        job_id: {$ref: '#/components/schemas/Id'}
+        complete: {type: boolean}
+        created_at: {type: string, format: date-time}
+        report:
+          type: object
+          required: [schema_version, report_kind, mode, complete, compatibility, tensors, layers, roles, totals]
+          properties:
+            schema_version: {type: integer, minimum: 1}
+            report_kind: {const: weightlab_change_report}
+            mode: {const: checkpoint_pair}
+            complete: {type: boolean}
     ComparisonEntryPage:
       type: object
       additionalProperties: false
@@ -987,6 +1027,21 @@ paths:
             application/json:
               schema: {$ref: '#/components/schemas/ComparisonEntryPage'}
         '404': {$ref: '#/components/responses/ErrorResponse'}
+  /comparisons/{comparison_id}/report:
+    parameters:
+    - {in: path, name: comparison_id, required: true, schema: {$ref: '#/components/schemas/Id'}}
+    get:
+      summary: Change report of the comparison (latest completed comparison_report job; ADR-020)
+      description: >-
+        404 when the comparison does not exist or no comparison_report job has completed for it yet. Queue one with
+        POST /jobs {kind: comparison_report, comparison_id}.
+      responses:
+        '200':
+          description: Comparison report
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/ComparisonReport'}
+        '404': {$ref: '#/components/responses/ErrorResponse'}
   /jobs:
     post:
       summary: Queue a bounded analysis job (identical pending jobs are deduplicated)
@@ -1002,6 +1057,7 @@ paths:
             application/json:
               schema: {$ref: '#/components/schemas/Job'}
         '404': {$ref: '#/components/responses/ErrorResponse'}
+        '409': {$ref: '#/components/responses/ErrorResponse'}
         '422': {$ref: '#/components/responses/ErrorResponse'}
         '429': {$ref: '#/components/responses/ErrorResponse'}
   /jobs/{job_id}:

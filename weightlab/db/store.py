@@ -352,6 +352,27 @@ def get_entry(conn: sqlite3.Connection, comparison_id: str, entry_id: str) -> di
     )
 
 
+def put_comparison_report(conn: sqlite3.Connection, comparison_id: str, job_id: str, report: dict[str, Any]) -> None:
+    """Publish a comparison's change report atomically, replacing any earlier one. A comparison deleted
+    meanwhile (its project, or either model) leaves nothing behind."""
+    with transaction(conn):
+        if conn.execute("SELECT 1 FROM comparisons WHERE id = ?", (comparison_id,)).fetchone() is None:
+            return
+        conn.execute(
+            "INSERT INTO comparison_reports (comparison_id, job_id, complete, report_json, created_at) "
+            "VALUES (?, ?, ?, ?, ?) ON CONFLICT(comparison_id) DO UPDATE SET job_id = excluded.job_id, "
+            "complete = excluded.complete, report_json = excluded.report_json, created_at = excluded.created_at",
+            (comparison_id, job_id, int(bool(report["complete"])), dumps(report), now()),
+        )
+
+
+def get_comparison_report(conn: sqlite3.Connection, comparison_id: str) -> dict[str, Any] | None:
+    return _row(
+        conn.execute("SELECT * FROM comparison_reports WHERE comparison_id = ?", (comparison_id,)).fetchone(),
+        ("report_json",),
+    )
+
+
 # -- adapters ----------------------------------------------------------------------------------
 def insert_adapter(
     conn: sqlite3.Connection,

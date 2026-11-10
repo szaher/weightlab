@@ -969,7 +969,7 @@ A new user with no model files starts demo, selects a known tensor, sees 2D heat
 **Base URL:** `http://127.0.0.1:{port}/api/v1`  
 **Protocol:** JSON metadata + compact binary payloads for heatmap tiles, no external API dependencies.  
 **Security:** Random local bearer token (`secrets.token_urlsafe(32)`) generated at each launch and delivered in the URL fragment printed by `weightlab start` (`http://127.0.0.1:PORT/#token=...`, the pattern Jupyter uses). Browsers never send the fragment in HTTP requests, so it does not reach server logs; the UI moves it to `sessionStorage`, removes it from the address bar and history with `history.replaceState`, and sends `Authorization: Bearer` on every API call. The static UI shell contains no secret. Host allowlist, Origin checks and CSP are specified in doc 12 section 4. Token is not stored in project exports (ADR-016).  
-**Versioning:** `/api/v1` with `schema_version` on every durable record. `contracts/openapi.yaml` (0.3.0, frozen with blueprint 1.2-final) is binding: every request body is a closed schema (`additionalProperties: false`) with size limits; unknown fields, unknown source kinds and contradictory fields are rejected with 422. Clients tolerate unknown optional *response* fields.  
+**Versioning:** `/api/v1` with `schema_version` on every durable record. `contracts/openapi.yaml` (0.3.0, frozen with blueprint 1.2-final; 0.4.0 adds comparison reports, ADR-020) is binding: every request body is a closed schema (`additionalProperties: false`) with size limits; unknown fields, unknown source kinds and contradictory fields are rejected with 422. Clients tolerate unknown optional *response* fields.  
 **Ownership:** IDs are opaque server-issued strings matching `^[a-z]{3}_[A-Za-z0-9]{1,64}$`. Any ID referenced in a request must belong to the request's project; otherwise the response is 404, never 403, so the API is not an existence oracle across projects.
 
 This document adds behavioral rules the schema cannot express. `contracts/examples/api_examples.json` holds positive and negative payloads that `scripts/check_contracts.py` validates against the schema.
@@ -991,6 +991,7 @@ This document adds behavioral rules the schema cannot express. `contracts/exampl
 | POST | `/comparisons` | compatibility + lineage assessment | optional `user_attestation` |
 | GET | `/comparisons/{id}` | summary with counts and `LineageAssessment` | |
 | GET | `/comparisons/{id}/entries` | matched / missing / tied / mismatched rows | paged, filter by status |
+| GET | `/comparisons/{id}/report` | change report of the latest completed `comparison_report` job | ADR-020; 404 until one completed |
 | GET/POST | `/projects/{id}/adapters` | list / import PEFT adapter | per-module mapping, native scale, support status |
 | GET/POST | `/projects/{id}/bookmarks` | saved views | typed `SavedView` |
 | DELETE | `/projects/{id}/bookmarks/{bookmark_id}` | remove bookmark | |
@@ -1128,7 +1129,9 @@ The adapter's experiment multiplier is separate from its native PEFT scale and b
 }
 ```
 
-Kinds: `tensor_stats`, `pyramid_build` (with `source` and `view`), `compare_stats`, `file_hash` (with `model_id`, no `source`); exports create jobs of kind `export`. Response 202 is a `Job`. States: `created → queued → running → completed | failed | canceled`; `queued → canceled`; `running → interrupted` when the app restarts. Timeouts and budget overruns end as `failed` with `RESOURCE_LIMIT`. `result` is a typed `JobResult` and is non-null only for `completed`; canceled, failed and interrupted jobs never carry a partial result. `POST /jobs/{id}/cancel` is idempotent. Identical pending jobs (same kind and identity) are deduplicated. `budget` values are upper bounds requested by the client: the server rejects with 422 `RESOURCE_LIMIT` (server caps in `details`) any value above its configured caps and never raises its own limits on request. `consistency: "verified"` hashes every input file before and after the job (two full reads) and fails with `FILE_CHANGED` on any difference (doc 03 section 6).
+Kinds: `tensor_stats`, `pyramid_build` (with `source` and `view`), `compare_stats`, `file_hash` (with `model_id`, no `source`), `comparison_report` (with `comparison_id`, no `source`, `view` or `model_id`; ADR-020); exports create jobs of kind `export`.
+
+`comparison_report` computes the comparison's change report with the same code as `weightlab diff` (per-tensor metrics, layer and role rollups, compatibility, caveats, `complete`) and publishes it atomically for `GET /comparisons/{id}/report`; its `JobResult` is `{kind, comparison_id, complete}`. It needs at least 128 MiB of `max_working_set_mib` (else 422 `RESOURCE_LIMIT`), answers 409 `FILE_CHANGED` when either model changed since import, and fails with `CONFLICT` when the models no longer match the comparison's recorded counts or lineage (create a new comparison). A newer completed job replaces the stored report; a canceled, failed or interrupted one leaves it unchanged. An incomplete report (`complete: false`) is stored and served as incomplete, never as complete. Response 202 is a `Job`. States: `created → queued → running → completed | failed | canceled`; `queued → canceled`; `running → interrupted` when the app restarts. Timeouts and budget overruns end as `failed` with `RESOURCE_LIMIT`. `result` is a typed `JobResult` and is non-null only for `completed`; canceled, failed and interrupted jobs never carry a partial result. `POST /jobs/{id}/cancel` is idempotent. Identical pending jobs (same kind and identity) are deduplicated. `budget` values are upper bounds requested by the client: the server rejects with 422 `RESOURCE_LIMIT` (server caps in `details`) any value above its configured caps and never raises its own limits on request. `consistency: "verified"` hashes every input file before and after the job (two full reads) and fails with `FILE_CHANGED` on any difference (doc 03 section 6).
 
 ## 6. Export
 
@@ -1159,7 +1162,7 @@ Use ordinary polling in R1 with 500-1000ms adaptive interval for jobs (`poll_aft
 
 - Static: `scripts/check_contracts.py` (OpenAPI valid, all refs resolve, every positive example accepted and every negative example rejected, fixture status values valid).
 - Generated client: a client generated from `contracts/openapi.yaml` completes every first-run E2E journey (doc 08 section 10) using only described routes.
-- Behavior: catalog filters and pagination correct against the fixture catalog; settings PATCH round-trip and bound rejection; relink after move and refusal after change; project delete leaves checkpoint files byte-identical; export download requires the token and returns the recorded SHA-256; all four source kinds round-trip; unknown/missing/contradictory fields, cross-project IDs and oversized bodies rejected; coordinate overflow beyond 2^53−1 rejected; UTF-8 special tensor keys (`tiny_edge.safetensors`); stale fingerprint; lossless ROI for `tiny_precision_*` (U64 max, I64 min, 2^53±1, F64 extremes, signed zero) and `overflowed` for the overflowing delta; binary tile body length `rows*cols*5`, byte order, status bitfields and JSON parity for the non-finite golden blocks; cold/warm tile requests below and above the pyramid limit, duplicate concurrent requests deduplicated, cancel and restart with no false exact badge; job budget above server caps rejected; explicit 404/409/413/422/429 errors; security cases from doc 12 section 8.
+- Behavior: catalog filters and pagination correct against the fixture catalog; settings PATCH round-trip and bound rejection; relink after move and refusal after change; project delete leaves checkpoint files byte-identical; export download requires the token and returns the recorded SHA-256; all four source kinds round-trip; `comparison_report` results equal `weightlab diff` on the fixture pairs (complete and incomplete) and drift, change, cancel and project deletion leave no wrong report; unknown/missing/contradictory fields, cross-project IDs and oversized bodies rejected; coordinate overflow beyond 2^53−1 rejected; UTF-8 special tensor keys (`tiny_edge.safetensors`); stale fingerprint; lossless ROI for `tiny_precision_*` (U64 max, I64 min, 2^53±1, F64 extremes, signed zero) and `overflowed` for the overflowing delta; binary tile body length `rows*cols*5`, byte order, status bitfields and JSON parity for the non-finite golden blocks; cold/warm tile requests below and above the pyramid limit, duplicate concurrent requests deduplicated, cancel and restart with no false exact badge; job budget above server caps rejected; explicit 404/409/413/422/429 errors; security cases from doc 12 section 8.
 
 
 
@@ -1221,6 +1224,11 @@ CREATE TABLE comparisons (
   id TEXT PRIMARY KEY, project_id TEXT NOT NULL REFERENCES projects(id),
   model_a_id TEXT NOT NULL REFERENCES models(id), model_b_id TEXT NOT NULL REFERENCES models(id),
   compatibility_json TEXT NOT NULL, created_at TEXT NOT NULL
+);
+CREATE TABLE comparison_reports (  -- migration 0003, ADR-020
+  comparison_id TEXT PRIMARY KEY REFERENCES comparisons(id) ON DELETE CASCADE,
+  job_id TEXT NOT NULL, complete INTEGER NOT NULL CHECK (complete IN (0,1)),
+  report_json TEXT NOT NULL, created_at TEXT NOT NULL
 );
 CREATE TABLE bookmarks (
   id TEXT PRIMARY KEY, project_id TEXT NOT NULL REFERENCES projects(id),
@@ -1870,6 +1878,11 @@ Each ticket commits minimal vertical slice, proves its own acceptance and does n
 **Decision:** The blueprint is frozen at 1.2-final (tag `spec-v1.2-final`). Further changes require a demonstrated implementation correctness or security blocker, a versioned ADR, updated contracts/fixtures/tests and a changelog entry (section 5). Implementation discoveries are tracked as issues, not silent contract drift.
 **Why:** Implementation must start against a stable, testable contract.
 **Trade-off:** Some refinements wait for evidence from Phase 0.
+
+### ADR-020: Comparison change reports over the API (contract 0.4.0)
+**Decision:** Add job kind `comparison_report` (`POST /jobs` with `comparison_id`, no `source`/`view`/`model_id`) and `GET /comparisons/{comparison_id}/report`. The job runs `change_report.pair_report`, the function behind `weightlab diff`, on the comparison's two imported models and stores the resulting `change_report.schema.json` document (paths redacted) in the new `comparison_reports` table (migration 0003), one row per comparison, replaced atomically by a newer completed job. The job reopens both models with their import fingerprints (`FILE_CHANGED` otherwise) and fails with `CONFLICT` if the recomputed structural counts or lineage differ from the comparison's record. It reserves 128 MiB (the G0.5 diff memory bound), ticks progress and honours cancellation and wall time per chunk, and publishes nothing unless it completes. `POST /comparisons` now also records `user_attestation` so the job reassesses lineage with the same inputs. `POST /jobs` declares 409 (an input changed since import), which the implementation already returned.
+**Why:** ROADMAP P0.1 (Compare dashboard) needs per-tensor, per-layer and per-role change metrics in the UI. The frozen `compare_stats` kind covers one delta source per job, so a whole-model dashboard would need one job per tensor and would re-implement rollups the CLI already has. Reusing `pair_report` keeps the API's numbers identical to the CLI's by construction, which is the P0.1 acceptance criterion.
+**Trade-off:** Additive contract change after the 1.2-final freeze (ADR-019): no existing field or behaviour changes meaning. The report is returned whole (no paging); for checkpoints with tens of thousands of tensors this response is several MiB, and paging is a follow-up if the UI needs it. Options other than `consistency` (sort, `epsilon_norm`, chunk size) stay at the CLI defaults; the UI sorts client-side. `compare_stats` remains unimplemented.
 
 ## 2. Risk register
 

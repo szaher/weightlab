@@ -14,7 +14,7 @@ from weightlab.db.schema import DatabaseVersionError, Migration, connect, migrat
 
 DOC10_TABLES = {"schema_migrations", "projects", "models", "model_files", "tensors", "adapters", "comparisons",
                 "bookmarks", "jobs", "experiments", "exports"}  # fmt: skip
-ADDED_TABLES = {"comparison_entries", "app_settings"}
+ADDED_TABLES = {"comparison_entries", "app_settings", "comparison_reports"}  # 0003: ADR-020
 
 
 def tables(conn: sqlite3.Connection) -> set[str]:

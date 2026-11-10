@@ -581,6 +581,107 @@
       }
     },
     {
+      "schema": "JobRequest",
+      "valid": true,
+      "why": "comparison report (ADR-020)",
+      "instance": {
+        "kind": "comparison_report",
+        "comparison_id": "cmp_001",
+        "budget": {
+          "max_working_set_mib": 768,
+          "max_threads": 2,
+          "max_wall_seconds": 600
+        }
+      }
+    },
+    {
+      "schema": "JobRequest",
+      "valid": true,
+      "why": "verified comparison report",
+      "instance": {
+        "kind": "comparison_report",
+        "comparison_id": "cmp_001",
+        "consistency": "verified",
+        "budget": {
+          "max_working_set_mib": 768,
+          "max_threads": 2,
+          "max_wall_seconds": 600
+        }
+      }
+    },
+    {
+      "schema": "JobRequest",
+      "valid": false,
+      "why": "comparison report without comparison_id",
+      "instance": {
+        "kind": "comparison_report",
+        "budget": {
+          "max_working_set_mib": 768,
+          "max_threads": 2,
+          "max_wall_seconds": 600
+        }
+      }
+    },
+    {
+      "schema": "JobRequest",
+      "valid": false,
+      "why": "comparison report with a source",
+      "instance": {
+        "kind": "comparison_report",
+        "comparison_id": "cmp_001",
+        "source": {
+          "kind": "tensor",
+          "model_id": "mod_a",
+          "tensor_id": "tns_0009"
+        },
+        "budget": {
+          "max_working_set_mib": 768,
+          "max_threads": 2,
+          "max_wall_seconds": 600
+        }
+      }
+    },
+    {
+      "schema": "JobRequest",
+      "valid": false,
+      "why": "comparison report with a model_id",
+      "instance": {
+        "kind": "comparison_report",
+        "comparison_id": "cmp_001",
+        "model_id": "mod_a",
+        "budget": {
+          "max_working_set_mib": 768,
+          "max_threads": 2,
+          "max_wall_seconds": 600
+        }
+      }
+    },
+    {
+      "schema": "JobRequest",
+      "valid": false,
+      "why": "comparison_id on another job kind",
+      "instance": {
+        "kind": "pyramid_build",
+        "source": {
+          "kind": "tensor",
+          "model_id": "mod_a",
+          "tensor_id": "tns_0009"
+        },
+        "view": {
+          "row_axis": 0,
+          "col_axis": 1,
+          "fixed_indices": {},
+          "transpose": false
+        },
+        "comparison_id": "cmp_001",
+        "budget": {
+          "max_working_set_mib": 768,
+          "max_threads": 2,
+          "max_wall_seconds": 600
+        }
+      }
+    },
+    {
       "schema": "SettingsPatch",
       "valid": true,
       "why": "lower memory budget",

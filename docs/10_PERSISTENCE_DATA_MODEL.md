@@ -55,6 +55,11 @@ CREATE TABLE comparisons (
   model_a_id TEXT NOT NULL REFERENCES models(id), model_b_id TEXT NOT NULL REFERENCES models(id),
   compatibility_json TEXT NOT NULL, created_at TEXT NOT NULL
 );
+CREATE TABLE comparison_reports (  -- migration 0003, ADR-020
+  comparison_id TEXT PRIMARY KEY REFERENCES comparisons(id) ON DELETE CASCADE,
+  job_id TEXT NOT NULL, complete INTEGER NOT NULL CHECK (complete IN (0,1)),
+  report_json TEXT NOT NULL, created_at TEXT NOT NULL
+);
 CREATE TABLE bookmarks (
   id TEXT PRIMARY KEY, project_id TEXT NOT NULL REFERENCES projects(id),
   view_json TEXT NOT NULL, note TEXT, created_at TEXT NOT NULL

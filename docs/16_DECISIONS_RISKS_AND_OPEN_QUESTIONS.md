@@ -98,6 +98,11 @@
 **Why:** Implementation must start against a stable, testable contract.
 **Trade-off:** Some refinements wait for evidence from Phase 0.
 
+### ADR-020: Comparison change reports over the API (contract 0.4.0)
+**Decision:** Add job kind `comparison_report` (`POST /jobs` with `comparison_id`, no `source`/`view`/`model_id`) and `GET /comparisons/{comparison_id}/report`. The job runs `change_report.pair_report`, the function behind `weightlab diff`, on the comparison's two imported models and stores the resulting `change_report.schema.json` document (paths redacted) in the new `comparison_reports` table (migration 0003), one row per comparison, replaced atomically by a newer completed job. The job reopens both models with their import fingerprints (`FILE_CHANGED` otherwise) and fails with `CONFLICT` if the recomputed structural counts or lineage differ from the comparison's record. It reserves 128 MiB (the G0.5 diff memory bound), ticks progress and honours cancellation and wall time per chunk, and publishes nothing unless it completes. `POST /comparisons` now also records `user_attestation` so the job reassesses lineage with the same inputs. `POST /jobs` declares 409 (an input changed since import), which the implementation already returned.
+**Why:** ROADMAP P0.1 (Compare dashboard) needs per-tensor, per-layer and per-role change metrics in the UI. The frozen `compare_stats` kind covers one delta source per job, so a whole-model dashboard would need one job per tensor and would re-implement rollups the CLI already has. Reusing `pair_report` keeps the API's numbers identical to the CLI's by construction, which is the P0.1 acceptance criterion.
+**Trade-off:** Additive contract change after the 1.2-final freeze (ADR-019): no existing field or behaviour changes meaning. The report is returned whole (no paging); for checkpoints with tens of thousands of tensors this response is several MiB, and paging is a follow-up if the UI needs it. Options other than `consistency` (sort, `epsilon_norm`, chunk size) stay at the CLI defaults; the UI sorts client-side. `compare_stats` remains unimplemented.
+
 ## 2. Risk register
 
 | Risk | Likelihood | Impact | Mitigation / Owner |

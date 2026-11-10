@@ -158,7 +158,7 @@ def main() -> int:
         f"- Platform: {platform.platform()} / {platform.machine()} / Python {platform.python_version()}",
         f"- Command: `uv run python scripts/phase1_evidence.py` -> full `pytest` suite (exit {test.returncode})",
         f"- Totals (whole suite): {totals['passed']} passed, {totals['failed']} failed, {totals['skipped']} skipped",
-        f"- Database schema version: {latest_version()}; contract: contracts/openapi.yaml 0.3.0-spec-1.2-final",
+        f"- Database schema version: {latest_version()}; contract: contracts/openapi.yaml 0.4.0-spec-1.2-final-adr-020",
         "",
         "## Results by area",
         "",
@@ -176,7 +176,7 @@ def main() -> int:
     lines.append(
         f"| Phase 0 / 0.5 suites (regression) | {sum(rest.values())} | {rest['passed']} | {rest['failed']} | {rest['skipped']} |"
     )
-    lines += ["", "## Routes (contract 0.3.0)", "", "| Method | Path | State |", "|---|---|---|"]
+    lines += ["", "## Routes (contract 0.4.0)", "", "| Method | Path | State |", "|---|---|---|"]
     for method, path in sorted(IMPLEMENTED | set(DEFERRED), key=lambda x: (x[1], x[0])):
         state = "implemented" if (method, path) in IMPLEMENTED else f"deferred: {DEFERRED[(method, path)]}"
         lines.append(f"| {method.upper()} | `{path}` | {state} |")

@@ -1,5 +1,16 @@
 # Changelog
 
+## Unreleased — contract 0.4.0 (ADR-020)
+
+Additive API change under the ADR-019 change-control process, for ROADMAP P0.1 (Compare dashboard).
+
+- **New job kind `comparison_report`** (`POST /jobs` with `comparison_id`): computes a comparison's change report with `change_report.pair_report`, the code behind `weightlab diff`, so values, rankings, rollups, caveats and completeness are identical to the CLI. Bounded (128 MiB), cancellable, wall-time limited, published atomically; fails closed with `FILE_CHANGED` or `CONFLICT` when the inputs no longer match the comparison.
+- **New route `GET /comparisons/{comparison_id}/report`** returning the stored `change_report.schema.json` document (paths redacted) with `complete`, `job_id` and `created_at`.
+- **Migration 0003** adds `comparison_reports`; deleting a comparison, its project or either model deletes its report.
+- `POST /comparisons` now records `user_attestation` alongside the lineage.
+- `POST /jobs` declares 409 (an input changed since import), which the implementation already returned.
+- Contract examples: 2 positive and 4 negative `JobRequest` cases. Tests: `tests/api/test_comparison_report_api.py`.
+
 ## 1.2-final — 2026-11-06 (specification freeze)
 
 Final consolidated amendment pass from the specification audit of revision `f7d6cd3`. The blueprint is frozen (ADR-019): further changes need a demonstrated implementation correctness or security blocker, a versioned ADR, updated contracts/fixtures/tests and an entry here.

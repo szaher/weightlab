@@ -1,10 +1,10 @@
-"""FastAPI application: routes of contracts/openapi.yaml 0.3.0 implemented in Phase 1 Task 2.
+"""FastAPI application: routes of contracts/openapi.yaml 0.4.0 (Phase 1 Task 2; comparison reports: ADR-020).
 
 Implemented: /health, /projects (+ /{id}), /projects/{id}/models, /models/{id}/relink, /models/{id}/tensors
 (+ /{tensor_id}), /tensors/roi (all four source kinds), /tiles (+ /{cache_key}/metadata; the complete quality
-decision table for kind=tensor sources, see api/tiles.py), /jobs (+ /{id}, /{id}/cancel; kind pyramid_build),
-/comparisons (+ /{id}, /{id}/entries), /projects/{id}/adapters, /projects/{id}/bookmarks (+ /{bookmark_id}),
-/settings.
+decision table for kind=tensor sources, see api/tiles.py), /jobs (+ /{id}, /{id}/cancel; kinds pyramid_build and
+comparison_report), /comparisons (+ /{id}, /{id}/entries, /{id}/report), /projects/{id}/adapters,
+/projects/{id}/bookmarks (+ /{bookmark_id}), /settings.
 Deferred (not registered, so they answer 404): /exports* (export jobs), /dialogs/select-directory (optional
 capability, not advertised). `IMPLEMENTED` and `DEFERRED` list them; tests check both against
 the contract.
@@ -27,7 +27,7 @@ from pydantic import BaseModel, ValidationError
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from weightlab import __version__
-from weightlab.api import catalog, relations, roi
+from weightlab.api import catalog, relations, reports, roi
 from weightlab.api.config import API_PREFIX, DEFAULT_SETTINGS, ServerConfig
 from weightlab.api.errors import ApiError, envelope, from_weightlab, request_id
 from weightlab.api.schemas import (
@@ -69,6 +69,7 @@ IMPLEMENTED: frozenset[tuple[str, str]] = frozenset(
         ("post", "/comparisons"),
         ("get", "/comparisons/{comparison_id}"),
         ("get", "/comparisons/{comparison_id}/entries"),
+        ("get", "/comparisons/{comparison_id}/report"),
         ("get", "/projects/{project_id}/adapters"),
         ("post", "/projects/{project_id}/adapters"),
         ("get", "/projects/{project_id}/bookmarks"),
@@ -397,6 +398,15 @@ def create_app(config: ServerConfig, database: Database | None = None, assets: d
             _comparison(conn, comparison_id)
             total, rows = store.list_entries(conn, comparison_id, status or [], limit, offset)
             return _json({"total": total, "items": [relations.entry_view(r) for r in rows]})
+
+    @app.get(f"{p}/comparisons/{{comparison_id}}/report")
+    def get_report(comparison_id: IdPath) -> JSONResponse:
+        with db.session() as conn:
+            _comparison(conn, comparison_id)
+            row = store.get_comparison_report(conn, comparison_id)
+        if row is None:
+            raise ApiError(ErrorCode.NOT_FOUND, "no completed comparison_report job for this comparison")
+        return _json(reports.report_view(row))
 
     # -- adapters ------------------------------------------------------------------------------
     @app.get(f"{p}/projects/{{project_id}}/adapters")
