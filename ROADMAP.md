@@ -13,6 +13,7 @@ Answer three progressively deeper questions:
 1. **What is in this checkpoint?** Tensor layout, distribution, zeros, tails and exceptional values.
 2. **What changed between checkpoints?** Where changes concentrate, their direction and scale, and how they are distributed.
 3. **How do parameters evolve or organize?** Trends across training snapshots and structure in embeddings or matrix spectra.
+4. **How does the model architecture relate to those changes?** Map supported Transformer components to checkpoint tensors; optionally investigate residual-stream behaviour using measured activations and controlled experiments.
 
 Existing features: SafeTensors metadata/catalog, whole-tensor **heatmap overview**, exact ROI inspection, resource-bounded tile/pyramid engine, and **CLI/Python** checkpoint and supported LoRA change reports. **A graphical Compare/Adapters workflow does not exist yet.**
 
@@ -20,7 +21,7 @@ Existing features: SafeTensors metadata/catalog, whole-tensor **heatmap overview
 
 | Order | Visualization | User question | Prerequisite | Status |
 | --- | --- | --- | --- | --- |
-| **P0 / 1** | **Layer / role / tensor change rankings** (horizontal bars, sortable table) | Which layers or components changed the most? | Existing `weightlab diff` report + new Compare API/UI | **Implemented, unreleased** (API: ADR-020; Compare UI; ships in 0.1.0a2) |
+| **P0 / 1** | **Layer / role / tensor change rankings** (horizontal bars, sortable table) | Which layers or components changed the most? | Existing `weightlab diff` report + new Compare API/UI | **In progress** (API: ADR-020; UI planned) |
 | **P0 / 2** | **Weight distribution histograms** (single tensor; optional A/B overlay) | Are weights sparse, heavy-tailed, shifted or anomalous? | New bounded scan / stats service | **Planned** |
 | **P1 / 3** | **Delta heatmaps** (B − A; optionally supported LoRA effective delta) | Where in a matrix did values change? | Compatibility and lineage checks; derived tile/ROI source | **Planned** |
 | **P1 / 4** | **Before/after scatter or 2-D density** | Is change concentrated around unchanged values? | Matched A/B chunks; bounded points or binned density | **Planned** |
@@ -28,7 +29,7 @@ Existing features: SafeTensors metadata/catalog, whole-tensor **heatmap overview
 | **P2 / 6** | **Checkpoint evolution timeline** | How did weight changes evolve during training? | Checkpoint series, consistent baseline and provenance | **Planned** |
 | **P3 / 7** | **Embedding projections** (PCA first; UMAP optional) | How are selected embedding vectors arranged? | Bounded row selection, labels/tokenizer opt-in, dimensionality-reduction jobs | **Planned** |
 
-**Priorities reflect suggested engineering order**, not a release commitment. The first four items extend the current model/CLI and visualization architecture; the later items need more numerical infrastructure and scientific review.
+**Priorities reflect suggested engineering order**, not a release commitment. The first four items extend the current model/CLI and visualization architecture; the later items need more numerical infrastructure and scientific review. A **parallel architecture and residual-analysis track** appears below; it does not displace these seven visualization commitments or assume an inference runtime is installed.
 
 ## Navigation model (proposed)
 
@@ -119,6 +120,84 @@ Target interaction: **model → layer / role → tensor → distribution / visua
 - Add optional vocabulary/tokenizer mapping **only if supplied locally**; no automatic download or implied semantic labels. Preserve row-to-token provenance.
 - Label projections as lossy views of high-dimensional vectors. Display sampling/method/seed, and caution that 2-D distances and clusters may be misleading.
 - **Acceptance:** deterministic fixture embeddings yield repeatable PCA coordinates up to documented sign conventions; tokenizer alignment and invalid indexes fail closed; UI remains responsive under the configured resource budget.
+
+## Architecture, residual streams and mechanistic analysis (video-inspired track)
+
+> **Status: proposed feature backlog, not implemented or scheduled.** Inspired by the video on ResNets, identity mappings, optimization and residual streams: [video](https://www.youtube.com/watch?v=QgH9sr7G13Q). These ideas motivate potential WeightLab features; they are **not** evidence that inspecting weights reveals model behaviour. The register-token example concerns Vision Transformers, not a universal LLM feature.
+
+### Why a separate track?
+
+The existing visualization roadmap focuses on describing tensor values and checkpoint differences. This track adds an **architecture-aware path** from model components to the same proven numeric views, followed by **opt-in execution-based research**. It extends rather than duplicates the seven visualization items above and the existing Phase 4/5 research intentions in [the delivery baseline](docs/14_DELIVERY_ROADMAP.md).
+
+**Three evidence tiers, never conflated:**
+
+1. **Weights only (A01–A05):** Which checkpoint tensors belong to attention, MLP and normalization components, and where do updates concentrate? Requires known architecture/metadata; **does not** measure residual activations, gradient flow or causal importance.
+2. **Measured runtime signals (R01–R06; O01–O04):** What do hidden states, branch outputs, gradients and losses do on specified inputs/training runs? Requires an optional, supported runtime or imported trace data, with provenance.
+3. **Controlled interventions (E01–E04):** How does modifying a layer, activation or weight update change measured outcomes? Requires matched controls and repeatable evaluation; results are scoped to the actual intervention and dataset.
+
+Residual skip/identity paths generally have **no trainable weight tensor**. An architecture drawing may depict them, but assigning weight-diff magnitude or a functional contribution to a bare identity path would be incorrect. Transformer block ordering varies (pre/post norm, parallel branches, scaling and model-specific logic): refuse unsupported architectures rather than presenting generic wiring as verified.
+
+### Candidate feature inventory (20 features)
+
+Every ID below is **proposed**, with no implementation claim. The priorities are relative within this track.
+
+| ID | Feature | Outcome / primary view | Data needed | Priority |
+| --- | --- | --- | --- | --- |
+| **A01** | Interactive Transformer architecture explorer | Navigate blocks, branches, skip paths, and component links | Supported local architecture descriptor and tensor catalog | **Near-term** |
+| **A02** | Tensor-to-component mapping | Trace exact checkpoint tensor keys to modules, including unmapped/ambiguous items | Architecture-specific, validated mapping rules | **Near-term** |
+| **A03** | Identity, skip and normalization-path view | Show pre/post-norm, residual additions and known component ordering without inventing weights on skips | Verified architecture/configuration metadata | **Near-term** |
+| **A04** | Architecture-linked checkpoint deltas | Open A/B weight-diff rankings, tensor heatmaps and exact ROI from diagram components | Existing compatibility-gated diff engine; P1.1 when delta tiles are ready | **Near-term** |
+| **A05** | Attention versus MLP update profiles | Compare update concentration across layers, roles and projections | Existing change reports and validated mappings | **Near-term** |
+| **R01** | Selective residual-stream activation capture | Record selected hidden states and branch outputs on fixed inputs | Opt-in model execution/hook adapter or trusted imported trace | Later |
+| **R02** | Residual branch contribution profiles | Show branch-output norm relative to residual-stream norm and vector alignment | R01 and architecture-aware hook semantics | Later |
+| **R03** | Representation evolution | Plot hidden-state norms, directions and similarity across depth | R01, selected positions and bounded traces | Later |
+| **R04** | Token-by-layer activation heatmaps | Inspect changes per selected token/position without conflating token and layer axes | R01 and aligned token IDs/positions | Later |
+| **R05** | Paired base/fine-tuned activation comparison | Measure activation differences for identical tokenized inputs | R01, compatible architecture/tokenizer, paired execution settings | Later |
+| **R06** | High-norm/outlier token diagnostics | Surface and inspect exceptional activations, with honest sample/trace coverage | R01 and non-finite/outlier policies | Later |
+| **O01** | Gradient flow by layer | View gradient norms and propagation during a known training step | Opt-in autograd/training trace or imported gradients | Research |
+| **O02** | Gradient correlation / shattering diagnostics | Compare gradient directions across inputs, depth and steps | O01, controlled multi-input gradients and explicit statistical definitions | Research |
+| **O03** | Depth versus trainability experiments | Compare optimization/validation curves for controlled network depths | External or opt-in training runs, matched setup and logs | Research |
+| **O04** | Loss-landscape slices | Inspect limited, reproducible loss evaluations along defined weight-space directions | Opt-in execution, evaluation dataset and parameter perturbation policy | Research |
+| **E01** | Layer or branch ablation | Compare matched evaluation outcomes when a supported path is intervened on | Supported runtime, safe hook contract and controls | Research |
+| **E02** | Activation patching | Restore/replace chosen activations across controlled runs | R01, same-model/token alignment and intervention engine | Research |
+| **E03** | Weight-update scaling | Evaluate bounded alpha-scaled checkpoint or LoRA deltas | Existing Phase 4 virtual-update plan, compatibility checks and evaluation | Research |
+| **E04** | Behaviour-linked evaluation reports | Compare task metrics and controls alongside intervention provenance | E01–E03 and reproducible benchmarks | Research |
+| **V01** | Vision Transformer register-token analysis | Identify supplied register tokens and examine runtime storage/activation patterns | Separately supported ViT architecture/runtime; not assumed for text LLMs | Optional extension |
+
+### Sequence and dependencies
+
+| Package | Proposed scope | Existing work to reuse | Acceptance gate before implementation is called complete |
+| --- | --- | --- | --- |
+| **ARCH-1: architecture map** | A01–A03 | Tensor catalog, Explore, supported real-Qwen validation | Explicit allowlist (Qwen2.5 first), tested mappings, truthful residual/norm diagram, unresolved tensors shown, no user-supplied code execution |
+| **ARCH-2: weight-change navigation** | A04–A05 | P0.1 Compare, P1.1 delta heatmaps when available, CLI/Python diff metrics | Rankings match verified reports; B − A and lineage displayed; map → tensor → exact ROI navigation works |
+| **TRACE-1: optional activation workbench** | R01–R06 | Phase 5 selective capture and existing numeric plotting practices | Same-prompt repeatability, hook/module identity and token positions, bounded samples/storage, offline/opt-in execution, measured norm semantics |
+| **OPT-1: training diagnostics** | O01–O04 | Phase 4 research infrastructure and trace import where available | Known training/eval provenance, deterministic tests, no claim that weight deltas are gradients, computational cost and uncertainty reported |
+| **INT-1: interventions** | E01–E04 | Phase 4 alpha sweep/controls; Phase 5 activation/weight intervention | Baseline/treatment/negative controls, consistent seeds and prompts, paired metrics, explicit causal limits |
+| **VIT-1: vision extension** | V01 | Future architecture plugin infrastructure | Supported ViT/register-token semantics verified; no invented language-model register mapping |
+
+**Suggested order:** complete the already-open Compare dashboard PR #15 and keep P0.2/P1.1 commitments; then add ARCH-1 and ARCH-2 as small, separate PRs. TRACE-1 depends on an explicit optional inference/trace design, and OPT-1 / INT-1 are not alpha-release gates. VIT-1 remains demand-driven. No delivery dates are implied.
+
+```mermaid
+flowchart TD
+    C["Existing tensor catalog + Explore"] --> A["ARCH-1: A01-A03 architecture mapping"]
+    D["Existing diff + Compare dashboard"] --> B["ARCH-2: A04-A05 update navigation"]
+    A --> B
+    A --> R["TRACE-1: R01-R06 optional activations"]
+    R --> E["INT-1: E01-E04 controlled experiments"]
+    D --> E
+    T["Optional training traces / eval runtime"] --> O["OPT-1: O01-O04 optimization diagnostics"]
+    T --> E
+    A -. "separate ViT support" .-> V["VIT-1: V01 register tokens"]
+```
+
+### Acceptance rules and non-goals
+
+- **No fabricated interpretation:** layer/role weights and delta norms describe parameters, not residual-stream effects or reasoning improvement. An observed activation difference is association; stronger causal claims require controlled intervention and matched evaluation.
+- **No invented architecture:** tensor naming heuristics are provisional. Require an explicit supported model family/config revision; clearly distinguish mapped, ambiguous, missing, tied and unsupported components. Represent identity skips as operations, not parameter tensors.
+- **No silent runtime dependency:** ARCH-1/2 must remain local-first, read-only, CPU-capable and usable offline without model execution. R/O/E features require a separate opt-in runtime or trace-import design; larger hardware needs must not weaken the base laptop promise.
+- **Resource and privacy controls:** preflight memory/compute/storage limits, deterministic bounded capture and sampling, cancellation, no model auto-download or arbitrary remote code execution, and no trace leakage in exports.
+- **Scientific rigor:** report inputs, tokenizer/model/checkpoint identity, architecture mapping version, hooks, dtype/precision, coverage, seed, training/eval setup, controls and limitations. For R02, ratios such as norm(branch output) / max(norm(residual stream), epsilon) are **descriptive**, not attribution scores; pre-norm and post-norm interpretations differ.
+- **Change control:** new APIs, persistent traces, runtime plugins and numeric methods need ADRs, contracts, reference fixtures, cross-platform evidence and security review under the existing spec process. Only add these requirements when a feature is accepted for implementation.
 
 ## Cross-cutting definition of done
 
