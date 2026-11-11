@@ -46,6 +46,7 @@ RSS alone cannot certify absence of memory pressure from mmap/page cache or brow
 | LoRA ROI | O((rows+cols)r + rows*cols*r) | interactive bounded | r and dimensions capped |
 | LoRA full-module change report (FR-023) | O(out*in*r) multiply-adds per module; Frobenius norm via `s^2 * tr((B^T B)(A A^T))` in O((in+out)r^2) only if independently tested against the direct product | background | `max_lora_scan_gmac`, cancel, completeness flag |
 | Full model evaluation | model load + decoding | optional R3 | separate subprocess and preflight |
+| Comparison report (ADR-020) | O(analyzed elements) reads + O(entries) report objects | background job | `128 MiB + 16 KiB x entries` reservation, <= 32,768 entries, <= 128 MiB JSON; cancel and wall time per chunk, including hashing |
 
 ## 3. I/O estimates
 

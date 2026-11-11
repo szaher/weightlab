@@ -352,6 +352,82 @@ def get_entry(conn: sqlite3.Connection, comparison_id: str, entry_id: str) -> di
     )
 
 
+def next_report_seq(conn: sqlite3.Connection) -> int:
+    """A strictly increasing submission number for comparison_report jobs (AUTOINCREMENT never reuses one)."""
+    with transaction(conn):
+        seq = int(conn.execute("INSERT INTO comparison_report_seq DEFAULT VALUES RETURNING seq").fetchone()[0])
+        conn.execute("DELETE FROM comparison_report_seq WHERE seq < ?", (seq,))
+    return seq
+
+
+def publish_comparison_report(
+    conn: sqlite3.Connection,
+    comparison_id: str,
+    job_id: str,
+    job_seq: int,
+    consistency: str,
+    complete: bool,
+    report_json: str,
+) -> bool:
+    """Inside the caller's transaction (the job's terminal-state transaction): store the report unless a report of a
+    later-submitted job is already stored. True when this job's report is the stored one afterwards."""
+    conn.execute(
+        "INSERT INTO comparison_reports (comparison_id, job_id, job_seq, consistency, complete, report_json, "
+        "created_at) VALUES (?, ?, ?, ?, ?, ?, ?) ON CONFLICT(comparison_id) DO UPDATE SET job_id = excluded.job_id, "
+        "job_seq = excluded.job_seq, consistency = excluded.consistency, complete = excluded.complete, "
+        "report_json = excluded.report_json, created_at = excluded.created_at "
+        "WHERE excluded.job_seq > comparison_reports.job_seq",
+        (comparison_id, job_id, job_seq, consistency, int(complete), report_json, now()),
+    )
+    row = conn.execute("SELECT job_id FROM comparison_reports WHERE comparison_id = ?", (comparison_id,)).fetchone()
+    return row is not None and row["job_id"] == job_id
+
+
+def get_comparison_report(conn: sqlite3.Connection, comparison_id: str) -> dict[str, Any] | None:
+    """The stored report row; `report_json` stays the stored JSON text (served without re-parsing)."""
+    r = conn.execute("SELECT * FROM comparison_reports WHERE comparison_id = ?", (comparison_id,)).fetchone()
+    return None if r is None else dict(r)
+
+
+def list_comparisons(conn: sqlite3.Connection, project_id: str) -> list[dict[str, Any]]:
+    rows = conn.execute("SELECT * FROM comparisons WHERE project_id = ? ORDER BY created_at DESC, rowid DESC",
+                        (project_id,))  # fmt: skip
+    return [_row(r, ("compatibility_json",)) for r in rows]  # type: ignore[misc]
+
+
+def comparison_report_summary(conn: sqlite3.Connection, comparison_id: str) -> dict[str, Any] | None:
+    """The stored report's metadata, without its JSON body."""
+    r = conn.execute("SELECT job_id, complete, consistency, created_at FROM comparison_reports WHERE comparison_id = ?",
+                     (comparison_id,)).fetchone()  # fmt: skip
+    return None if r is None else {"job_id": r["job_id"], "complete": bool(r["complete"]),
+                                   "consistency": r["consistency"], "created_at": r["created_at"]}  # fmt: skip
+
+
+def latest_report_job_id(conn: sqlite3.Connection, comparison_id: str) -> str | None:
+    """The most recently submitted comparison_report job of the comparison, in any state."""
+    r = conn.execute("SELECT id FROM jobs WHERE kind = 'comparison_report' AND "
+                     "json_extract(spec_json, '$.comparison_id') = ? ORDER BY created_at DESC, rowid DESC LIMIT 1",
+                     (comparison_id,)).fetchone()  # fmt: skip
+    return None if r is None else str(r["id"])
+
+
+def comparison_entry_stats(conn: sqlite3.Connection, comparison_id: str, model_a_id: str, model_b_id: str
+                           ) -> tuple[int, int]:  # fmt: skip
+    """(number of entries, tensor bytes of both sides of every analyzable entry), computed in SQL so no entry list
+    is materialized."""
+    n = int(conn.execute("SELECT COUNT(*) FROM comparison_entries WHERE comparison_id = ?",
+                         (comparison_id,)).fetchone()[0])  # fmt: skip
+    nbytes = conn.execute(
+        "SELECT COALESCE(SUM(COALESCE(ta.byte_length, 0) + COALESCE(tb.byte_length, 0)), 0) "
+        "FROM comparison_entries e "
+        "LEFT JOIN tensors ta ON ta.model_id = ? AND ta.raw_key = e.raw_key "
+        "LEFT JOIN tensors tb ON tb.model_id = ? AND tb.raw_key = e.raw_key "
+        "WHERE e.comparison_id = ? AND json_extract(e.detail_json, '$.analyzable') = 1",
+        (model_a_id, model_b_id, comparison_id),
+    ).fetchone()[0]
+    return n, int(nbytes)
+
+
 # -- adapters ----------------------------------------------------------------------------------
 def insert_adapter(
     conn: sqlite3.Connection,

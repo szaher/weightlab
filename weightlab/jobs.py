@@ -17,6 +17,14 @@ object; canceled and interrupted jobs carry neither a result nor a partial one.
   completed.
 * Restart: rows left `running` by a previous process are marked `interrupted`; `created`/`queued` rows are queued
   again (their spec is self-contained).
+* Publication: a kind whose result lives in the database registers `ctx.on_commit(fn)`. `fn(conn)` runs inside the
+  one transaction that also writes the job's `completed` row, and only then; it returns the final result. Either
+  both commit or neither does (a crash before COMMIT leaves a `running` row, which restart marks `interrupted`, and
+  no published data). If `fn` raises, the transaction rolls back and the job is `failed` instead.
+* Completion vs cancellation is linearized on the runner lock: the work function's return is checked against the
+  cancel flag while holding the lock, in the same critical section that writes the terminal state, and `cancel`
+  sets the flag under that lock. A cancel that takes the lock first makes the job `canceled` (its result and commit
+  hook are dropped); a cancel that takes it later finds the job `completed` and changes nothing.
 """
 
 from __future__ import annotations
@@ -64,6 +72,12 @@ class JobContext:
         self.cancel = threading.Event()
         self.interrupt = False
         self._last = 0.0
+        self.commit_hook: Callable[[sqlite3.Connection], dict[str, Any]] | None = None
+
+    def on_commit(self, fn: Callable[[sqlite3.Connection], dict[str, Any]]) -> None:
+        """Run `fn(conn)` in the transaction that marks this job completed, returning the final result (see the
+        module docstring). Nothing `fn` writes is visible unless the job completes."""
+        self.commit_hook = fn
 
     def tick(self, nbytes: int) -> None:
         self.done += nbytes
@@ -306,14 +320,21 @@ class JobRunner:
         except Canceled as c:
             state = "interrupted" if c.interrupted else "canceled"
         except WeightLabError as e:
-            error = {"code": e.code.value, "message": e.detail[:2000], "retryable": e.code is ErrorCode.RATE_LIMITED}
+            error = _error(e)
         except Exception:  # never a traceback to the client; the job fails closed
-            error = {"code": ErrorCode.CONFLICT.value, "message": "internal error; the job did not complete",
-                     "retryable": False}  # fmt: skip
+            error = _INTERNAL
         with self._cv:
             self._running.pop(p.job_id, None)
             self._forget(p)
-            self._finish(p, state, result=result, error=error, done=p.ctx.done)
+            if state == "completed" and p.ctx.cancel.is_set():  # the cancel took the lock first: it wins
+                state, result = ("interrupted" if p.ctx.interrupt else "canceled"), None
+            hook = p.ctx.commit_hook if state == "completed" else None
+            try:
+                self._finish(p, state, result=result, error=error, done=p.ctx.done, hook=hook)
+            except WeightLabError as e:  # the commit hook refused: nothing it wrote is kept
+                self._finish(p, "failed", error=_error(e), done=p.ctx.done)
+            except Exception:
+                self._finish(p, "failed", error=_INTERNAL, done=p.ctx.done)
             self._cv.notify_all()
         p.done.set()
 
@@ -329,11 +350,14 @@ class JobRunner:
         result: dict[str, Any] | None = None,
         error: dict[str, Any] | None = None,
         done: int | None = None,
+        hook: Callable[[sqlite3.Connection], dict[str, Any]] | None = None,
     ) -> None:
         with self.db.session() as conn, transaction(conn):
             row = conn.execute("SELECT spec_json FROM jobs WHERE id = ?", (p.job_id,)).fetchone()
-            if row is None:  # its project was deleted meanwhile
+            if row is None:  # its project was deleted meanwhile: nothing is published either
                 return
+            if hook is not None:
+                result = hook(conn)  # same transaction as the completed row below
             spec = json.loads(row["spec_json"])
             if done is not None:
                 spec["bytes_scanned"] = done
@@ -357,6 +381,14 @@ class JobRunner:
                 "UPDATE jobs SET progress = ?, spec_json = ? WHERE id = ? AND state = 'running'",
                 (max(float(row["progress"]), progress), dumps(spec), job_id),
             )
+
+
+_INTERNAL = {"code": ErrorCode.CONFLICT.value, "message": "internal error; the job did not complete",
+             "retryable": False}  # fmt: skip
+
+
+def _error(e: WeightLabError) -> dict[str, Any]:
+    return {"code": e.code.value, "message": e.detail[:2000], "retryable": e.code is ErrorCode.RATE_LIMITED}
 
 
 def _progress_of(conn: sqlite3.Connection, job_id: str) -> float:

@@ -121,6 +121,9 @@ class Checkpoint:
         self.warnings = warnings
         self.limits = limits
         self.index = index  # the *.safetensors.index.json of a sharded checkpoint, None for a single file
+        # Called after every hashed chunk by digests() / verify_digests(), whoever calls them (lineage, reports,
+        # adapters): a job sets it to its context's tick so hashing honours cancellation and wall time per chunk.
+        self.hash_tick: Callable[[int], None] | None = None
 
     # -- catalog ---------------------------------------------------------------------------
     def metadata(self) -> list[TensorMeta]:
@@ -158,13 +161,13 @@ class Checkpoint:
         """SHA-256 of every shard, computed once (bounded streaming reads) and cached."""
         for s in self._shards.values():
             if s.digest is None:
-                s.digest = s.file.sha256(self.limits.read_chunk_bytes)
+                s.digest = s.file.sha256(self.limits.read_chunk_bytes, self.hash_tick)
         return {s.shard_id: s.digest for s in self._shards.values() if s.digest is not None}
 
     def verify_digests(self) -> None:
         """Recompute every recorded digest; FILE_CHANGED if any differs (verified consistency)."""
         for s in self._shards.values():
-            if s.digest is not None and s.file.sha256(self.limits.read_chunk_bytes) != s.digest:
+            if s.digest is not None and s.file.sha256(self.limits.read_chunk_bytes, self.hash_tick) != s.digest:
                 raise s.file.invalidate(f"{s.shard_id} content changed during the job")
 
     def shard_path(self, shard_id: str) -> Path:

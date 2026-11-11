@@ -54,6 +54,7 @@ def check(dist: Path, tag: str | None = None) -> None:
             "weightlab/ui/static/index.html",
             "weightlab/db/migrations/0001_initial.sql",
             "weightlab/db/migrations/0002_model_files_ctime.sql",
+            "weightlab/db/migrations/0003_comparison_reports.sql",
         }
         missing = required - names
         if missing:

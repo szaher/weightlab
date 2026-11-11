@@ -9,7 +9,10 @@ known key mapping); a missing tensor is never synthesized. Renamed keys are only
 
 from __future__ import annotations
 
+import hashlib
+import json
 from dataclasses import dataclass, field
+from typing import Any
 
 from weightlab.formats.base import TensorMeta
 from weightlab.formats.checkpoint import Checkpoint
@@ -144,3 +147,31 @@ def _suspect_renames(entries: list[Entry]) -> None:
         if len(cands) == 1 and cands[0].key.split(".")[-1] == e.key.split(".")[-1]:
             e.reasons.append(f"renamed-suspected: {cands[0].key} in B has the same shape and dtype (not matched)")
             cands[0].reasons.append(f"renamed-suspected: {e.key} in A has the same shape and dtype (not matched)")
+
+
+STRUCTURE_FINGERPRINT_VERSION = 1
+
+
+def structure_fingerprint(s: Structure, identity: dict[str, Any] | None = None) -> str:
+    """SHA-256 of the canonical structure: every entry's key, status, analyzability, shapes, dtypes and tie
+    relationship (sorted by key), the pair-level flags, and `identity` (e.g. the comparison's model ids). Two
+    structures with equal aggregate counts but any differing key, shape, dtype, status or tie differ here."""
+    rows = sorted(
+        (
+            [e.key, e.status, e.analyzable,
+             list(e.a.shape) if e.a else None, list(e.b.shape) if e.b else None,
+             e.a.dtype if e.a else None, e.b.dtype if e.b else None,
+             e.tied_to, e.tie_evidence, e.tied_side]
+            for e in s.entries
+        ),
+        key=lambda r: str(r[0]),
+    )  # fmt: skip
+    payload = {
+        "version": STRUCTURE_FINGERPRINT_VERSION,
+        "identity": identity or {},
+        "tie_differs": s.tie_differs,
+        "dtype_differs": s.dtype_differs,
+        "entries": rows,
+    }
+    raw = json.dumps(payload, sort_keys=True, separators=(",", ":"), ensure_ascii=False, allow_nan=False)
+    return hashlib.sha256(raw.encode("utf-8")).hexdigest()

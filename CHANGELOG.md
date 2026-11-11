@@ -1,5 +1,22 @@
 # Changelog
 
+## Unreleased — contract 0.4.0 (ADR-020)
+
+Additive API extension approved by the project owner (ADR-020 change-control basis); the 1.2-final baseline stays frozen at tag `spec-v1.2-final` (contract 0.3.0).
+
+- **New job kind `comparison_report`** (`POST /jobs` with `comparison_id`): a comparison's change report computed by `change_report.pair_report`, the code behind `weightlab diff`, so values, rankings, rollups, caveats and completeness are identical to the CLI. `JobResult` `{kind, comparison_id, complete, published}`.
+- **New route `GET /comparisons/{comparison_id}/report`**: the stored snapshot (paths redacted) with `complete`, `consistency`, `created_at` and `current_model_status`.
+- **New route `GET /projects/{project_id}/comparisons`** (newest first); `Comparison` gains `policy`, `report` (summary) and `latest_report_job_id`.
+- **Atomic publication**: the report is written in the transaction that marks its job `completed` (new job-runner commit hook); cancellation is linearized on the runner lock; failed, canceled, interrupted and crashed jobs never publish.
+- **Ordering**: reports are replaced only by later-submitted jobs (`job_seq`), regardless of finishing order.
+- **Cancellable hashing**: `Checkpoint.hash_tick` lets jobs check cancellation and wall time per hashed chunk (lineage, attestation, `verified`, every shard).
+- **Limits**: `128 MiB + 16 KiB x entries` reservation, at most 32,768 entries and 128 MiB of report JSON; refused before queueing.
+- **Drift and legacy**: comparisons record `record_version`, `user_attestation` and a canonical `structure_sha256`; mismatches and pre-ADR-020 comparisons fail closed (`CONFLICT`).
+- **Policy**: `strict` reports Class V/L only (409 `LINEAGE_UNVERIFIED` for S/X); `descriptive_only` acknowledges descriptive use. `Comparison` exposes `policy`.
+- **Migration 0003** adds `comparison_reports` and `comparison_report_seq`.
+- `POST /jobs` declares 409, which the implementation already returned for changed inputs.
+- Contract examples: 2 positive and 4 negative `JobRequest` cases. Tests: `tests/api/test_comparison_report_api.py`, `tests/api/test_report_scale.py`, commit-hook cases in `tests/integration/test_jobs.py`.
+
 ## 1.2-final — 2026-11-06 (specification freeze)
 
 Final consolidated amendment pass from the specification audit of revision `f7d6cd3`. The blueprint is frozen (ADR-019): further changes need a demonstrated implementation correctness or security blocker, a versioned ADR, updated contracts/fixtures/tests and an entry here.

@@ -1,4 +1,4 @@
-"""Request schemas: closed, strict mirrors of contracts/openapi.yaml 0.3.0 (frozen, binding).
+"""Request schemas: closed, strict mirrors of contracts/openapi.yaml 0.4.0 (1.2-final + ADR-020, binding).
 
 Every model forbids unknown fields and validates strictly (no "1" -> 1 coercion, no bool -> int).
 tests/api/test_contract_schemas.py checks these models against the frozen JSON Schema itself: all
@@ -203,10 +203,11 @@ class Budget(Closed):
 
 
 class JobRequest(Closed):
-    kind: Literal["tensor_stats", "pyramid_build", "compare_stats", "file_hash"]
+    kind: Literal["tensor_stats", "pyramid_build", "compare_stats", "file_hash", "comparison_report"]
     source: Source | None = None
     view: View | None = None
     model_id: Id | None = None
+    comparison_id: Id | None = None
     consistency: Literal["best_effort", "verified"] = "best_effort"
     budget: Budget
 
@@ -214,10 +215,17 @@ class JobRequest(Closed):
     @classmethod
     def _shape(cls, data: Any) -> Any:
         if isinstance(data, dict):
-            nulls = [k for k in ("source", "view", "model_id", "consistency") if k in data and data[k] is None]
+            fields = ("source", "view", "model_id", "comparison_id", "consistency")
+            nulls = [k for k in fields if k in data and data[k] is None]
             if nulls:
                 raise ValueError(f"{', '.join(nulls)} must not be null")
-            if data.get("kind") == "file_hash":
+            kind = data.get("kind")
+            if kind == "comparison_report":
+                if "comparison_id" not in data or any(k in data for k in ("source", "view", "model_id")):
+                    raise ValueError("comparison_report takes comparison_id and no source, view or model_id")
+            elif "comparison_id" in data:
+                raise ValueError("only comparison_report takes comparison_id")
+            elif kind == "file_hash":
                 if "model_id" not in data or "source" in data:
                     raise ValueError("file_hash takes model_id and no source")
             elif "source" not in data:

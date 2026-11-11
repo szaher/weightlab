@@ -267,7 +267,7 @@ def test_jobs_api_polls_cancels_idempotently_and_validates(env: Env) -> None:
                                              "budget": {**budget, "max_threads": 64}}, expect=422)  # fmt: skip
     assert over["error"]["code"] == "RESOURCE_LIMIT"
     assert over["error"]["details"]["max_threads"] == 2
-    for kind in ("tensor_stats", "compare_stats"):
+    for kind in ("tensor_stats", "compare_stats"):  # comparison_report: tests/api/test_comparison_report_api.py
         e = env.api.post("/jobs", json_body={"kind": kind, "source": src, "budget": budget}, expect=422)
         assert "not available" in e["error"]["message"]
     e = env.api.post("/jobs", json_body={"kind": "file_hash", "model_id": env.mid, "budget": budget}, expect=422)

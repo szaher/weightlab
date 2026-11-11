@@ -55,6 +55,13 @@ CREATE TABLE comparisons (
   model_a_id TEXT NOT NULL REFERENCES models(id), model_b_id TEXT NOT NULL REFERENCES models(id),
   compatibility_json TEXT NOT NULL, created_at TEXT NOT NULL
 );
+CREATE TABLE comparison_report_seq (seq INTEGER PRIMARY KEY AUTOINCREMENT);  -- migration 0003, ADR-020
+CREATE TABLE comparison_reports (  -- migration 0003; written only with its job's completed row
+  comparison_id TEXT PRIMARY KEY REFERENCES comparisons(id) ON DELETE CASCADE,
+  job_id TEXT NOT NULL, job_seq INTEGER NOT NULL,  -- replaced only by a larger job_seq
+  consistency TEXT NOT NULL, complete INTEGER NOT NULL CHECK (complete IN (0,1)),
+  report_json TEXT NOT NULL, created_at TEXT NOT NULL
+);
 CREATE TABLE bookmarks (
   id TEXT PRIMARY KEY, project_id TEXT NOT NULL REFERENCES projects(id),
   view_json TEXT NOT NULL, note TEXT, created_at TEXT NOT NULL

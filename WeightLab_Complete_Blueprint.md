@@ -7,7 +7,7 @@ date: "2026-11-05"
 
 # WeightLab: Complete Product & Engineering Blueprint
 
-**Design baseline:** 5 November 2026, frozen as 1.2-final (ADR-019)
+**Design baseline:** 5 November 2026, frozen as 1.2-final (ADR-019; tag `spec-v1.2-final`). Additive successor revision: ADR-020 (contract 0.4.0)
 
 **Delivery state:** Product documentation and synthetic proof fixtures; **the WeightLab application has not been implemented**.
 
@@ -969,7 +969,7 @@ A new user with no model files starts demo, selects a known tensor, sees 2D heat
 **Base URL:** `http://127.0.0.1:{port}/api/v1`  
 **Protocol:** JSON metadata + compact binary payloads for heatmap tiles, no external API dependencies.  
 **Security:** Random local bearer token (`secrets.token_urlsafe(32)`) generated at each launch and delivered in the URL fragment printed by `weightlab start` (`http://127.0.0.1:PORT/#token=...`, the pattern Jupyter uses). Browsers never send the fragment in HTTP requests, so it does not reach server logs; the UI moves it to `sessionStorage`, removes it from the address bar and history with `history.replaceState`, and sends `Authorization: Bearer` on every API call. The static UI shell contains no secret. Host allowlist, Origin checks and CSP are specified in doc 12 section 4. Token is not stored in project exports (ADR-016).  
-**Versioning:** `/api/v1` with `schema_version` on every durable record. `contracts/openapi.yaml` (0.3.0, frozen with blueprint 1.2-final) is binding: every request body is a closed schema (`additionalProperties: false`) with size limits; unknown fields, unknown source kinds and contradictory fields are rejected with 422. Clients tolerate unknown optional *response* fields.  
+**Versioning:** `/api/v1` with `schema_version` on every durable record. `contracts/openapi.yaml` (0.3.0, frozen with blueprint 1.2-final; 0.4.0 adds comparison reports, ADR-020) is binding: every request body is a closed schema (`additionalProperties: false`) with size limits; unknown fields, unknown source kinds and contradictory fields are rejected with 422. Clients tolerate unknown optional *response* fields.  
 **Ownership:** IDs are opaque server-issued strings matching `^[a-z]{3}_[A-Za-z0-9]{1,64}$`. Any ID referenced in a request must belong to the request's project; otherwise the response is 404, never 403, so the API is not an existence oracle across projects.
 
 This document adds behavioral rules the schema cannot express. `contracts/examples/api_examples.json` holds positive and negative payloads that `scripts/check_contracts.py` validates against the schema.
@@ -991,6 +991,8 @@ This document adds behavioral rules the schema cannot express. `contracts/exampl
 | POST | `/comparisons` | compatibility + lineage assessment | optional `user_attestation` |
 | GET | `/comparisons/{id}` | summary with counts and `LineageAssessment` | |
 | GET | `/comparisons/{id}/entries` | matched / missing / tied / mismatched rows | paged, filter by status |
+| GET | `/projects/{id}/comparisons` | project's comparisons, newest first, with `report` summary and `latest_report_job_id` | ADR-020 (UI discovery after a reload) |
+| GET | `/comparisons/{id}/report` | change report of the latest completed `comparison_report` job | ADR-020; 404 until one completed |
 | GET/POST | `/projects/{id}/adapters` | list / import PEFT adapter | per-module mapping, native scale, support status |
 | GET/POST | `/projects/{id}/bookmarks` | saved views | typed `SavedView` |
 | DELETE | `/projects/{id}/bookmarks/{bookmark_id}` | remove bookmark | |
@@ -1128,7 +1130,9 @@ The adapter's experiment multiplier is separate from its native PEFT scale and b
 }
 ```
 
-Kinds: `tensor_stats`, `pyramid_build` (with `source` and `view`), `compare_stats`, `file_hash` (with `model_id`, no `source`); exports create jobs of kind `export`. Response 202 is a `Job`. States: `created → queued → running → completed | failed | canceled`; `queued → canceled`; `running → interrupted` when the app restarts. Timeouts and budget overruns end as `failed` with `RESOURCE_LIMIT`. `result` is a typed `JobResult` and is non-null only for `completed`; canceled, failed and interrupted jobs never carry a partial result. `POST /jobs/{id}/cancel` is idempotent. Identical pending jobs (same kind and identity) are deduplicated. `budget` values are upper bounds requested by the client: the server rejects with 422 `RESOURCE_LIMIT` (server caps in `details`) any value above its configured caps and never raises its own limits on request. `consistency: "verified"` hashes every input file before and after the job (two full reads) and fails with `FILE_CHANGED` on any difference (doc 03 section 6).
+Kinds: `tensor_stats`, `pyramid_build` (with `source` and `view`), `compare_stats`, `file_hash` (with `model_id`, no `source`), `comparison_report` (with `comparison_id`, no `source`, `view` or `model_id`; ADR-020); exports create jobs of kind `export`.
+
+`comparison_report` (ADR-020) computes the comparison's change report with the same code as `weightlab diff` (per-tensor metrics, layer and role rollups, compatibility, caveats, `complete`); its `JobResult` is `{kind, comparison_id, complete, published}`. Submission errors: 422 `RESOURCE_LIMIT` when the comparison has more than 32,768 entries or `max_working_set_mib` is below `128 MiB + 16 KiB x entries`; 409 `LINEAGE_UNVERIFIED` for a Class S/X comparison with policy `strict` (create it with `descriptive_only`); 409 `CONFLICT` for a comparison created before ADR-020 (recreate it); 409 `FILE_CHANGED` when either model changed since import. The job fails with `CONFLICT` when the models' structure fingerprint, counts or lineage no longer match the comparison's record. The report is written in the same transaction that marks the job `completed`; it replaces the stored report only when the job was submitted later than the stored one's job (`published: false` otherwise). Canceled, failed and interrupted jobs never publish. Hashing (lineage, attestation, `verified`) checks cancellation and wall time per 4 MiB chunk. An incomplete report (`complete: false`) is stored and served as incomplete. `GET /comparisons/{id}/report` returns the stored snapshot with `consistency`, `created_at` and `current_model_status` (a stat of each model's files; no tensor bytes are read). Response 202 is a `Job`. States: `created → queued → running → completed | failed | canceled`; `queued → canceled`; `running → interrupted` when the app restarts. Timeouts and budget overruns end as `failed` with `RESOURCE_LIMIT`. `result` is a typed `JobResult` and is non-null only for `completed`; canceled, failed and interrupted jobs never carry a partial result. `POST /jobs/{id}/cancel` is idempotent. Identical pending jobs (same kind and identity) are deduplicated. `budget` values are upper bounds requested by the client: the server rejects with 422 `RESOURCE_LIMIT` (server caps in `details`) any value above its configured caps and never raises its own limits on request. `consistency: "verified"` hashes every input file before and after the job (two full reads) and fails with `FILE_CHANGED` on any difference (doc 03 section 6).
 
 ## 6. Export
 
@@ -1159,7 +1163,7 @@ Use ordinary polling in R1 with 500-1000ms adaptive interval for jobs (`poll_aft
 
 - Static: `scripts/check_contracts.py` (OpenAPI valid, all refs resolve, every positive example accepted and every negative example rejected, fixture status values valid).
 - Generated client: a client generated from `contracts/openapi.yaml` completes every first-run E2E journey (doc 08 section 10) using only described routes.
-- Behavior: catalog filters and pagination correct against the fixture catalog; settings PATCH round-trip and bound rejection; relink after move and refusal after change; project delete leaves checkpoint files byte-identical; export download requires the token and returns the recorded SHA-256; all four source kinds round-trip; unknown/missing/contradictory fields, cross-project IDs and oversized bodies rejected; coordinate overflow beyond 2^53−1 rejected; UTF-8 special tensor keys (`tiny_edge.safetensors`); stale fingerprint; lossless ROI for `tiny_precision_*` (U64 max, I64 min, 2^53±1, F64 extremes, signed zero) and `overflowed` for the overflowing delta; binary tile body length `rows*cols*5`, byte order, status bitfields and JSON parity for the non-finite golden blocks; cold/warm tile requests below and above the pyramid limit, duplicate concurrent requests deduplicated, cancel and restart with no false exact badge; job budget above server caps rejected; explicit 404/409/413/422/429 errors; security cases from doc 12 section 8.
+- Behavior: catalog filters and pagination correct against the fixture catalog; settings PATCH round-trip and bound rejection; relink after move and refusal after change; project delete leaves checkpoint files byte-identical; export download requires the token and returns the recorded SHA-256; all four source kinds round-trip; `comparison_report` results equal `weightlab diff` on the fixture pairs (complete and incomplete) and drift (structure, lineage, counts), changed files, legacy records, strict policy, cancellation (including during hashing), deadlines, crashes and deletion at the commit boundary, opposite completion orders of concurrent jobs, 20,000-entry reports and path redaction leave no wrong report; unknown/missing/contradictory fields, cross-project IDs and oversized bodies rejected; coordinate overflow beyond 2^53−1 rejected; UTF-8 special tensor keys (`tiny_edge.safetensors`); stale fingerprint; lossless ROI for `tiny_precision_*` (U64 max, I64 min, 2^53±1, F64 extremes, signed zero) and `overflowed` for the overflowing delta; binary tile body length `rows*cols*5`, byte order, status bitfields and JSON parity for the non-finite golden blocks; cold/warm tile requests below and above the pyramid limit, duplicate concurrent requests deduplicated, cancel and restart with no false exact badge; job budget above server caps rejected; explicit 404/409/413/422/429 errors; security cases from doc 12 section 8.
 
 
 
@@ -1221,6 +1225,13 @@ CREATE TABLE comparisons (
   id TEXT PRIMARY KEY, project_id TEXT NOT NULL REFERENCES projects(id),
   model_a_id TEXT NOT NULL REFERENCES models(id), model_b_id TEXT NOT NULL REFERENCES models(id),
   compatibility_json TEXT NOT NULL, created_at TEXT NOT NULL
+);
+CREATE TABLE comparison_report_seq (seq INTEGER PRIMARY KEY AUTOINCREMENT);  -- migration 0003, ADR-020
+CREATE TABLE comparison_reports (  -- migration 0003; written only with its job's completed row
+  comparison_id TEXT PRIMARY KEY REFERENCES comparisons(id) ON DELETE CASCADE,
+  job_id TEXT NOT NULL, job_seq INTEGER NOT NULL,  -- replaced only by a larger job_seq
+  consistency TEXT NOT NULL, complete INTEGER NOT NULL CHECK (complete IN (0,1)),
+  report_json TEXT NOT NULL, created_at TEXT NOT NULL
 );
 CREATE TABLE bookmarks (
   id TEXT PRIMARY KEY, project_id TEXT NOT NULL REFERENCES projects(id),
@@ -1334,6 +1345,7 @@ RSS alone cannot certify absence of memory pressure from mmap/page cache or brow
 | LoRA ROI | O((rows+cols)r + rows*cols*r) | interactive bounded | r and dimensions capped |
 | LoRA full-module change report (FR-023) | O(out*in*r) multiply-adds per module; Frobenius norm via `s^2 * tr((B^T B)(A A^T))` in O((in+out)r^2) only if independently tested against the direct product | background | `max_lora_scan_gmac`, cancel, completeness flag |
 | Full model evaluation | model load + decoding | optional R3 | separate subprocess and preflight |
+| Comparison report (ADR-020) | O(analyzed elements) reads + O(entries) report objects | background job | `128 MiB + 16 KiB x entries` reservation, <= 32,768 entries, <= 128 MiB JSON; cancel and wall time per chunk, including hashing |
 
 ## 3. I/O estimates
 
@@ -1870,6 +1882,27 @@ Each ticket commits minimal vertical slice, proves its own acceptance and does n
 **Decision:** The blueprint is frozen at 1.2-final (tag `spec-v1.2-final`). Further changes require a demonstrated implementation correctness or security blocker, a versioned ADR, updated contracts/fixtures/tests and a changelog entry (section 5). Implementation discoveries are tracked as issues, not silent contract drift.
 **Why:** Implementation must start against a stable, testable contract.
 **Trade-off:** Some refinements wait for evidence from Phase 0.
+**Successor revisions:** additive extensions approved by the project owner are recorded as numbered ADRs with their own contract revision, leaving the frozen baseline and its tag untouched: ADR-020 (contract 0.4.0, comparison reports).
+
+### ADR-020: Comparison change reports over the API (contract 0.4.0)
+**Change-control basis (ADR-019):** This is an **additive feature extension**, not a correctness or security fix, so ADR-019's blocker criterion does not authorize it by itself. The project owner (repository maintainer) approved it explicitly on 2026-11-11 as the backend of release 0.1.0a2 ("Visual Checkpoint Comparison", ROADMAP P0.1). The 1.2-final baseline stays frozen and auditable at tag `spec-v1.2-final` and contract `0.3.0-spec-1.2-final`; this ADR defines the successor contract revision `0.4.0-spec-1.2-final-adr-020`. No 0.3.0 field, route or behaviour changes meaning; additions are listed in CHANGELOG.md.
+
+**Decision:**
+1. *API.* Job kind `comparison_report` (`POST /jobs` with `comparison_id`; no `source`, `view` or `model_id`) and `GET /comparisons/{comparison_id}/report`. The job runs `change_report.pair_report`, the function behind `weightlab diff`, on the comparison's two imported models, so numbers, rankings, rollups, caveats and `complete` equal the CLI's. Options other than `consistency` stay at CLI defaults. `JobResult` is `{kind, comparison_id, complete, published}`. `GET /projects/{id}/comparisons` and `Comparison.report` / `Comparison.latest_report_job_id` let a client rediscover comparisons, the stored report and a running or failed job after a reload, without client-side state.
+2. *Atomic publication.* The report row (table `comparison_reports`, migration 0003) is written by the job's commit hook inside the single transaction that writes the job's `completed` row (weightlab/jobs.py). A crash before COMMIT leaves a `running` row (restart: `interrupted`) and no report. A hook failure (comparison deleted: `NOT_FOUND`; storage error) rolls back and the job is `failed`. Failed, canceled and interrupted jobs never publish; the previous report stays.
+3. *Cancellation is linearized on the runner lock.* The runner checks the cancel flag under its lock in the critical section that writes the terminal state; `cancel` sets the flag under the same lock. Whichever takes the lock first wins: a cancel first gives `canceled` (result and hook dropped); completion first gives `completed`, and a later cancel changes nothing.
+4. *Ordering.* Each submission gets a strictly increasing `job_seq` (`comparison_report_seq`, AUTOINCREMENT, never reused). A completed job replaces the stored report only if its `job_seq` is greater (enforced by the upsert's WHERE clause in the same transaction), so an earlier-submitted job that finishes later completes with `published: false`. A deduplicated submission joins the pending job and keeps its number.
+5. *Bounded hashing.* `Checkpoint.hash_tick` is called after every hashed chunk by `digests()` and `verify_digests()`, whichever layer calls them (lineage, attestation, `verified` before/after, every shard). The job sets it to its context's tick, so cancellation and wall time interrupt hashing between `read_chunk_bytes` (4 MiB) chunks. Hash values and verification are unchanged.
+6. *Resource limits.* Reservation `128 MiB + 16 KiB x entries` (128 MiB: G0.5 diff bound; measured ~9 KiB peak per entry for report objects and JSON at 2k and 20k entries, 1.8x margin for the SQLite and response copies). At most `MAX_REPORT_ENTRIES = 32,768` entries (refused with 422 before queueing) and `MAX_REPORT_JSON_BYTES = 128 MiB` of stored JSON (checked before publication). The entry count and byte estimate are SQL aggregates; GET splices the stored JSON text into the response without parsing it. `estimated_bytes` is an upper bound: analyzed tensor bytes plus one hash of every input file (two when `verified`).
+7. *Drift.* POST /comparisons records `record_version: 2`, `user_attestation` and `structure_sha256`, the SHA-256 of the canonical structure (every entry's key, status, analyzability, shapes, dtypes and tie relationship, the pair flags, and the model ids and orientation). The job refuses if the reopened models fail their import fingerprints (`FILE_CHANGED`) or the recomputed fingerprint, counts or lineage differ from the record (`CONFLICT`). V/L/S/X semantics are unchanged.
+8. *Historical records.* Comparisons created before this ADR (no `record_version`) are refused with `CONFLICT` and the user creates a new comparison. Their attestation input is not reconstructed, so lineage trust is never upgraded by inference.
+9. *Policy (FR-035).* `strict` (default) reports Class V and L only; Class S and X are refused with 409 `LINEAGE_UNVERIFIED`. `descriptive_only` is the user's acknowledgement that S/X numbers are descriptive inspection of possibly unaligned coordinates; the report then carries the CLI's class caveats. The comparison view exposes `policy`.
+10. *Freshness.* A report is a historical snapshot of the bytes its job read. `best_effort`: quick fingerprints (size, mtime, ctime, file id) at open and per read batch; a same-size rewrite preserving mtime and ctime is undetected (doc 03 section 6). `verified`: SHA-256 of every input file before and after the scan matched and is recorded in the report's provenance. GET reads no tensor bytes; it returns `consistency`, `created_at` and `current_model_status` (stat-only quick fingerprint per model), so clients can show that files changed since the report.
+11. *Privacy.* Provenance carries file names only (CLI default). Every string in the stored report, and every job error message, has the models' absolute roots, entry paths (as given and resolved) and the user's home directory replaced with `<redacted path>`.
+
+**Why:** ROADMAP P0.1 needs per-tensor, per-layer and per-role metrics in the UI. The frozen `compare_stats` kind covers one delta source per job; a whole-model dashboard would need one job per tensor and re-implemented rollups. Reusing `pair_report` keeps the API's numbers identical to the CLI's by construction.
+
+**Trade-off:** The report is returned whole (no paging); at the entry cap it is ~90 MiB of JSON, and checkpoints above 32,768 tensors (some MoE models) cannot be reported until paging or streaming exists. `estimated_bytes` can exceed `bytes_scanned` for best-effort jobs. Legacy comparisons must be recreated. `compare_stats` remains unimplemented.
 
 ## 2. Risk register
 

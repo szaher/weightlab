@@ -14,6 +14,7 @@ from pathlib import Path
 from typing import Any
 
 from weightlab.analysis.change_report import assess_pair, looks_like_local_path, redact_path
+from weightlab.analysis.compat import structure_fingerprint
 from weightlab.analysis.lineage import Assessment, LineageInputs, assess
 from weightlab.analysis.lora import AdapterConfig, adapter_pairs, load_config, plan_module
 from weightlab.api.catalog import open_model, tensor_id, validate_paths
@@ -26,6 +27,11 @@ from weightlab.formats.fileio import change_time_ns
 
 ADAPTER_FILES = ("adapter_config.json", "adapter_model.safetensors")
 API_MAX_RANK = 4096  # AdapterModule.rank maximum in the frozen contract
+COMPARISON_RECORD_VERSION = 2  # 2 (ADR-020): records user_attestation and structure_sha256; 1: neither
+
+
+def structure_identity(model_a_id: str, model_b_id: str) -> dict[str, str]:
+    return {"model_a_id": model_a_id, "model_b_id": model_b_id, "orientation": "B_minus_A"}
 
 
 def _cap(items: list[str], n: int, width: int = 500) -> list[str]:
@@ -79,7 +85,15 @@ def create_comparison(conn: sqlite3.Connection, req: ComparisonRequest) -> dict[
                 "analyzable": e.analyzable,
             }
         )
-    compat = {"lineage": lineage_view(lineage), "counts": structure.counts(), "policy": req.policy}
+    compat = {
+        "lineage": lineage_view(lineage),
+        "counts": structure.counts(),
+        "policy": req.policy,
+        # ADR-020: what a comparison_report job needs to reassess with the same inputs and detect drift.
+        "record_version": COMPARISON_RECORD_VERSION,
+        "user_attestation": req.user_attestation,
+        "structure_sha256": structure_fingerprint(structure, structure_identity(req.model_a_id, req.model_b_id)),
+    }
     row = store.insert_comparison(
         conn,
         project_id=req.project_id,
@@ -91,8 +105,13 @@ def create_comparison(conn: sqlite3.Connection, req: ComparisonRequest) -> dict[
     return comparison_view(row)
 
 
-def comparison_view(row: dict[str, Any]) -> dict[str, Any]:
+def comparison_view(row: dict[str, Any], conn: sqlite3.Connection | None = None) -> dict[str, Any]:
+    """The contract `Comparison`; with `conn`, also its stored report summary and latest report job (ADR-020)."""
     c = row["compatibility_json"]
+    extra: dict[str, Any] = {"report": None, "latest_report_job_id": None}
+    if conn is not None:
+        extra = {"report": store.comparison_report_summary(conn, row["id"]),
+                 "latest_report_job_id": store.latest_report_job_id(conn, row["id"])}  # fmt: skip
     return {
         "id": row["id"],
         "project_id": row["project_id"],
@@ -100,6 +119,8 @@ def comparison_view(row: dict[str, Any]) -> dict[str, Any]:
         "model_b_id": row["model_b_id"],
         "lineage": c["lineage"],
         "counts": c["counts"],
+        "policy": c.get("policy", "strict"),
+        **extra,
         "created_at": row["created_at"],
     }
 

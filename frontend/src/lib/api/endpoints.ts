@@ -1,4 +1,4 @@
-// Typed wrappers for the implemented routes the UI uses (contracts/openapi.yaml 0.3.0).
+// Typed wrappers for the implemented routes the UI uses (contracts/openapi.yaml 0.4.0).
 // IDs are server-issued opaque strings; they are still encoded, and tensor names never enter a URL path.
 import { request } from "./client";
 import { toSearchParams, type TensorQuery } from "./tensorQuery";
