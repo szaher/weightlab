@@ -97,6 +97,37 @@ describe("withheld and undefined values are never numbers", () => {
   });
 });
 
+describe("overflow-safe layer and role ratios", () => {
+  const original = (gridJson as unknown as ChangeReport).tensors[0]!;
+  const row = {
+    ...original,
+    counts: { ...original.counts, finite_pairs: 1 },
+    metrics: {
+      ...original.metrics,
+      delta_l2: { ...original.metrics.delta_l2, value: 1.5e307 },
+      norm_a: { ...original.metrics.norm_a, value: 1.5e308 },
+      max_abs_delta: { ...original.metrics.max_abs_delta, value: 1.5e307 },
+    },
+  };
+  it("does not turn a finite relative L2 of 0.1 into zero when the reference norm overflows float64", () => {
+    const cell = aggregate([row, row], 1e-12);
+    expect(cell.metrics.relative_l2.kind).toBe("value");
+    if (cell.metrics.relative_l2.kind === "value") expect(cell.metrics.relative_l2.v).toBeCloseTo(0.1, 12);
+  });
+  it("keeps a representable RMS even when the aggregate L2 itself is unrepresentable", () => {
+    const huge = {
+      ...row,
+      metrics: { ...row.metrics, delta_l2: { ...row.metrics.delta_l2, value: 1.5e308 } },
+    };
+    const cell = aggregate([huge, huge], 1e-12);
+    expect(cell.metrics.delta_l2.kind).toBe("withheld");
+    expect(cell.metrics.delta_rms.kind).toBe("value");
+    if (cell.metrics.delta_rms.kind === "value") expect(cell.metrics.delta_rms.v).toBe(1.5e308);
+    expect(cell.metrics.relative_l2.kind).toBe("value");
+    if (cell.metrics.relative_l2.kind === "value") expect(cell.metrics.relative_l2.v).toBeCloseTo(1, 12);
+  });
+});
+
 describe("numerics helpers", () => {
   it("rootSumSquares does not overflow near float64's limit", () => {
     expect(rootSumSquares([1e300, 1e300])).toBeCloseTo(Math.SQRT2 * 1e300, -290);
