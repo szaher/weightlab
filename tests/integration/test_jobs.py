@@ -151,7 +151,10 @@ def test_cancel_during_an_active_scan_is_prompt_and_publishes_nothing(env: Any) 
     scan.chunk_s = 0.02
     job, _ = runner.submit(pid, "pyramid_build", spec("long", chunks=10_000))
     wait(runner, job["job_id"], ("running",))
-    time.sleep(0.1)
+    end = time.monotonic() + 10  # "during an active scan": wait for recorded progress, not a fixed sleep
+    while runner.get(job["job_id"])["progress"] == 0:  # type: ignore[index]
+        assert time.monotonic() < end
+        time.sleep(0.01)
     t0 = time.monotonic()
     c = runner.cancel(job["job_id"])
     latency = time.monotonic() - t0
