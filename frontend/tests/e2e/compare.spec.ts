@@ -148,6 +148,9 @@ test("import, compare, analyze, visualize, drill down; parity with the CLI; S po
   await page.getByRole("button", { name: "Run analysis" }).click();
   await expect(page.getByText(/acknowledge that the numbers describe raw/)).toBeVisible();
   await createComparison(page, "tiny_precision_a.safetensors", "tiny_precision_b.safetensors", true);
+  // The newly created record must be selected before submitting; the previous strict
+  // comparison has exactly the same model names and must never receive this job.
+  await expect(page.getByText("descriptive only (acknowledged)")).toBeVisible();
   await page.getByRole("button", { name: "Run analysis" }).click();
   await expect(page.getByRole("note", { name: "Incomplete report" })).toBeVisible({ timeout: 60_000 });
   await expect(page.getByText(/^◐ Incomplete$/)).toBeVisible();
