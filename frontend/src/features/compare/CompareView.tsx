@@ -44,8 +44,14 @@ export function CompareView({ projectId, projectName, models, onGoWorkspace, onI
   const [nonce, setNonce] = useState(0);
   const list = useResource(projectId ? `comparisons#${projectId}#${nonce}` : null, (s) => compareApi.list(projectId ?? "", s), true);
   const [chosen, setChosen] = useState<string | null>(readSel);
+  // The list may still contain the previous response after creating a comparison.
+  // Keep the just-created record selected until the refreshed list includes it.
+  const [created, setCreated] = useState<Comparison | null>(null);
   const comparisons = list.data;
-  const current = comparisons?.find((c) => c.id === chosen) ?? comparisons?.[0] ?? null;
+  const pendingCreated = created?.id === chosen && created.project_id === projectId ? created : null;
+  const current = pendingCreated
+    ? (comparisons?.find((c) => c.id === chosen) ?? pendingCreated)
+    : (comparisons?.find((c) => c.id === chosen) ?? comparisons?.[0] ?? null);
   const modelList = models.data ?? [];
   const name = (id: string) => modelList.find((m) => m.id === id)?.display_name ?? id;
 
@@ -83,6 +89,7 @@ export function CompareView({ projectId, projectName, models, onGoWorkspace, onI
                   className="list-item"
                   aria-current={c.id === current?.id ? "true" : undefined}
                   onClick={() => {
+                    setCreated(null);
                     setChosen(c.id);
                     writeSel(c.id);
                   }}
@@ -104,6 +111,7 @@ export function CompareView({ projectId, projectName, models, onGoWorkspace, onI
           models={modelList}
           onGoWorkspace={onGoWorkspace}
           onCreated={(c) => {
+            setCreated(c);
             setChosen(c.id);
             writeSel(c.id);
             setNonce((n) => n + 1);
