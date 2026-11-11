@@ -34,6 +34,20 @@ export function useReportJob(
   const [busy, setBusy] = useState(false);
   const [failures, setFailures] = useState(0);
   const [nonce, setNonce] = useState(0);
+  // Re-discovery may finish after a locally submitted retry. Keep job identity monotonic
+  // by the server's creation timestamp; never let an older canceled/failed job replace it.
+  const acceptedRef = useRef<Job | null>(null);
+  const acceptJob = useCallback((next: Job): boolean => {
+    const previous = acceptedRef.current;
+    if (previous) {
+      if (next.job_id !== previous.job_id && Date.parse(next.created_at) <= Date.parse(previous.created_at)) return false;
+      // A slower status request must not regress a terminal job to pending.
+      if (next.job_id === previous.job_id && !isPending(previous) && isPending(next)) return false;
+    }
+    acceptedRef.current = next;
+    setJob(next);
+    return true;
+  }, []);
   const settledRef = useRef(onSettled);
   useEffect(() => {
     settledRef.current = onSettled;
@@ -48,16 +62,16 @@ export function useReportJob(
     const ctl = new AbortController();
     compareApi.job(latest, ctl.signal).then(
       (j) => {
+        if (ctl.signal.aborted || !acceptJob(j)) return;
         setError(null);
         setFailures(0);
-        setJob(j);
       },
       (e: unknown) => {
         if (!isAbort(e)) setError(e);
       },
     );
     return () => ctl.abort();
-  }, [cid, latest]);
+  }, [acceptJob, cid, latest]);
 
   // Poll while pending.
   const pendingId = job && isPending(job) ? job.job_id : null;
@@ -67,8 +81,8 @@ export function useReportJob(
     const t = window.setTimeout(() => {
       compareApi.job(pendingId, ctl.signal).then(
         (j) => {
+          if (ctl.signal.aborted || !acceptJob(j)) return;
           setFailures(0);
-          setJob(j);
           if (!isPending(j)) settledRef.current(j);
         },
         (e: unknown) => {
@@ -83,7 +97,7 @@ export function useReportJob(
       window.clearTimeout(t);
     };
     // job identity and progress drive the next poll
-  }, [job, pendingId, failures, nonce]);
+  }, [acceptJob, job, pendingId, failures, nonce]);
 
   const submit = useCallback(
     async (consistency: Consistency) => {
@@ -92,16 +106,17 @@ export function useReportJob(
       setError(null);
       try {
         const j = await compareApi.submit(cid, consistency, reportBudget(settings));
-        setFailures(0);
-        setJob(j);
-        if (!isPending(j)) settledRef.current(j);
+        if (acceptJob(j)) {
+          setFailures(0);
+          if (!isPending(j)) settledRef.current(j);
+        }
       } catch (e) {
         setError(e);
       } finally {
         setBusy(false);
       }
     },
-    [cid, settings],
+    [acceptJob, cid, settings],
   );
 
   const cancel = useCallback(async () => {
@@ -109,14 +124,13 @@ export function useReportJob(
     setBusy(true);
     try {
       const j = await compareApi.cancel(job.job_id);
-      setJob(j);
-      if (!isPending(j)) settledRef.current(j);
+      if (acceptJob(j) && !isPending(j)) settledRef.current(j);
     } catch (e) {
       setError(e);
     } finally {
       setBusy(false);
     }
-  }, [job]);
+  }, [acceptJob, job]);
 
   const checkAgain = useCallback(() => {
     setFailures(0);
