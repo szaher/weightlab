@@ -20,6 +20,9 @@
   --selected: #dbe8f7;
   --nf-bg: #d9d9d9;
   --nf-fg: #1a1a1a;
+  --heat: #0b4f8a; /* sequential change scale: surface (no change) -> heat (most change) */
+  --heat-text-strong: #ffffff;
+  --hatch: #9aa5b1;
   --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
   --sans: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
   --radius: 6px;
@@ -47,6 +50,9 @@
     --selected: #223a55;
     --nf-bg: #4a4a4a;
     --nf-fg: #f2f2f2;
+    --heat: #8cc4ff;
+    --heat-text-strong: #0b1520;
+    --hatch: #5a6878;
     color-scheme: dark;
   }
 }
@@ -71,6 +77,9 @@
   --selected: #223a55;
   --nf-bg: #4a4a4a;
   --nf-fg: #f2f2f2;
+  --heat: #8cc4ff;
+  --heat-text-strong: #0b1520;
+  --hatch: #5a6878;
   color-scheme: dark;
 }
 
@@ -1106,4 +1115,242 @@ code,
 }
 .overview-facts .facts-grid dd {
   white-space: normal;
+}
+
+/* ---- Compare (ADR-020 reports): compatibility first, layer x role grid, rankings, tensor details ---- */
+.compare {
+  display: grid;
+  grid-template-columns: minmax(220px, 300px) minmax(0, 1fr);
+  gap: 16px;
+  align-items: start;
+}
+@media (max-width: 900px) {
+  .compare {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+.small {
+  font-size: 12px;
+}
+.cmp-title {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 6px 12px;
+  font-size: 17px;
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+.cmp-tag {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--muted);
+  margin-right: 4px;
+}
+.cmp-arrow {
+  color: var(--muted);
+}
+.class-badge {
+  display: inline-block;
+  min-width: 1.6em;
+  text-align: center;
+  font-weight: 800;
+  font-size: 12px;
+  border-radius: 4px;
+  padding: 0 5px;
+  border: 1px solid currentColor;
+}
+.class-V {
+  color: var(--ok);
+  background: var(--ok-bg);
+}
+.class-L {
+  color: var(--accent);
+  background: var(--accent-soft);
+}
+.class-S,
+.class-X {
+  color: var(--warn);
+  background: var(--warn-bg);
+}
+.causal {
+  margin: 0;
+  padding: 8px 10px;
+  border-left: 3px solid var(--border);
+  background: var(--surface-2);
+  font-size: 13px;
+}
+.caveats summary {
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 13px;
+}
+.caveats ul {
+  margin: 6px 0 0;
+  padding-left: 18px;
+  font-size: 13px;
+}
+.cmp-job progress {
+  width: 100%;
+  max-width: 420px;
+  height: 10px;
+}
+.grid-scroll {
+  overflow: auto;
+  max-height: 70vh;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+.change-grid {
+  border-collapse: separate;
+  border-spacing: 2px;
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
+.change-grid th {
+  font-weight: 600;
+  padding: 2px 6px;
+  white-space: nowrap;
+  background: var(--surface);
+  position: sticky;
+  z-index: 1;
+}
+.change-grid thead th {
+  top: 0;
+}
+.change-grid tbody th {
+  left: 0;
+  text-align: right;
+}
+.change-grid .corner {
+  left: 0;
+  z-index: 2;
+  color: var(--muted);
+}
+.heat-cell {
+  --t: 0;
+  min-width: 64px;
+  height: 26px;
+  padding: 0 4px;
+  text-align: center;
+  font-family: var(--mono);
+  background: color-mix(in srgb, var(--heat) calc(var(--t) * 100%), var(--surface-2));
+  border-radius: 3px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.heat-cell:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 1px;
+}
+.heat-selected {
+  box-shadow: inset 0 0 0 2px var(--focus);
+}
+.heat-empty {
+  background: transparent;
+  border: 1px dashed var(--border);
+  cursor: default;
+}
+.heat-withheld,
+.heat-unrepresentable {
+  background: repeating-linear-gradient(45deg, var(--nf-bg), var(--nf-bg) 4px, var(--surface-2) 4px, var(--surface-2) 8px);
+  color: var(--nf-fg);
+}
+.heat-undefined,
+.heat-not_aggregable {
+  background: var(--surface);
+  border: 1px solid var(--hatch);
+  color: var(--muted);
+}
+.grid-legend {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 14px;
+  font-size: 12px;
+}
+.legend-grad {
+  display: inline-block;
+  width: 120px;
+  height: 10px;
+  border-radius: 2px;
+  border: 1px solid var(--border);
+  background: linear-gradient(to right, var(--surface-2), var(--heat));
+}
+.legend-key {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.legend-sw {
+  display: inline-block;
+  width: 14px;
+  height: 12px;
+  border-radius: 2px;
+}
+.bar {
+  display: inline-block;
+  width: 90px;
+  height: 8px;
+  background: var(--surface-2);
+  border-radius: 2px;
+  overflow: hidden;
+  vertical-align: middle;
+}
+.bar > span {
+  display: block;
+  height: 100%;
+  background: var(--heat);
+}
+.bar-empty {
+  background: repeating-linear-gradient(45deg, var(--surface-2), var(--surface-2) 3px, transparent 3px, transparent 6px);
+}
+.val-na {
+  color: var(--muted);
+  font-style: italic;
+}
+.link-btn {
+  border: 0;
+  background: none;
+  padding: 0;
+  font: inherit;
+  color: var(--accent);
+  text-align: left;
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.key-cell {
+  max-width: 420px;
+  overflow-wrap: anywhere;
+  white-space: normal !important;
+}
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+  padding: 2px 4px 2px 10px;
+  border-radius: 999px;
+  background: var(--accent-soft);
+  font-size: 13px;
+}
+.tensor-detail {
+  border-left: 3px solid var(--accent);
+}
+.cmp-controls {
+  align-items: flex-end;
+}
+.cmp-controls select {
+  height: auto;
+  align-self: auto;
+}
+/* .row .input grows along the row; inside a column .field that would stretch it vertically */
+.dashboard .row .field .input {
+  flex: none;
+}
+.rank-table .key-cell {
+  min-width: 28ch;
 }

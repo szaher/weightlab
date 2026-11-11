@@ -3,7 +3,7 @@ export type Section = "workspace" | "explore" | "compare" | "adapters" | "settin
 const ITEMS: { id: Section; label: string; planned?: string }[] = [
   { id: "workspace", label: "Workspace" },
   { id: "explore", label: "Explore" },
-  { id: "compare", label: "Compare", planned: "planned for a later milestone" },
+  { id: "compare", label: "Compare" },
   { id: "adapters", label: "Adapters", planned: "planned for a later milestone" },
   { id: "settings", label: "Settings" },
 ];

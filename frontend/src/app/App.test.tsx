@@ -144,13 +144,14 @@ describe("App", () => {
     expect(await screen.findByText("Dropped files are not imported")).toBeInTheDocument();
   });
 
-  it("does not offer Compare or Adapters as working screens", async () => {
+  it("offers Compare as a working screen; Adapters stays planned", async () => {
     withToken();
     backend({ "GET /api/v1/projects": () => json([]) });
     render(<App />);
     const nav = screen.getByRole("navigation", { name: "Main" });
-    expect(within(nav).queryByRole("button", { name: /Compare/ })).toBeNull();
-    expect(within(nav).getByText("Compare").closest("[aria-disabled]")).toHaveAttribute("aria-disabled", "true");
+    expect(within(nav).getByRole("button", { name: "Compare" })).toBeEnabled();
+    expect(within(nav).queryByRole("button", { name: /Adapters/ })).toBeNull();
+    expect(within(nav).getByText("Adapters").closest("[aria-disabled]")).toHaveAttribute("aria-disabled", "true");
   });
 
   it("explores a model: catalog, selection and inspector", async () => {

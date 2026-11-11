@@ -20,7 +20,7 @@ Existing features: SafeTensors metadata/catalog, whole-tensor **heatmap overview
 
 | Order | Visualization | User question | Prerequisite | Status |
 | --- | --- | --- | --- | --- |
-| **P0 / 1** | **Layer / role / tensor change rankings** (horizontal bars, sortable table) | Which layers or components changed the most? | Existing `weightlab diff` report + new Compare API/UI | **In progress** (API: ADR-020; UI planned) |
+| **P0 / 1** | **Layer / role / tensor change rankings** (horizontal bars, sortable table) | Which layers or components changed the most? | Existing `weightlab diff` report + new Compare API/UI | **Implemented, unreleased** (API: ADR-020; Compare UI; ships in 0.1.0a2) |
 | **P0 / 2** | **Weight distribution histograms** (single tensor; optional A/B overlay) | Are weights sparse, heavy-tailed, shifted or anomalous? | New bounded scan / stats service | **Planned** |
 | **P1 / 3** | **Delta heatmaps** (B − A; optionally supported LoRA effective delta) | Where in a matrix did values change? | Compatibility and lineage checks; derived tile/ROI source | **Planned** |
 | **P1 / 4** | **Before/after scatter or 2-D density** | Is change concentrated around unchanged values? | Matched A/B chunks; bounded points or binned density | **Planned** |

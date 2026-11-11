@@ -1,5 +1,14 @@
 # Changelog
 
+## Unreleased — Compare dashboard (UI)
+
+- **Compare screen** (side navigation): create a comparison of two imported checkpoints (policy and optional attestation), run the analysis (best effort or verified), cancel and re-run; the job is rediscovered after a reload.
+- **Compatibility first**: base/derived, orientation B − A, class V/L/S/X with specific warnings for S and X, lineage evidence, counts, complete/incomplete, consistency, report time, files-changed-since-report warning, and the interpretation caveat.
+- **Layer × role grid**: each cell aggregated from exactly that layer's and role's tensors (the CLI rollup arithmetic; unit tests prove per-layer, per-role and total sums reproduce the report's rollups); cosine only for single-tensor cells; unknown and unlayered rows/roles visible; keyboard operable; linear or log colour scale with legend.
+- **Rankings**: sortable, filterable tensor, layer and role tables with bars; withheld, undefined and non-aggregable values labelled and sorted last; 100 rows per page.
+- **Tensor drill-down**: metrics with method and precision, counts and non-finite values, caveats, and "Inspect in A/B" opening the existing explorer. The delta heatmap is shown as not yet available.
+- Evidence: `evidence/alpha2-compare/`.
+
 ## Unreleased — contract 0.4.0 (ADR-020)
 
 Additive API extension approved by the project owner (ADR-020 change-control basis); the 1.2-final baseline stays frozen at tag `spec-v1.2-final` (contract 0.3.0).

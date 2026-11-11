@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ExploreView } from "../features/catalog/ExploreView";
+import { CompareView } from "../features/compare/CompareView";
 import { SettingsView } from "../features/settings/SettingsView";
 import { WorkspaceView } from "../features/workspace/WorkspaceView";
 import { ApiRequestError, onUnauthorized } from "../lib/api/client";
@@ -25,6 +26,7 @@ export function App() {
   const [health, setHealth] = useState<Health | undefined>();
   const [reachable, setReachable] = useState<boolean | null>(null);
   const [dropNotice, setDropNotice] = useState(false);
+  const [exploreTarget, setExploreTarget] = useState<{ model: string; id: string; nonce: number } | null>(null);
   const mainRef = useRef<HTMLElement>(null);
   const firstSection = useRef(true);
 
@@ -135,6 +137,21 @@ export function App() {
         }}
         onExplore={(id) => {
           setModelId(id);
+          setExploreTarget(null);
+          setSection("explore");
+        }}
+      />
+    );
+  } else if (section === "compare") {
+    content = (
+      <CompareView
+        projectId={projectId}
+        projectName={project?.name ?? null}
+        models={models}
+        onGoWorkspace={() => setSection("workspace")}
+        onInspect={(model, id) => {
+          setModelId(model);
+          setExploreTarget((t) => ({ model, id, nonce: (t?.nonce ?? 0) + 1 }));
           setSection("explore");
         }}
       />
@@ -142,6 +159,8 @@ export function App() {
   } else if (section === "explore") {
     content = (
       <ExploreView
+        key={exploreTarget ? `target-${exploreTarget.nonce}` : "explore"}
+        initialTensor={exploreTarget ? { model: exploreTarget.model, id: exploreTarget.id } : null}
         projectName={project?.name ?? null}
         models={models}
         modelId={modelId}

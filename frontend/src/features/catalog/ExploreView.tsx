@@ -12,10 +12,12 @@ interface Props {
   modelId: string | null;
   onSelectModel: (id: string) => void;
   onGoWorkspace: () => void;
+  /** Open this tensor first (from the Compare screen's "Inspect"). */
+  initialTensor?: { model: string; id: string } | null;
 }
 
-export function ExploreView({ projectName, models, modelId, onSelectModel, onGoWorkspace }: Props) {
-  const [tensor, setTensor] = useState<{ model: string; id: string } | null>(null);
+export function ExploreView({ projectName, models, modelId, onSelectModel, onGoWorkspace, initialTensor = null }: Props) {
+  const [tensor, setTensor] = useState<{ model: string; id: string } | null>(initialTensor);
   if (!projectName) {
     return (
       <div className="empty">
