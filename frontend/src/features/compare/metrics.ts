@@ -61,15 +61,31 @@ export function rollupVal(r: RollupRow, k: TensorMetric): Val {
 
 const num = (x: number | string): number => (typeof x === "number" ? x : Number(x));
 
-/** sqrt(sum x_i^2) with the largest |x| factored out (no overflow for any finite inputs). */
+/** Keep the norm as a scale and squared unit-size terms, even if the final norm overflows float64. */
+function scaledNorm(xs: readonly number[]): { scale: number; sum: number } {
+  let scale = 0;
+  for (const x of xs) scale = Math.max(scale, Math.abs(x));
+  if (scale === 0) return { scale: 0, sum: 0 };
+  if (!Number.isFinite(scale)) return { scale: NaN, sum: NaN };
+  let sum = 0;
+  for (const x of xs) sum += (x / scale) ** 2;
+  return { scale, sum };
+}
+
+/** sqrt(sum x_i^2), possibly unrepresentable as a float64 even when ratios are finite. */
 export function rootSumSquares(xs: readonly number[]): number {
-  let m = 0;
-  for (const x of xs) m = Math.max(m, Math.abs(x));
-  if (m === 0) return 0;
-  if (!Number.isFinite(m)) return NaN;
-  let s = 0;
-  for (const x of xs) s += (x / m) * (x / m);
-  return m * Math.sqrt(s);
+  const n = scaledNorm(xs);
+  return n.scale * Math.sqrt(n.sum);
+}
+
+/** ||delta|| / max(||reference||, epsilon) without an overflowing intermediate reference norm. */
+function relativeNorm(delta: readonly number[], reference: readonly number[], epsilon: number): number {
+  const d = scaledNorm(delta);
+  const a = scaledNorm(reference);
+  const refNorm = a.scale * Math.sqrt(a.sum);
+  if (refNorm < epsilon) return (d.scale * Math.sqrt(d.sum)) / epsilon;
+  // If a full norm exceeds float64 max, its ratio can still be precisely representable.
+  return a.scale === 0 ? NaN : (d.scale / a.scale) * Math.sqrt(d.sum / a.sum);
 }
 
 export interface Cell {
@@ -86,7 +102,9 @@ export function aggregate(rows: readonly TensorRow[], epsilon: number): Cell {
   const ok = rows.filter((r) => !withheldRows.includes(r));
   const l2s = ok.map((r) => metricVal(r.metrics.delta_l2));
   const blocked: Val | null = withheld > 0 ? { kind: "withheld" } : l2s.some((v) => v.kind !== "value") ? { kind: "unrepresentable" } : null;
-  const dl2 = blocked ? NaN : rootSumSquares(l2s.map((v) => (v as { v: number }).v));
+  const deltas = blocked ? [] : l2s.map((v) => (v as { v: number }).v);
+  const deltaScale = scaledNorm(deltas);
+  const dl2 = blocked ? NaN : rootSumSquares(deltas);
   // A non-finite aggregate of finite inputs left float64's range: the CLI lists it as withheld too.
   const fin = (x: number): Val => (Number.isFinite(x) ? value(x) : { kind: "withheld" });
 
@@ -101,19 +119,16 @@ export function aggregate(rows: readonly TensorRow[], epsilon: number): Cell {
     metrics.relative_l2 = { kind: "undefined" };
     metrics.max_abs_delta = { kind: "undefined" };
   } else {
-    metrics.delta_rms = fin(dl2 / Math.sqrt(finitePairs));
+    metrics.delta_rms = fin(deltaScale.scale * Math.sqrt(deltaScale.sum / finitePairs));
     const norms = rows.map((r) => metricVal(r.metrics.norm_a));
     if (norms.some((v) => v.kind !== "value")) metrics.relative_l2 = { kind: "unrepresentable" };
     else {
-      const normA = rootSumSquares(norms.map((v) => (v as { v: number }).v));
-      metrics.relative_l2 = fin(normA < epsilon ? dl2 / epsilon : dl2 / normA);
+      metrics.relative_l2 = fin(relativeNorm(deltas, norms.map((v) => (v as { v: number }).v), epsilon));
     }
-    let mx = 0;
-    for (const r of ok) {
-      const v = metricVal(r.metrics.max_abs_delta);
-      if (v.kind === "value") mx = Math.max(mx, v.v);
-    }
-    metrics.max_abs_delta = value(mx);
+    const maxima = ok.map((r) => metricVal(r.metrics.max_abs_delta));
+    metrics.max_abs_delta = maxima.some((v) => v.kind !== "value")
+      ? { kind: "unrepresentable" }
+      : value(maxima.reduce((max, v) => Math.max(max, (v as { v: number }).v), 0));
   }
   const only = rows.length === 1 ? rows[0] : undefined;
   metrics.cosine = only ? metricVal(only.metrics.cosine) : { kind: "not_aggregable" };
