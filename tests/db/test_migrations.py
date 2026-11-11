@@ -14,7 +14,13 @@ from weightlab.db.schema import DatabaseVersionError, Migration, connect, migrat
 
 DOC10_TABLES = {"schema_migrations", "projects", "models", "model_files", "tensors", "adapters", "comparisons",
                 "bookmarks", "jobs", "experiments", "exports"}  # fmt: skip
-ADDED_TABLES = {"comparison_entries", "app_settings", "comparison_reports"}  # 0003: ADR-020
+ADDED_TABLES = {
+    "comparison_entries",
+    "app_settings",
+    "comparison_reports",
+    "comparison_report_seq",
+    "sqlite_sequence",
+}  # 0003: ADR-020 (AUTOINCREMENT keeps sqlite_sequence)
 
 
 def tables(conn: sqlite3.Connection) -> set[str]:
@@ -250,3 +256,32 @@ def test_preflight_refuses_a_database_that_keeps_changing(tmp_path: Path, monkey
     with pytest.raises(DatabaseVersionError, match="changing"):
         migrate(path)
     assert calls == mig.SNAPSHOT_ATTEMPTS
+
+
+def test_alpha1_database_upgrades_to_comparison_reports(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """A 0.1.0a1 database (schema version 2) with a comparison gains migration 0003 without losing data; the
+    legacy comparison is kept as is (record_version absent), so report jobs refuse it (ADR-020 item 8)."""
+    path = tmp_path / "alpha1.sqlite3"
+    alpha1 = [m for m in migrations() if m.version <= 2]
+    with monkeypatch.context() as m:
+        m.setattr(mig, "migrations", lambda: alpha1)
+        db = Database(path)
+        with db.session() as c:
+            c.execute("INSERT INTO projects VALUES ('prj_1', 'keep me', 't', 't', '{}')")
+            for mid in ("mod_a", "mod_b"):
+                c.execute("INSERT INTO models (id, project_id, display_name, selected_root, entry_path, format, "
+                          "lineage_json, quick_fingerprint_json, status, imported_at) VALUES (?, 'prj_1', 'm', "
+                          "'/r', '/r/m', 'safetensors', '{}', '{}', 'ready', 't')", (mid,))  # fmt: skip
+            c.execute("INSERT INTO comparisons VALUES ('cmp_1', 'prj_1', 'mod_a', 'mod_b', "
+                      "'{\"lineage\": {}, \"counts\": {}, \"policy\": \"strict\"}', 't')")  # fmt: skip
+        assert "comparison_reports" not in tables(connect(path))
+    result = migrate(path)
+    assert result.from_version == 2
+    assert result.applied == (3,)
+    assert result.backup is not None
+    assert result.backup.exists()
+    c = connect(path)
+    assert {"comparison_reports", "comparison_report_seq"} <= tables(c)
+    assert c.execute("SELECT compatibility_json FROM comparisons").fetchone()[0].startswith('{"lineage"')
+    assert integrity(c).ok
+    c.close()

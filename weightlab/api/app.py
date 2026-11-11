@@ -400,13 +400,8 @@ def create_app(config: ServerConfig, database: Database | None = None, assets: d
             return _json({"total": total, "items": [relations.entry_view(r) for r in rows]})
 
     @app.get(f"{p}/comparisons/{{comparison_id}}/report")
-    def get_report(comparison_id: IdPath) -> JSONResponse:
-        with db.session() as conn:
-            _comparison(conn, comparison_id)
-            row = store.get_comparison_report(conn, comparison_id)
-        if row is None:
-            raise ApiError(ErrorCode.NOT_FOUND, "no completed comparison_report job for this comparison")
-        return _json(reports.report_view(row))
+    def get_report(comparison_id: IdPath) -> Response:
+        return reports.report_response(db, comparison_id)
 
     # -- adapters ------------------------------------------------------------------------------
     @app.get(f"{p}/projects/{{project_id}}/adapters")

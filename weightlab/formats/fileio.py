@@ -13,6 +13,7 @@ import os
 import stat
 import sys
 import threading
+from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -154,11 +155,15 @@ class PositionedFile:
             raise self.invalidate(f"{self.path.name} is shorter than when it was opened")
         return parts[0] if len(parts) == 1 else b"".join(parts)
 
-    def sha256(self, chunk_bytes: int) -> str:
-        """Digest of the recorded extent, streamed in bounded chunks (verified consistency)."""
+    def sha256(self, chunk_bytes: int, tick: Callable[[int], None] | None = None) -> str:
+        """Digest of the recorded extent, streamed in bounded chunks (verified consistency). `tick(n)` runs after
+        each chunk of n bytes; it may raise (cancel, deadline) and then no digest is returned."""
         h = hashlib.sha256()
         for off in range(0, self.identity.size, chunk_bytes):
-            h.update(self.read(off, min(chunk_bytes, self.identity.size - off)))
+            n = min(chunk_bytes, self.identity.size - off)
+            h.update(self.read(off, n))
+            if tick is not None:
+                tick(n)
         self.check()
         return h.hexdigest()
 

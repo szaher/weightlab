@@ -4,6 +4,7 @@ queue capacity, failures, progress, and shutdown without stray threads."""
 
 from __future__ import annotations
 
+import sqlite3
 import threading
 import time
 from collections.abc import Iterator
@@ -293,3 +294,74 @@ def test_a_running_job_can_grow_its_reservation_only_within_both_budgets(env: An
     assert wait(runner, job["job_id"])["state"] == "completed"
     assert seen == [(False, False, True, 64 * MIB)]
     assert not runner._running  # the grown reservation ended with the job
+
+
+# -- commit hook: the terminal state and published data commit together (ADR-020) ------------------------------
+class Publishing:
+    """Writes a marker setting in its commit hook; `after_return` runs between returning and the runner's lock."""
+
+    def __init__(self) -> None:
+        self.hook_error: Exception | None = None
+        self.cancel_after_return = False
+
+    def run(self, ctx: JobContext, spec: dict[str, Any]) -> dict[str, Any]:
+        def hook(conn: Any) -> dict[str, Any]:
+            conn.execute("UPDATE projects SET name = 'published' WHERE id = ?", (spec["pid"],))
+            if self.hook_error is not None:
+                raise self.hook_error
+            return {"kind": "pyramid_build", "pyramid_id": "e" * 64}
+
+        ctx.on_commit(hook)
+        if self.cancel_after_return:
+            ctx.cancel.set()  # a cancel that lands after the work returned but before the runner takes its lock
+        return {"kind": "pyramid_build", "pyramid_id": "f" * 64}
+
+
+@pytest.fixture
+def pub(tmp_path: Path) -> Iterator[tuple[JobRunner, Publishing, Database, str]]:
+    db = Database(tmp_path / "db.sqlite3")
+    with db.session() as conn:
+        pid = store.create_project(conn, "p")["id"]
+    kind = Publishing()
+    runner = JobRunner(db, lambda: dict(DEFAULT_SETTINGS), {"pyramid_build": kind})
+    runner.start()
+    yield runner, kind, db, pid
+    runner.shutdown()
+
+
+def _name(db: Database, pid: str) -> str:
+    with db.session() as conn:
+        return str(conn.execute("SELECT name FROM projects WHERE id = ?", (pid,)).fetchone()[0])
+
+
+def test_commit_hook_result_is_the_completed_result(pub: tuple[JobRunner, Publishing, Database, str]) -> None:
+    runner, _, db, pid = pub
+    view, _ = runner.submit(pid, "pyramid_build", spec("p1", pid=pid))
+    done = wait(runner, view["job_id"])
+    assert done["state"] == "completed"
+    assert done["result"]["pyramid_id"] == "e" * 64  # the hook's result, written in the same transaction
+    assert _name(db, pid) == "published"
+
+
+@pytest.mark.parametrize("error", [fail(ErrorCode.NOT_FOUND, "gone"), sqlite3.OperationalError("disk I/O error")])
+def test_failing_commit_hook_rolls_back_and_fails(
+    pub: tuple[JobRunner, Publishing, Database, str], error: Exception
+) -> None:
+    runner, kind, db, pid = pub
+    kind.hook_error = error
+    view, _ = runner.submit(pid, "pyramid_build", spec("p2", pid=pid))
+    done = wait(runner, view["job_id"])
+    assert done["state"] == "failed"
+    assert done["result"] is None
+    assert done["error"]["code"] == ("NOT_FOUND" if isinstance(error, WeightLabError) else "CONFLICT")
+    assert _name(db, pid) == "p"  # the hook's write was rolled back with the completed state
+
+
+def test_cancel_before_the_runner_lock_wins_over_completion(pub: tuple[JobRunner, Publishing, Database, str]) -> None:
+    runner, kind, db, pid = pub
+    kind.cancel_after_return = True
+    view, _ = runner.submit(pid, "pyramid_build", spec("p3", pid=pid))
+    done = wait(runner, view["job_id"])
+    assert done["state"] == "canceled"
+    assert done["result"] is None
+    assert _name(db, pid) == "p"  # the commit hook never ran

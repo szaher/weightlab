@@ -484,11 +484,16 @@ components:
           export_id: {$ref: '#/components/schemas/Id'}
       - type: object
         additionalProperties: false
-        required: [kind, comparison_id, complete]
+        required: [kind, comparison_id, complete, published]
         properties:
           kind: {const: comparison_report}
           comparison_id: {$ref: '#/components/schemas/Id'}
           complete: {type: boolean, description: The report's own `complete` flag; false means incomplete, never partial.}
+          published:
+            type: boolean
+            description: >-
+              True when this job's report is the comparison's stored report. False when a report of a later-submitted
+              job was already stored (reports are ordered by submission, not by finishing time).
     Job:
       description: >-
         States: created -> queued -> running -> completed | failed | canceled; queued -> canceled; running ->
@@ -579,6 +584,12 @@ components:
         model_b_id: {$ref: '#/components/schemas/Id'}
         lineage: {$ref: '#/components/schemas/LineageAssessment'}
         counts: {$ref: '#/components/schemas/ComparisonCounts'}
+        policy:
+          type: string
+          enum: [strict, descriptive_only]
+          description: >-
+            0.4.0. strict - comparison reports for Class V and L only. descriptive_only - the user acknowledged that
+            Class S/X results are descriptive inspection of possibly unaligned coordinates (FR-035).
         created_at: {type: string, format: date-time}
     ComparisonEntry:
       type: object
@@ -606,12 +617,29 @@ components:
         (withheld metrics or entries not compared) must never be presented as complete.
       type: object
       additionalProperties: false
-      required: [comparison_id, job_id, complete, created_at, report]
+      required: [comparison_id, job_id, complete, consistency, created_at, current_model_status, report]
       properties:
         comparison_id: {$ref: '#/components/schemas/Id'}
         job_id: {$ref: '#/components/schemas/Id'}
         complete: {type: boolean}
-        created_at: {type: string, format: date-time}
+        consistency:
+          type: string
+          enum: [best_effort, verified]
+          description: >-
+            How the job checked its inputs. best_effort - quick fingerprints at open and per read batch; a same-size
+            rewrite that restores mtime is not detected. verified - SHA-256 of every input file before and after the
+            scan matched; the report's provenance records those hashes.
+        created_at: {type: string, format: date-time, description: When the report was published (a historical snapshot).}
+        current_model_status:
+          description: >-
+            Each model's status now, from a stat of its recorded files (no tensor bytes are read on GET). Anything
+            other than ready means the files changed since import, so the stored report may not describe them.
+          type: object
+          additionalProperties: false
+          required: [model_a, model_b]
+          properties:
+            model_a: {type: string, enum: [ready, incomplete, changed, disconnected, unsupported]}
+            model_b: {type: string, enum: [ready, incomplete, changed, disconnected, unsupported]}
         report:
           type: object
           required: [schema_version, report_kind, mode, complete, compatibility, tensors, layers, roles, totals]

@@ -14,6 +14,7 @@ from pathlib import Path
 from typing import Any
 
 from weightlab.analysis.change_report import assess_pair, looks_like_local_path, redact_path
+from weightlab.analysis.compat import structure_fingerprint
 from weightlab.analysis.lineage import Assessment, LineageInputs, assess
 from weightlab.analysis.lora import AdapterConfig, adapter_pairs, load_config, plan_module
 from weightlab.api.catalog import open_model, tensor_id, validate_paths
@@ -26,6 +27,11 @@ from weightlab.formats.fileio import change_time_ns
 
 ADAPTER_FILES = ("adapter_config.json", "adapter_model.safetensors")
 API_MAX_RANK = 4096  # AdapterModule.rank maximum in the frozen contract
+COMPARISON_RECORD_VERSION = 2  # 2 (ADR-020): records user_attestation and structure_sha256; 1: neither
+
+
+def structure_identity(model_a_id: str, model_b_id: str) -> dict[str, str]:
+    return {"model_a_id": model_a_id, "model_b_id": model_b_id, "orientation": "B_minus_A"}
 
 
 def _cap(items: list[str], n: int, width: int = 500) -> list[str]:
@@ -83,7 +89,10 @@ def create_comparison(conn: sqlite3.Connection, req: ComparisonRequest) -> dict[
         "lineage": lineage_view(lineage),
         "counts": structure.counts(),
         "policy": req.policy,
-        "user_attestation": req.user_attestation,  # a comparison_report job reassesses with the same inputs
+        # ADR-020: what a comparison_report job needs to reassess with the same inputs and detect drift.
+        "record_version": COMPARISON_RECORD_VERSION,
+        "user_attestation": req.user_attestation,
+        "structure_sha256": structure_fingerprint(structure, structure_identity(req.model_a_id, req.model_b_id)),
     }
     row = store.insert_comparison(
         conn,
@@ -105,6 +114,7 @@ def comparison_view(row: dict[str, Any]) -> dict[str, Any]:
         "model_b_id": row["model_b_id"],
         "lineage": c["lineage"],
         "counts": c["counts"],
+        "policy": c.get("policy", "strict"),
         "created_at": row["created_at"],
     }
 
