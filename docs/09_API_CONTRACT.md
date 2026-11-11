@@ -25,6 +25,7 @@ This document adds behavioral rules the schema cannot express. `contracts/exampl
 | POST | `/comparisons` | compatibility + lineage assessment | optional `user_attestation` |
 | GET | `/comparisons/{id}` | summary with counts and `LineageAssessment` | |
 | GET | `/comparisons/{id}/entries` | matched / missing / tied / mismatched rows | paged, filter by status |
+| GET | `/projects/{id}/comparisons` | project's comparisons, newest first, with `report` summary and `latest_report_job_id` | ADR-020 (UI discovery after a reload) |
 | GET | `/comparisons/{id}/report` | change report of the latest completed `comparison_report` job | ADR-020; 404 until one completed |
 | GET/POST | `/projects/{id}/adapters` | list / import PEFT adapter | per-module mapping, native scale, support status |
 | GET/POST | `/projects/{id}/bookmarks` | saved views | typed `SavedView` |

@@ -389,6 +389,28 @@ def get_comparison_report(conn: sqlite3.Connection, comparison_id: str) -> dict[
     return None if r is None else dict(r)
 
 
+def list_comparisons(conn: sqlite3.Connection, project_id: str) -> list[dict[str, Any]]:
+    rows = conn.execute("SELECT * FROM comparisons WHERE project_id = ? ORDER BY created_at DESC, rowid DESC",
+                        (project_id,))  # fmt: skip
+    return [_row(r, ("compatibility_json",)) for r in rows]  # type: ignore[misc]
+
+
+def comparison_report_summary(conn: sqlite3.Connection, comparison_id: str) -> dict[str, Any] | None:
+    """The stored report's metadata, without its JSON body."""
+    r = conn.execute("SELECT job_id, complete, consistency, created_at FROM comparison_reports WHERE comparison_id = ?",
+                     (comparison_id,)).fetchone()  # fmt: skip
+    return None if r is None else {"job_id": r["job_id"], "complete": bool(r["complete"]),
+                                   "consistency": r["consistency"], "created_at": r["created_at"]}  # fmt: skip
+
+
+def latest_report_job_id(conn: sqlite3.Connection, comparison_id: str) -> str | None:
+    """The most recently submitted comparison_report job of the comparison, in any state."""
+    r = conn.execute("SELECT id FROM jobs WHERE kind = 'comparison_report' AND "
+                     "json_extract(spec_json, '$.comparison_id') = ? ORDER BY created_at DESC, rowid DESC LIMIT 1",
+                     (comparison_id,)).fetchone()  # fmt: skip
+    return None if r is None else str(r["id"])
+
+
 def comparison_entry_stats(conn: sqlite3.Connection, comparison_id: str, model_a_id: str, model_b_id: str
                            ) -> tuple[int, int]:  # fmt: skip
     """(number of entries, tensor bytes of both sides of every analyzable entry), computed in SQL so no entry list

@@ -105,8 +105,13 @@ def create_comparison(conn: sqlite3.Connection, req: ComparisonRequest) -> dict[
     return comparison_view(row)
 
 
-def comparison_view(row: dict[str, Any]) -> dict[str, Any]:
+def comparison_view(row: dict[str, Any], conn: sqlite3.Connection | None = None) -> dict[str, Any]:
+    """The contract `Comparison`; with `conn`, also its stored report summary and latest report job (ADR-020)."""
     c = row["compatibility_json"]
+    extra: dict[str, Any] = {"report": None, "latest_report_job_id": None}
+    if conn is not None:
+        extra = {"report": store.comparison_report_summary(conn, row["id"]),
+                 "latest_report_job_id": store.latest_report_job_id(conn, row["id"])}  # fmt: skip
     return {
         "id": row["id"],
         "project_id": row["project_id"],
@@ -115,6 +120,7 @@ def comparison_view(row: dict[str, Any]) -> dict[str, Any]:
         "lineage": c["lineage"],
         "counts": c["counts"],
         "policy": c.get("policy", "strict"),
+        **extra,
         "created_at": row["created_at"],
     }
 

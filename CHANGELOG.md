@@ -6,6 +6,7 @@ Additive API extension approved by the project owner (ADR-020 change-control bas
 
 - **New job kind `comparison_report`** (`POST /jobs` with `comparison_id`): a comparison's change report computed by `change_report.pair_report`, the code behind `weightlab diff`, so values, rankings, rollups, caveats and completeness are identical to the CLI. `JobResult` `{kind, comparison_id, complete, published}`.
 - **New route `GET /comparisons/{comparison_id}/report`**: the stored snapshot (paths redacted) with `complete`, `consistency`, `created_at` and `current_model_status`.
+- **New route `GET /projects/{project_id}/comparisons`** (newest first); `Comparison` gains `policy`, `report` (summary) and `latest_report_job_id`.
 - **Atomic publication**: the report is written in the transaction that marks its job `completed` (new job-runner commit hook); cancellation is linearized on the runner lock; failed, canceled, interrupted and crashed jobs never publish.
 - **Ordering**: reports are replaced only by later-submitted jobs (`job_seq`), regardless of finishing order.
 - **Cancellable hashing**: `Checkpoint.hash_tick` lets jobs check cancellation and wall time per hashed chunk (lineage, attestation, `verified`, every shard).

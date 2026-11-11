@@ -70,6 +70,7 @@ IMPLEMENTED: frozenset[tuple[str, str]] = frozenset(
         ("get", "/comparisons/{comparison_id}"),
         ("get", "/comparisons/{comparison_id}/entries"),
         ("get", "/comparisons/{comparison_id}/report"),
+        ("get", "/projects/{project_id}/comparisons"),
         ("get", "/projects/{project_id}/adapters"),
         ("post", "/projects/{project_id}/adapters"),
         ("get", "/projects/{project_id}/bookmarks"),
@@ -382,7 +383,7 @@ def create_app(config: ServerConfig, database: Database | None = None, assets: d
     @app.get(f"{p}/comparisons/{{comparison_id}}")
     def get_comparison(comparison_id: IdPath) -> JSONResponse:
         with db.session() as conn:
-            return _json(relations.comparison_view(_comparison(conn, comparison_id)))
+            return _json(relations.comparison_view(_comparison(conn, comparison_id), conn))
 
     @app.get(f"{p}/comparisons/{{comparison_id}}/entries")
     def list_entries(
@@ -398,6 +399,12 @@ def create_app(config: ServerConfig, database: Database | None = None, assets: d
             _comparison(conn, comparison_id)
             total, rows = store.list_entries(conn, comparison_id, status or [], limit, offset)
             return _json({"total": total, "items": [relations.entry_view(r) for r in rows]})
+
+    @app.get(f"{p}/projects/{{project_id}}/comparisons")
+    def list_comparisons(project_id: IdPath) -> JSONResponse:
+        with db.session() as conn:
+            _project(conn, project_id)
+            return _json([relations.comparison_view(r, conn) for r in store.list_comparisons(conn, project_id)])
 
     @app.get(f"{p}/comparisons/{{comparison_id}}/report")
     def get_report(comparison_id: IdPath) -> Response:

@@ -590,6 +590,23 @@ components:
           description: >-
             0.4.0. strict - comparison reports for Class V and L only. descriptive_only - the user acknowledged that
             Class S/X results are descriptive inspection of possibly unaligned coordinates (FR-035).
+        report:
+          description: 0.4.0. Metadata of the stored report (GET /comparisons/{id}/report), null when none.
+          oneOf:
+          - {type: 'null'}
+          - type: object
+            additionalProperties: false
+            required: [job_id, complete, consistency, created_at]
+            properties:
+              job_id: {$ref: '#/components/schemas/Id'}
+              complete: {type: boolean}
+              consistency: {type: string, enum: [best_effort, verified]}
+              created_at: {type: string, format: date-time}
+        latest_report_job_id:
+          description: 0.4.0. The most recently submitted comparison_report job (any state; GET /jobs/{id}), or null.
+          oneOf:
+          - {type: 'null'}
+          - {$ref: '#/components/schemas/Id'}
         created_at: {type: string, format: date-time}
     ComparisonEntry:
       type: object
@@ -1199,6 +1216,18 @@ paths:
                 required: [path]
                 properties:
                   path: {oneOf: [{type: 'null'}, {$ref: '#/components/schemas/LocalPath'}]}
+        '404': {$ref: '#/components/responses/ErrorResponse'}
+  /projects/{project_id}/comparisons:
+    parameters:
+    - $ref: '#/components/parameters/ProjectId'
+    get:
+      summary: List the project's comparisons, newest first, with report and latest report job (0.4.0, ADR-020)
+      responses:
+        '200':
+          description: Comparison list
+          content:
+            application/json:
+              schema: {type: array, maxItems: 10000, items: {$ref: '#/components/schemas/Comparison'}}
         '404': {$ref: '#/components/responses/ErrorResponse'}
   /projects/{project_id}/adapters:
     parameters:

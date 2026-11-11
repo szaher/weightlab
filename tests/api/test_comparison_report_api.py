@@ -566,3 +566,26 @@ def test_failed_or_canceled_newer_job_keeps_the_older_report(
     assert end["state"] == ("failed" if how == "fail" else "canceled")
     assert end["result"] is None
     assert report(api2, cid)["job_id"] == older
+
+
+# -- discovery after a browser refresh -------------------------------------------------------------------
+def test_project_comparisons_list_reports_and_latest_job(api: Api, project: str, models_dir: Path) -> None:
+    first = compare(api, project, models_dir, BASE, FT)
+    assert first["report"] is None
+    assert first["latest_report_job_id"] is None
+    second = api.post("/comparisons", json_body={"project_id": project, "model_a_id": first["model_b_id"],
+                                                  "model_b_id": first["model_a_id"]}, expect=201)  # fmt: skip
+    listed = api.get("/projects/{project_id}/comparisons", project_id=project, expect=200)
+    assert [c["id"] for c in listed] == [second["id"], first["id"]]  # newest first
+    done = finish(api, submit(api, first["id"])["job_id"])
+    got = api.get("/comparisons/{comparison_id}", comparison_id=first["id"], expect=200)
+    assert got["latest_report_job_id"] == done["job_id"]
+    assert got["report"] == {"job_id": done["job_id"], "complete": True, "consistency": "best_effort",
+                             "created_at": report(api, first["id"])["created_at"]}  # fmt: skip
+    failed_job = submit(api, first["id"], budget={**BUDGET, "max_wall_seconds": 1})
+    listed = {c["id"]: c for c in api.get("/projects/{project_id}/comparisons", project_id=project, expect=200)}
+    assert listed[first["id"]]["latest_report_job_id"] == failed_job["job_id"]  # the newest job, in any state
+    assert listed[second["id"]]["report"] is None
+    other = api.post("/projects", json_body={"name": "other"}, expect=201)["id"]
+    assert api.get("/projects/{project_id}/comparisons", project_id=other, expect=200) == []
+    api.get("/projects/{project_id}/comparisons", project_id="prj_doesnotexist", expect=404)
