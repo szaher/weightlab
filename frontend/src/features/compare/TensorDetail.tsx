@@ -42,10 +42,19 @@ export function TensorDetail({ row, modelA, modelB, onInspect, onClose }: Props)
     setError(null);
     try {
       // The catalog search is a substring match; the exact raw key picks the one tensor (keys are unique per model).
-      const page = await api.listTensors(modelId, { ...DEFAULT_QUERY, q: row.key.slice(0, MAX_SEARCH), limit: 200 });
-      const t = page.items.find((x) => x.raw_key === row.key);
-      if (!t) throw new ApiRequestError({ status: 404, code: "NOT_FOUND", message: `“${row.key}” is not in this model's catalog.` });
-      onInspect(modelId, t.id);
+      const query = row.key.slice(0, MAX_SEARCH);
+      let offset = 0;
+      for (;;) {
+        const page = await api.listTensors(modelId, { ...DEFAULT_QUERY, q: query, limit: 200, offset });
+        const t = page.items.find((x) => x.raw_key === row.key);
+        if (t) {
+          onInspect(modelId, t.id);
+          return;
+        }
+        offset += page.items.length;
+        if (!page.items.length || offset >= page.total) break;
+      }
+      throw new ApiRequestError({ status: 404, code: "NOT_FOUND", message: `“${row.key}” is not in this model's catalog.` });
     } catch (e) {
       setError(e);
     } finally {
