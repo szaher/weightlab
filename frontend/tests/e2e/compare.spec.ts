@@ -134,7 +134,13 @@ test("import, compare, analyze, visualize, drill down; parity with the CLI; S po
   await expect(detail.getByRole("button", { name: /Delta heatmap/ })).toBeDisabled();
   await shot(page, "compare-04-tensor-detail");
   await detail.getByRole("button", { name: /Inspect in B/ }).click();
-  await expect(page.getByRole("heading", { name: top })).toBeVisible();
+  // Explore opens on checkpoint B with exactly this tensor in the inspector (the existing single-tensor views).
+  await expect(page.getByRole("navigation", { name: "Main" }).getByRole("button", { name: "Explore" })).toHaveAttribute("aria-current", "page");
+  await expect(page.getByLabel("Model", { exact: true })).toHaveValue(/.+/);
+  await expect(page.getByLabel("Model", { exact: true }).locator("option:checked")).toHaveText("tiny_ft.safetensors");
+  const inspector = page.getByRole("complementary", { name: "Tensor details" });
+  await expect(inspector.getByText(top, { exact: true })).toBeVisible();
+  await expect(inspector.getByRole("tab", { name: "Overview" })).toBeVisible();
   await shot(page, "compare-05-inspect-in-explore");
 
   // Refresh: the stored report comes back without re-running.
