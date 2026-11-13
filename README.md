@@ -18,11 +18,11 @@
 
 You fine-tuned a model. **What changed inside its weights?** Which matrices moved the most? Can you inspect individual parameter values without loading the whole checkpoint into memory?
 
-**WeightLab is a local-first, CPU-only toolkit for answering those questions.** It reads SafeTensors checkpoints in place and offers a browser-based tensor explorer alongside a Python library and command-line checkpoint/LoRA change reports.
+**WeightLab is a local-first, CPU-only toolkit for answering those questions.** It reads SafeTensors checkpoints in place and offers a browser-based tensor explorer and checkpoint **Compare** dashboard, alongside a Python library and command-line checkpoint/LoRA change reports.
 
 - **See the structure:** browse tensor metadata and explore entire matrices as multiresolution heatmaps.
 - **Get the actual numbers:** select a region to inspect and copy lossless source values.
-- **Measure the change:** rank checkpoint differences by tensor, layer, and role, with reproducible JSON, CSV, and Markdown reports.
+- **Measure the change:** see where two checkpoints differ in a layer × role grid, rank differences by tensor, layer, and role, and export reproducible JSON, CSV, and Markdown reports from the CLI.
 - **Control the cost:** use bounded reads, cancellable pyramid builds, caching, and clearly labeled sampled previews.
 - **Keep weights local:** no account, GPU, model inference runtime, or hosted backend required.
 
@@ -43,6 +43,21 @@ These are **real screenshots** captured by browser tests on pinned [Qwen2.5 chec
 </tr>
 </table>
 
+### Compare two checkpoints (new in 0.1.0a2)
+
+Captured by the Compare browser tests on the bundled fixtures ([evidence and reproduction](evidence/alpha2-compare/README.md)). The dashboard numbers equal `weightlab diff` on the same files.
+
+<table>
+<tr>
+<td width="50%"><a href="evidence/alpha2-compare/screenshots/compare-01-dashboard.png"><img src="evidence/alpha2-compare/screenshots/compare-01-dashboard.png" width="100%" alt="Compare dashboard: compatibility header, layer by role change grid and tensor rankings"/></a><br/><b>Compatibility first, then where it changed</b><br/>Class V/L/S/X verdict and B − A orientation above a layer × role grid and sortable rankings.</td>
+<td width="50%"><a href="evidence/alpha2-compare/screenshots/compare-04-tensor-detail.png"><img src="evidence/alpha2-compare/screenshots/compare-04-tensor-detail.png" width="100%" alt="Tensor drill-down with every metric, its method and numeric precision"/></a><br/><b>Tensor drill-down</b><br/>Every metric with its method and precision; open the tensor in the explorer for A or B.</td>
+</tr>
+<tr>
+<td width="50%"><a href="evidence/alpha2-compare/screenshots/compare-06-class-s-incomplete.png"><img src="evidence/alpha2-compare/screenshots/compare-06-class-s-incomplete.png" width="100%" alt="Class S warning and an incomplete report with withheld values labelled"/></a><br/><b>Honest about limits</b><br/>No-lineage warnings, incomplete reports, withheld values labelled, never shown as zero.</td>
+<td width="50%"><a href="evidence/alpha2-compare/screenshots/compare-07-files-changed.png"><img src="evidence/alpha2-compare/screenshots/compare-07-files-changed.png" width="100%" alt="Warning that a model file changed after the report was created"/></a><br/><b>Snapshot freshness</b><br/>Reports are snapshots; changed files are flagged and re-runs refused until re-imported.</td>
+</tr>
+</table>
+
 [Workspace](evidence/phase1-real-models/screenshots/real-01-workspace.png) · [Selecting a region](evidence/phase1-real-models/screenshots/real-03-attention-selected.png) · [Pyramid build](evidence/phase1-real-models/screenshots/real-05-embedding-building.png) · [ROI screenshots](evidence/phase1-roi/screenshots/) · [More UI screenshots](evidence/phase1-ui/screenshots/)
 
 ## What works today
@@ -54,11 +69,12 @@ These are **real screenshots** captured by browser tests on pinned [Qwen2.5 chec
 | Exact ROI heatmap and accessible per-cell values table | Yes | Browser app / Python |
 | Exact tiles, streamed pyramids, labeled row-sampled previews, cancellable jobs | Yes | Browser app / local API |
 | Base vs. fine-tuned checkpoint difference reports | Yes | CLI / Python |
+| Compare dashboard: compatibility verdict, layer × role change grid, sortable tensor/layer/role rankings, tensor drill-down, cancellable report jobs | Yes (0.1.0a2) | Browser app / local API |
 | Supported PEFT LoRA effective-delta analysis | Yes | CLI / Python |
-| Graphical checkpoint-delta overlays, Compare and Adapters screens | **Not yet** | Planned |
+| Graphical delta heatmaps (B − A), LoRA overlays, Adapters screen | **Not yet** | Planned |
 | Whole-tensor stats jobs, image/report export from UI, inference, activations, causal evaluations | **Not yet** | Planned |
 
-**Important distinction:** You can compare checkpoints and supported LoRA adapters **today via the CLI**. The current UI visualizes *individual checkpoint tensors*, not a side-by-side checkpoint comparison.
+**Important distinction:** The **Compare** screen shows *summary metrics* of B − A per tensor, layer and role (the same numbers as `weightlab diff`); it does not yet draw element-wise delta heatmaps. Supported LoRA adapter analysis is **CLI / Python only**.
 
 ## Quickstart
 
@@ -86,6 +102,7 @@ WeightLab serves the browser UI and local FastAPI backend on the same loopback o
 3. Open **Explore**, select a 2-D weight tensor, and inspect its shape, dtype, and metadata.
 4. Open **Overview** to pan, zoom, change aggregation (mean, mean-absolute, RMS, min, max), and select a region.
 5. Choose **Inspect exact values** to see the original source values in the Exact ROI heatmap or values table.
+6. Import `examples/fixtures/tiny_ft.safetensors` too, open **Compare**, choose `tiny_base` as A (base) and `tiny_ft` as B (derived), create the comparison and click **Run analysis**.
 
 Print the fixture's absolute paths if needed:
 
@@ -103,11 +120,11 @@ uv tool install dist/weightlab-*.whl
 weightlab start
 ```
 
-The wheel includes the compiled web UI, so **Node.js is only needed to rebuild it**. WeightLab **`0.1.0a1` (alpha)** is being prepared for PyPI. After the first release is published, install with `uv tool install "weightlab==0.1.0a1"` or `python -m pip install "weightlab==0.1.0a1"`. Until then, use the source or local wheel instructions above.
+The wheel includes the compiled web UI, so **Node.js is only needed to rebuild it**. `0.1.0a1` is on PyPI (`uv tool install "weightlab==0.1.0a1"`). This branch is **`0.1.0a2` (Alpha 2 — Visual Checkpoint Comparison)**; once it is published, install it with `uv tool install "weightlab==0.1.0a2"` or `python -m pip install "weightlab==0.1.0a2"`. Until then, use the source or local wheel instructions above.
 
 ## Compare checkpoints
 
-Use `weightlab diff` to measure numerical changes between two checkpoints, including compatible sharded SafeTensors directories:
+In the browser, use the **Compare** screen (see [Your first five minutes](#your-first-five-minutes)). From the command line, use `weightlab diff` to measure numerical changes between two checkpoints, including compatible sharded SafeTensors directories:
 
 ```bash
 uv run weightlab diff \
@@ -205,7 +222,8 @@ Reproduce the measurements and inspect limitations in [real model evidence](evid
 - **Format:** SafeTensors (single files or sharded indexes). No GGUF, PyTorch `.bin`, or general quantized checkpoint format support.
 - **Overview:** whole-tensor heatmap aggregation is not a lossless display of every original scalar. Use **Exact ROI** for actual values.
 - **Comparison:** numerical deltas are not causal evidence of improved behavior; independent checkpoints may be poorly aligned even when shapes match.
-- **UI:** Compare/Adapters pages, graphical delta/LoRA overlays, stats jobs, and UI export are not built.
+- **Compare UI:** summary metrics only; no element-wise delta heatmap or LoRA overlay. Reports are limited to 32,768 tensor entries (no pagination) and to the job's memory and time budget. Comparisons created before 0.1.0a2 must be recreated before they can be analysed. Very wide grids scroll rather than zoom.
+- **UI:** Adapters page, graphical delta/LoRA overlays, stats jobs, and UI export are not built.
 - **Experimental features:** inference, activations, transfer experiments, and evaluation are not present.
 - **Maturity:** pre-release; field-tested practitioner feedback, non-Chromium browser coverage, and the intended 8 GiB laptop target remain unverified.
 

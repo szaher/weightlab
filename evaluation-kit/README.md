@@ -63,7 +63,7 @@ In a clone, prefix the commands below with `uv run`. The examples live in `evalu
 Check the install:
 
 ```bash
-weightlab --version            # weightlab 0.1.0a1
+weightlab --version            # weightlab 0.1.0a2
 weightlab diff --help
 ```
 

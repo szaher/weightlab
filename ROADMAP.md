@@ -1,6 +1,6 @@
 # WeightLab — Visualization Roadmap
 
-> **Status: proposed, not implemented.** This is the *living feature roadmap* for plots and analysis views beyond WeightLab's existing single-tensor heatmaps. It defines intended user outcomes, sequencing and acceptance criteria; it does **not** promise ship dates or imply features have shipped.
+> **Status: P0.1 shipped in 0.1.0a2; everything else proposed, not implemented.** This is the *living feature roadmap* for plots and analysis views beyond WeightLab's existing single-tensor heatmaps. It defines intended user outcomes, sequencing and acceptance criteria; it does **not** promise ship dates or imply features have shipped.
 >
 > [What works today](README.md#what-works-today) · [Frozen engineering delivery baseline](docs/14_DELIVERY_ROADMAP.md) · [Numerical methods](docs/05_NUMERICAL_METHODS.md) · [Performance budget](docs/11_PERFORMANCE_BUDGET.md)
 
@@ -15,13 +15,13 @@ Answer three progressively deeper questions:
 3. **How do parameters evolve or organize?** Trends across training snapshots and structure in embeddings or matrix spectra.
 4. **How does the model architecture relate to those changes?** Map supported Transformer components to checkpoint tensors; optionally investigate residual-stream behaviour using measured activations and controlled experiments.
 
-Existing features: SafeTensors metadata/catalog, whole-tensor **heatmap overview**, exact ROI inspection, resource-bounded tile/pyramid engine, and **CLI/Python** checkpoint and supported LoRA change reports. **A graphical Compare/Adapters workflow does not exist yet.**
+Existing features: SafeTensors metadata/catalog, whole-tensor **heatmap overview**, exact ROI inspection, resource-bounded tile/pyramid engine, **CLI/Python** checkpoint and supported LoRA change reports, and (0.1.0a2) the **Compare** dashboard: compatibility verdict, layer × role change grid, rankings and tensor drill-down. **Element-wise delta heatmaps and an Adapters workflow do not exist yet.**
 
 ## Proposed delivery order
 
 | Order | Visualization | User question | Prerequisite | Status |
 | --- | --- | --- | --- | --- |
-| **P0 / 1** | **Layer / role / tensor change rankings** (horizontal bars, sortable table) | Which layers or components changed the most? | Existing `weightlab diff` report + new Compare API/UI | **In progress** (API: ADR-020; UI planned) |
+| **P0 / 1** | **Layer / role / tensor change rankings** (horizontal bars, sortable table) | Which layers or components changed the most? | Existing `weightlab diff` report + new Compare API/UI | **Shipped in 0.1.0a2** (API: ADR-020; UI: Compare screen) |
 | **P0 / 2** | **Weight distribution histograms** (single tensor; optional A/B overlay) | Are weights sparse, heavy-tailed, shifted or anomalous? | New bounded scan / stats service | **Planned** |
 | **P1 / 3** | **Delta heatmaps** (B − A; optionally supported LoRA effective delta) | Where in a matrix did values change? | Compatibility and lineage checks; derived tile/ROI source | **Planned** |
 | **P1 / 4** | **Before/after scatter or 2-D density** | Is change concentrated around unchanged values? | Matched A/B chunks; bounded points or binned density | **Planned** |
@@ -40,7 +40,7 @@ flowchart LR
     B --> D[Tensor catalog]
     D --> E[Heatmap + exact ROI / shipped]
     D --> F[Weight histogram / P0]
-    C --> G[Layer and role rankings / P0]
+    C --> G[Layer and role rankings / shipped]
     G --> H[Tensor-level delta heatmap / P1]
     G --> I[Before-after density / P1]
     D --> J[Spectral diagnostics / P2]
@@ -214,4 +214,4 @@ Every new visualization must satisfy all of these before being marked **Shipped*
 
 This roadmap records *potential implementation work* and user value, **not new requirements silently added to the frozen 1.2-final specification**. Any new API schema, numeric formula, compatibility rule, persistent data shape or budget must go through the appropriate versioned ADR/contract/fixtures/tests/change-log process before implementation (see [ADR-019](docs/16_DECISIONS_RISKS_AND_OPEN_QUESTIONS.md) and [design change control](docs/16_DECISIONS_RISKS_AND_OPEN_QUESTIONS.md#5-change-control)).
 
-**Next action:** P0.1's API is defined and implemented ([ADR-020](docs/16_DECISIONS_RISKS_AND_OPEN_QUESTIONS.md): `comparison_report` job and `GET /comparisons/{id}/report`, numerically identical to `weightlab diff`). Next, build the Compare screen on it: compatibility verdict first, a layer × role grid coloured by the selected metric, sortable bars and an accessible table, with drill-down to the existing tensor views. Then move to histogram scans.
+**Next action:** P0.1 shipped in 0.1.0a2 ([ADR-020](docs/16_DECISIONS_RISKS_AND_OPEN_QUESTIONS.md) report API plus the Compare screen; evidence in [evidence/alpha2-compare](evidence/alpha2-compare/README.md)). Next is **P0.2, weight distribution histograms**: a bounded, cancellable scan service with its own ADR and contract revision, then the single-tensor histogram view with an optional A/B overlay. P1.1 delta heatmaps follow, and the Compare drill-down's disabled "Delta heatmap" action becomes their entry point.
