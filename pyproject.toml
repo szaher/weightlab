@@ -1,6 +1,6 @@
 [project]
 name = "weightlab"
-version = "0.1.0a1"
+version = "0.1.0a2"
 description = "Explore LLM weights locally: heatmaps, exact tensor inspection, checkpoint and LoRA change reports."
 readme = "README.md"
 requires-python = ">=3.12"

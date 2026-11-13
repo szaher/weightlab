@@ -1,6 +1,13 @@
 # Changelog
 
-## Unreleased — Compare dashboard (UI)
+## 0.1.0a2 — Alpha 2: Visual Checkpoint Comparison (not yet published)
+
+Package version `0.1.0a2`; API contract `0.4.0-spec-1.2-final-adr-020`; database schema version 3 (migration 0003, applied automatically to 0.1.0a1 databases). Release notes: [docs/releases/0.1.0a2.md](docs/releases/0.1.0a2.md). The PyPI publication date is recorded here when the maintainer publishes it.
+
+- **Real-checkpoint evidence:** Compare report jobs on the pinned Qwen2.5-0.5B and Qwen2.5-Math-1.5B base/Instruct pairs equal `weightlab diff` exactly, best effort and verified; server peak RSS at most 98.6 MiB on a 36 GiB machine ([evidence/alpha2-compare](evidence/alpha2-compare/README.md#real-checkpoints), `measure_real_compare.py`). The 8 GiB laptop target is still unverified.
+- README, ROADMAP (P0.1 shipped) and RELEASING updated for 0.1.0a2.
+
+### Compare dashboard (UI)
 
 - **Compare screen** (side navigation): create a comparison of two imported checkpoints (policy and optional attestation), run the analysis (best effort or verified), cancel and re-run; the job is rediscovered after a reload.
 - **Compatibility first**: base/derived, orientation B − A, class V/L/S/X with specific warnings for S and X, lineage evidence, counts, complete/incomplete, consistency, report time, files-changed-since-report warning, and the interpretation caveat.
@@ -9,7 +16,7 @@
 - **Tensor drill-down**: metrics with method and precision, counts and non-finite values, caveats, and "Inspect in A/B" opening the existing explorer. The delta heatmap is shown as not yet available.
 - Evidence: `evidence/alpha2-compare/`.
 
-## Unreleased — contract 0.4.0 (ADR-020)
+### Contract 0.4.0 (ADR-020)
 
 Additive API extension approved by the project owner (ADR-020 change-control basis); the 1.2-final baseline stays frozen at tag `spec-v1.2-final` (contract 0.3.0).
 
