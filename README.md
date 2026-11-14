@@ -120,7 +120,7 @@ uv tool install dist/weightlab-*.whl
 weightlab start
 ```
 
-The wheel includes the compiled web UI, so **Node.js is only needed to rebuild it**. `0.1.0a1` is on PyPI (`uv tool install "weightlab==0.1.0a1"`). This branch is **`0.1.0a2` (Alpha 2 — Visual Checkpoint Comparison)**; once it is published, install it with `uv tool install "weightlab==0.1.0a2"` or `python -m pip install "weightlab==0.1.0a2"`. Until then, use the source or local wheel instructions above.
+The wheel includes the compiled web UI, so **Node.js is only needed to rebuild it**. The current release is **`0.1.0a2` (Alpha 2 — Visual Checkpoint Comparison)** on PyPI: `uv tool install "weightlab==0.1.0a2"` or `python -m pip install "weightlab==0.1.0a2"`. Upgrade an existing install with `uv tool install --force "weightlab==0.1.0a2"`.
 
 ## Compare checkpoints
 

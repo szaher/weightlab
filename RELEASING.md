@@ -1,6 +1,6 @@
 # Releasing WeightLab to PyPI
 
-This guide describes the current alpha, **`0.1.0a2` (Alpha 2 — Visual Checkpoint Comparison)**. `0.1.0a1` is already on PyPI and immutable. Publishing is **not** triggered by merging a PR; it requires an explicit GitHub **pre-release**, created by the maintainer. The per-release checklist is in [docs/releases/0.1.0a2.md](docs/releases/0.1.0a2.md#release-checklist).
+This guide describes the current alpha, **`0.1.0a2` (Alpha 2 — Visual Checkpoint Comparison)**, published on PyPI on 2026-11-14. `0.1.0a1` and `0.1.0a2` are on PyPI and immutable. Publishing is **not** triggered by merging a PR; it requires an explicit GitHub **pre-release**, created by the maintainer. The per-release checklist is in [docs/releases/0.1.0a2.md](docs/releases/0.1.0a2.md#release-checklist).
 
 ## 1. Configure PyPI (repository owner, done for 0.1.0a1)
 
