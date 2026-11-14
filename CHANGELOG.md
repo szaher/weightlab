@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.1.0a2 — Alpha 2: Visual Checkpoint Comparison (not yet published)
+## 0.1.0a2 — Alpha 2: Visual Checkpoint Comparison (2026-11-14)
 
 Package version `0.1.0a2`; API contract `0.4.0-spec-1.2-final-adr-020`; database schema version 3 (migration 0003, applied automatically to 0.1.0a1 databases). Release notes: [docs/releases/0.1.0a2.md](docs/releases/0.1.0a2.md). The PyPI publication date is recorded here when the maintainer publishes it.
 
