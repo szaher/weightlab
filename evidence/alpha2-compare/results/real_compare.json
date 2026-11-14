@@ -1,0 +1,169 @@
+{
+  "machine": {
+    "platform": "macOS-26.0-arm64-arm-64bit",
+    "processor": "arm",
+    "cpu_count": 12,
+    "ram_gib": 36.0,
+    "python": "3.12.11"
+  },
+  "budget": {
+    "max_working_set_mib": 1024,
+    "max_threads": 1,
+    "max_wall_seconds": 600
+  },
+  "pairs": [
+    {
+      "a": "Qwen2.5-0.5B",
+      "b": "Qwen2.5-0.5B-Instruct",
+      "class": "S",
+      "counts": {
+        "dtype_mismatch": 0,
+        "matched": 290,
+        "missing_in_a": 0,
+        "missing_in_b": 0,
+        "shape_mismatch": 0,
+        "tied": 0
+      },
+      "strict_policy": {
+        "create_status": 201,
+        "report_job": {
+          "status": 409,
+          "code": "LINEAGE_UNVERIFIED"
+        }
+      },
+      "runs": [
+        {
+          "consistency": "best_effort",
+          "state": "completed",
+          "published": true,
+          "complete": true,
+          "wall_seconds": 5.31,
+          "bytes_scanned": 1976131072,
+          "estimated_bytes": 3952326720,
+          "rss_before_mib": 63.3,
+          "peak_rss_mib": 92.5,
+          "report_json_bytes": 901704
+        },
+        {
+          "consistency": "verified",
+          "state": "completed",
+          "published": true,
+          "complete": true,
+          "wall_seconds": 6.24,
+          "bytes_scanned": 5928522368,
+          "estimated_bytes": 5928522368,
+          "rss_before_mib": 92.6,
+          "peak_rss_mib": 98.4,
+          "report_json_bytes": 901815
+        }
+      ],
+      "cli_diff": {
+        "exit": 0,
+        "wall_seconds": 4.21
+      },
+      "parity_with_weightlab_diff": "identical",
+      "tensors_compared": 290,
+      "top5_relative_l2": [
+        {
+          "key": "model.embed_tokens.weight",
+          "relative_l2": 0.11155847765111025
+        },
+        {
+          "key": "model.layers.22.self_attn.q_proj.weight",
+          "relative_l2": 0.1050723352867596
+        },
+        {
+          "key": "model.layers.0.self_attn.o_proj.weight",
+          "relative_l2": 0.10411725845741861
+        },
+        {
+          "key": "model.layers.23.self_attn.q_proj.weight",
+          "relative_l2": 0.1026699076464775
+        },
+        {
+          "key": "model.layers.17.self_attn.q_proj.weight",
+          "relative_l2": 0.09870186309411937
+        }
+      ]
+    },
+    {
+      "a": "Qwen2.5-Math-1.5B",
+      "b": "Qwen2.5-Math-1.5B-Instruct",
+      "class": "S",
+      "counts": {
+        "dtype_mismatch": 0,
+        "matched": 338,
+        "missing_in_a": 0,
+        "missing_in_b": 0,
+        "shape_mismatch": 0,
+        "tied": 0
+      },
+      "strict_policy": {
+        "create_status": 201,
+        "report_job": {
+          "status": 409,
+          "code": "LINEAGE_UNVERIFIED"
+        }
+      },
+      "runs": [
+        {
+          "consistency": "best_effort",
+          "state": "completed",
+          "published": true,
+          "complete": true,
+          "wall_seconds": 14.15,
+          "bytes_scanned": 6174857216,
+          "estimated_bytes": 12349791504,
+          "rss_before_mib": 98.6,
+          "peak_rss_mib": 98.6,
+          "report_json_bytes": 1053743
+        },
+        {
+          "consistency": "verified",
+          "state": "completed",
+          "published": true,
+          "complete": true,
+          "wall_seconds": 20.92,
+          "bytes_scanned": 18524725792,
+          "estimated_bytes": 18524725792,
+          "rss_before_mib": 92.7,
+          "peak_rss_mib": 98.0,
+          "report_json_bytes": 1053854
+        }
+      ],
+      "cli_diff": {
+        "exit": 0,
+        "wall_seconds": 15.07
+      },
+      "parity_with_weightlab_diff": "identical",
+      "tensors_compared": 338,
+      "top5_relative_l2": [
+        {
+          "key": "model.embed_tokens.weight",
+          "relative_l2": 0.6212129393705859
+        },
+        {
+          "key": "model.layers.27.mlp.down_proj.weight",
+          "relative_l2": 0.182783732864102
+        },
+        {
+          "key": "model.layers.27.self_attn.k_proj.weight",
+          "relative_l2": 0.17824518758274596
+        },
+        {
+          "key": "model.layers.0.self_attn.v_proj.weight",
+          "relative_l2": 0.17124827430066955
+        },
+        {
+          "key": "model.layers.26.mlp.down_proj.weight",
+          "relative_l2": 0.16987052500496955
+        }
+      ]
+    }
+  ],
+  "idle_rss_mib": 61.7,
+  "weightlab_version": "0.1.0a2",
+  "peak_rss_mib_overall": 98.6,
+  "failures": [],
+  "verdict": "PASS"
+}

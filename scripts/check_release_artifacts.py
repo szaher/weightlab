@@ -2,7 +2,7 @@
 """Check PyPI release artifacts without importing the package or downloading dependencies.
 
 Usage:
-    python scripts/check_release_artifacts.py --dist dist [--tag v0.1.0a1]
+    python scripts/check_release_artifacts.py --dist dist [--tag v0.1.0a2]
 """
 
 from __future__ import annotations

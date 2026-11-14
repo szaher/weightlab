@@ -8,7 +8,7 @@ from weightlab.core.errors import ErrorCode, WeightLabError
 from weightlab.formats.base import Consistency, TensorMeta
 from weightlab.formats.checkpoint import Checkpoint, open_checkpoint
 
-__version__ = "0.1.0a1"
+__version__ = "0.1.0a2"
 PARSER_VERSION = 1
 
 __all__ = [
