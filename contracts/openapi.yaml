@@ -1,10 +1,11 @@
 openapi: 3.1.0
 info:
   title: WeightLab Local API
-  version: 0.4.0-spec-1.2-final-adr-020
+  version: 0.5.0-spec-1.2-final-adr-021
   description: >-
     R1 API contract, frozen with blueprint 1.2-final; 0.4.0 adds the comparison_report job and
-    GET /comparisons/{comparison_id}/report (ADR-020, additive).
+    GET /comparisons/{comparison_id}/report (ADR-020, additive); 0.5.0 adds the tensor_histogram job (ADR-021,
+    additive).
     All request bodies are closed (additionalProperties false) and size-bounded. Every ID is an opaque
     server-issued string; a referenced object must belong to the same project as the request scope,
     otherwise 404 (no cross-project existence oracle). docs/09_API_CONTRACT.md is authoritative for
@@ -397,13 +398,17 @@ components:
       additionalProperties: false
       required: [kind, budget]
       properties:
-        kind: {type: string, enum: [tensor_stats, pyramid_build, compare_stats, file_hash, comparison_report]}
+        kind: {type: string, enum: [tensor_stats, pyramid_build, compare_stats, file_hash, comparison_report,
+                                    tensor_histogram]}
         source: {$ref: '#/components/schemas/Source'}
         view: {$ref: '#/components/schemas/View'}
         model_id: {$ref: '#/components/schemas/Id'}
         comparison_id:
           $ref: '#/components/schemas/Id'
           description: comparison_report only (ADR-020); the report covers every analyzable entry of the comparison.
+        histogram:
+          $ref: '#/components/schemas/HistogramOptions'
+          description: tensor_histogram only (ADR-021); defaults to 64 bins over [min, max].
         consistency:
           type: string
           enum: [best_effort, verified]
@@ -413,6 +418,9 @@ components:
       allOf:
       - if: {properties: {kind: {const: file_hash}}}
         then: {required: [model_id], not: {required: [source]}}
+      - if: {properties: {kind: {const: tensor_histogram}}}
+        then: {not: {anyOf: [{required: [view]}, {required: [model_id]}]}}
+        else: {not: {required: [histogram]}}
       - if: {properties: {kind: {const: comparison_report}}}
         then:
           required: [comparison_id]
@@ -420,6 +428,103 @@ components:
         else: {not: {required: [comparison_id]}}
       - if: {properties: {kind: {enum: [file_hash, comparison_report]}}}
         else: {required: [source]}
+    HistogramOptions:
+      description: >-
+        Binning of a tensor_histogram job (ADR-021). min_max bins [min, max] of the finite values and symmetric
+        bins [-m, m], m = max(|min|, |max|); both read the tensor twice. explicit bins [lo, hi] in one pass; finite
+        values outside it are counted in below / above, never dropped. lo <= hi, and integral lo / hi within
+        +-(2^53 - 1) for integer tensors, are checked at submission (422 VALIDATION_ERROR).
+      type: object
+      additionalProperties: false
+      properties:
+        bins: {type: integer, minimum: 1, maximum: 1024, default: 64}
+        range: {type: string, enum: [min_max, symmetric, explicit], default: min_max}
+        lo: {type: number, minimum: -1.7976931348623157e+308, maximum: 1.7976931348623157e+308}
+        hi: {type: number, minimum: -1.7976931348623157e+308, maximum: 1.7976931348623157e+308}
+      if: {required: [range], properties: {range: {const: explicit}}}
+      then: {required: [lo, hi]}
+      else: {not: {anyOf: [{required: [lo]}, {required: [hi]}]}}
+    HistogramValue:
+      description: A float64 value, or an integer; integers beyond +-(2^53 - 1) are decimal strings.
+      type: [number, string]
+      pattern: '^-?[0-9]{16,20}$'
+    TensorHistogram:
+      description: >-
+        Exact value histogram of one tensor (ADR-021; weightlab/analysis/histogram.py). Every element is counted;
+        NaN / +Inf / -Inf are counted and never binned; below + sum(bins.counts) + above = counts.finite. Float
+        bins: bin i holds edges[i] <= x < edges[i+1] and the last bin also holds edges[n]; edges are float64 and
+        define the bins, so ranges narrower than `bins` representable steps get fewer bins, and a constant tensor
+        has the single bin [v, v]. Integer bins are half-open with the last edge hi + 1. magnitude (float dtypes
+        only) buckets finite nonzero values by binary exponent e, 2^e <= |x| < 2^(e+1).
+      type: object
+      additionalProperties: false
+      required: [histogram_version, tensor_key, dtype, shape, coverage, value_domain, counts, min, max, bins,
+                 magnitude, method]
+      properties:
+        histogram_version: {const: 1}
+        tensor_key: {type: string, maxLength: 4096}
+        dtype: {type: string, maxLength: 8}
+        shape: {type: array, maxItems: 32, items: {$ref: '#/components/schemas/SafeInt'}}
+        coverage: {const: complete, description: Every element was read; no sampled histograms in 0.5.0.}
+        value_domain: {type: string, enum: [float, integer]}
+        counts:
+          type: object
+          additionalProperties: false
+          required: [elements, finite, zeros, negative_zeros, positives, negatives, nan, pos_inf, neg_inf]
+          properties:
+            elements: {$ref: '#/components/schemas/SafeInt'}
+            finite: {$ref: '#/components/schemas/SafeInt'}
+            zeros: {$ref: '#/components/schemas/SafeInt'}
+            negative_zeros: {$ref: '#/components/schemas/SafeInt', description: Subset of zeros (float dtypes).}
+            positives: {$ref: '#/components/schemas/SafeInt'}
+            negatives: {$ref: '#/components/schemas/SafeInt'}
+            nan: {$ref: '#/components/schemas/SafeInt'}
+            pos_inf: {$ref: '#/components/schemas/SafeInt'}
+            neg_inf: {$ref: '#/components/schemas/SafeInt'}
+        min:
+          description: Smallest finite value (-0.0 reported as 0.0); null without finite values.
+          oneOf: [{type: 'null'}, {$ref: '#/components/schemas/HistogramValue'}]
+        max:
+          oneOf: [{type: 'null'}, {$ref: '#/components/schemas/HistogramValue'}]
+        bins:
+          description: null when the range is min_max or symmetric and the tensor has no finite values.
+          oneOf:
+          - {type: 'null'}
+          - type: object
+            additionalProperties: false
+            required: [range, requested_bins, lo, hi, edges, counts, below, above, last_bin_closed, rule]
+            properties:
+              range: {type: string, enum: [min_max, symmetric, explicit]}
+              requested_bins: {type: integer, minimum: 1, maximum: 1024}
+              lo: {$ref: '#/components/schemas/HistogramValue'}
+              hi: {$ref: '#/components/schemas/HistogramValue'}
+              edges: {type: array, minItems: 2, maxItems: 1025, items: {$ref: '#/components/schemas/HistogramValue'}}
+              counts: {type: array, minItems: 1, maxItems: 1024, items: {$ref: '#/components/schemas/SafeInt'}}
+              below: {$ref: '#/components/schemas/SafeInt'}
+              above: {$ref: '#/components/schemas/SafeInt'}
+              last_bin_closed: {type: boolean}
+              rule: {type: string, maxLength: 200}
+        magnitude:
+          description: Float dtypes only (null for integer dtypes); buckets with a nonzero count, by exponent.
+          oneOf:
+          - {type: 'null'}
+          - type: object
+            additionalProperties: false
+            required: [rule, buckets]
+            properties:
+              rule: {type: string, maxLength: 200}
+              buckets:
+                type: array
+                maxItems: 2098
+                items:
+                  type: object
+                  additionalProperties: false
+                  required: [exponent, positive, negative]
+                  properties:
+                    exponent: {type: integer, minimum: -1074, maximum: 1023}
+                    positive: {$ref: '#/components/schemas/SafeInt'}
+                    negative: {$ref: '#/components/schemas/SafeInt'}
+        method: {type: string, maxLength: 200}
     Metric:
       type: object
       additionalProperties: false
@@ -494,6 +599,15 @@ components:
             description: >-
               True when this job's report is the comparison's stored report. False when a report of a later-submitted
               job was already stored (reports are ordered by submission, not by finishing time).
+      - type: object
+        additionalProperties: false
+        required: [kind, model_id, tensor_id, consistency, histogram]
+        properties:
+          kind: {const: tensor_histogram}
+          model_id: {$ref: '#/components/schemas/Id'}
+          tensor_id: {$ref: '#/components/schemas/Id'}
+          consistency: {type: string, enum: [best_effort, verified]}
+          histogram: {$ref: '#/components/schemas/TensorHistogram'}
     Job:
       description: >-
         States: created -> queued -> running -> completed | failed | canceled; queued -> canceled; running ->
@@ -504,7 +618,8 @@ components:
       required: [job_id, kind, state, progress, created_at]
       properties:
         job_id: {$ref: '#/components/schemas/Id'}
-        kind: {type: string, enum: [tensor_stats, pyramid_build, compare_stats, file_hash, export, comparison_report]}
+        kind: {type: string, enum: [tensor_stats, pyramid_build, compare_stats, file_hash, export, comparison_report,
+                                    tensor_histogram]}
         state: {type: string, enum: [created, queued, running, completed, canceled, failed, interrupted]}
         progress: {type: number, minimum: 0, maximum: 1}
         poll_after_ms: {type: integer, minimum: 100, maximum: 10000}

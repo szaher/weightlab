@@ -75,6 +75,12 @@ SEEDS: dict[str, list[dict[str, Any]]] = {
          "budget": {"max_working_set_mib": 768, "max_threads": 2, "max_wall_seconds": 600}},
         {"kind": "file_hash", "model_id": "mod_a",
          "budget": {"max_working_set_mib": 64, "max_threads": 1, "max_wall_seconds": 1}},
+        {"kind": "tensor_histogram", "source": {"kind": "tensor", "model_id": "mod_a", "tensor_id": "tns_1"},
+         "histogram": {"bins": 64, "range": "symmetric"}, "consistency": "verified",
+         "budget": {"max_working_set_mib": 768, "max_threads": 2, "max_wall_seconds": 600}},
+        {"kind": "tensor_histogram", "source": {"kind": "tensor", "model_id": "mod_a", "tensor_id": "tns_1"},
+         "histogram": {"bins": 8, "range": "explicit", "lo": -1.5, "hi": 2},
+         "budget": {"max_working_set_mib": 768, "max_threads": 2, "max_wall_seconds": 600}},
     ],
 }  # fmt: skip
 

@@ -97,7 +97,7 @@
 **Decision:** The blueprint is frozen at 1.2-final (tag `spec-v1.2-final`). Further changes require a demonstrated implementation correctness or security blocker, a versioned ADR, updated contracts/fixtures/tests and a changelog entry (section 5). Implementation discoveries are tracked as issues, not silent contract drift.
 **Why:** Implementation must start against a stable, testable contract.
 **Trade-off:** Some refinements wait for evidence from Phase 0.
-**Successor revisions:** additive extensions approved by the project owner are recorded as numbered ADRs with their own contract revision, leaving the frozen baseline and its tag untouched: ADR-020 (contract 0.4.0, comparison reports).
+**Successor revisions:** additive extensions approved by the project owner are recorded as numbered ADRs with their own contract revision, leaving the frozen baseline and its tag untouched: ADR-020 (contract 0.4.0, comparison reports); ADR-021 (contract 0.5.0, tensor histograms).
 
 ### ADR-020: Comparison change reports over the API (contract 0.4.0)
 **Change-control basis (ADR-019):** This is an **additive feature extension**, not a correctness or security fix, so ADR-019's blocker criterion does not authorize it by itself. The project owner (repository maintainer) approved it explicitly on 2026-11-11 as the backend of release 0.1.0a2 ("Visual Checkpoint Comparison", ROADMAP P0.1). The 1.2-final baseline stays frozen and auditable at tag `spec-v1.2-final` and contract `0.3.0-spec-1.2-final`; this ADR defines the successor contract revision `0.4.0-spec-1.2-final-adr-020`. No 0.3.0 field, route or behaviour changes meaning; additions are listed in CHANGELOG.md.
@@ -118,6 +118,21 @@
 **Why:** ROADMAP P0.1 needs per-tensor, per-layer and per-role metrics in the UI. The frozen `compare_stats` kind covers one delta source per job; a whole-model dashboard would need one job per tensor and re-implemented rollups. Reusing `pair_report` keeps the API's numbers identical to the CLI's by construction.
 
 **Trade-off:** The report is returned whole (no paging); at the entry cap it is ~90 MiB of JSON, and checkpoints above 32,768 tensors (some MoE models) cannot be reported until paging or streaming exists. `estimated_bytes` can exceed `bytes_scanned` for best-effort jobs. Legacy comparisons must be recreated. `compare_stats` remains unimplemented.
+
+### ADR-021: Exact tensor histograms over the API (contract 0.5.0)
+**Change-control basis (ADR-019):** An **additive feature extension** (ROADMAP P0.2, the next feature after release 0.1.0a2), requested by the project owner on 2026-11-14 ("start next feature from the roadmap"); the ADR takes effect when the owner merges the PR that introduces it. It defines contract `0.5.0-spec-1.2-final-adr-021`, successor of ADR-020's 0.4.0. No 0.4.0 field, route or behaviour changes meaning; no database migration.
+
+**Decision:**
+1. *API.* Job kind `tensor_histogram` (`POST /jobs` with a `kind: tensor` `source`, optional `histogram: {bins, range, lo, hi}`; no `view` or `model_id`). `JobResult` is `{kind, model_id, tensor_id, consistency, histogram}` with the `TensorHistogram` object; the histogram lives in the job's result (no new table), written in the transaction that marks the job completed.
+2. *Exact only.* Every element is read and counted (`coverage: complete`). Semantics, edges and the magnitude histogram are fixed in doc 05 section 4 and `weightlab/analysis/histogram.py`. `min_max` and `symmetric` read the tensor twice, `explicit` once. A sampled preview is not part of 0.5.0; when it is added it gets its own `coverage` value, seed and policy, never the `complete` label.
+3. *Bounded.* A fixed reservation of 64 MiB (`histogram.WORKING_SET`): chunks of at most 512 Ki elements (4 MiB decoded float64) plus temporaries; measured peak ~30 MiB for F32/BF16 and ~10 MiB for I8 with 1,024 symmetric bins, independent of tensor size (`tests/perf/test_histogram_bounded.py`). At most 1,024 bins. `estimated_bytes` = scanned tensor bytes (1x or 2x) plus two full hashes of the tensor's files when `verified`; it equals `bytes_scanned` on completion.
+4. *Cancellation and wall time* are checked after every chunk and every hashed chunk; canceled, failed and interrupted jobs carry no histogram.
+5. *Fail closed.* Invalid binning (lo > hi, non-integral or unsafe bounds for integer tensors) is refused with 422 before queueing. The tensor's file fingerprints are recorded at submission; a changed file fails with `FILE_CHANGED` at submission, at the start of the run, at every chunk (`best_effort`), or by the before/after hashes (`verified`).
+6. *Deduplication* identity: model, tensor, file fingerprints, binning and consistency.
+
+**Why:** ROADMAP P0.2 asks whether weights are sparse, heavy-tailed, shifted or anomalous. Heatmap tiles are block aggregates and do not provide a value distribution; the frozen `tensor_stats` kind returns scalar metrics only. A dedicated, exact, streaming kind keeps the numbers checkable against an independent count.
+
+**Trade-off:** Two passes for data-derived ranges (an exact one-pass histogram would need fixed data-independent bins, which the magnitude view provides). No persistence beyond the job row: a client re-runs the job (or keeps the job id) after a reload. A base/derived overlay needs a shared range, which a client obtains by running both with the same `explicit` range; a dedicated paired job is deferred. Global percentiles remain R2 (FR-021).
 
 ## 2. Risk register
 

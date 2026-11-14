@@ -26,7 +26,7 @@ date: "2026-11-05"
 
 # WeightLab: Complete Product & Engineering Blueprint
 
-**Design baseline:** 5 November 2026, frozen as 1.2-final (ADR-019; tag `spec-v1.2-final`). Additive successor revision: ADR-020 (contract 0.4.0)
+**Design baseline:** 5 November 2026, frozen as 1.2-final (ADR-019; tag `spec-v1.2-final`). Additive successor revisions: ADR-020 (contract 0.4.0), ADR-021 (contract 0.5.0)
 
 **Delivery state:** Product documentation and synthetic proof fixtures; **the WeightLab application has not been implemented**.
 
