@@ -4,7 +4,7 @@
 import { useId, useState, type KeyboardEvent } from "react";
 import { toNumber, type HistogramValue } from "../../lib/api/histogram";
 import { formatInt } from "../../lib/format";
-import { edgeFractions, shortValue, yFraction, yTicks, type YScale } from "./chart";
+import { edgeFractions, shortValue, yFraction, yTicks, zeroLabel, type YScale } from "./chart";
 
 interface Props {
   edges: HistogramValue[];
@@ -49,7 +49,8 @@ export function OverlayChart({ edges, a, b, nameA, nameB, scale, describe }: Pro
     { at: 0, text: shortValue(first) },
     { at: 1, text: shortValue(last) },
   ];
-  if (lo < 0 && hi > 0 && -lo / (hi - lo) > 0.12 && -lo / (hi - lo) < 0.88) xLabels.push({ at: -lo / (hi - lo), text: "0" });
+  const z = zeroLabel(lo, hi);
+  if (z) xLabels.push(z);
 
   function onKey(e: KeyboardEvent<HTMLDivElement>) {
     if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(e.key) || n === 0) return;

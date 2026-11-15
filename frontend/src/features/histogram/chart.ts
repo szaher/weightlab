@@ -31,13 +31,36 @@ export function yTicks(max: number, scale: YScale): number[] {
   return out;
 }
 
-/** Each edge's horizontal position as a fraction of the plot width. A constant tensor's single bin [v, v] spans it. */
+/** Where `x` lies in [lo, hi], as a fraction in [0, 1]; null when the range is empty or not finite. Computed on
+ * halved values so that hi − lo cannot overflow (an F64 range can span ±1.8e308, whose difference is Infinity). */
+export function valueFraction(x: number, lo: number, hi: number): number | null {
+  const span = hi / 2 - lo / 2;
+  if (!Number.isFinite(span) || !(span > 0) || !Number.isFinite(x)) return null;
+  const f = (x / 2 - lo / 2) / span;
+  return Number.isFinite(f) ? Math.min(1, Math.max(0, f)) : null;
+}
+
+/** Each edge's horizontal position as a fraction of the plot width. A constant tensor's single bin [v, v] spans it;
+ * if positions cannot be computed (never for finite edges), bins fall back to equal widths rather than NaN. */
 export function edgeFractions(edges: readonly HistogramValue[]): number[] {
   const e = edges.map(toNumber);
   const lo = e[0] ?? 0;
-  const span = (e[e.length - 1] ?? lo) - lo;
-  if (!(span > 0)) return e.map((_, i) => i / (e.length - 1));
-  return e.map((x) => (x - lo) / span);
+  const hi = e[e.length - 1] ?? lo;
+  const even = () => e.map((_, i) => i / Math.max(1, e.length - 1));
+  const out: number[] = [];
+  for (const x of e) {
+    const f = valueFraction(x, lo, hi);
+    if (f === null) return even();
+    out.push(f);
+  }
+  return out;
+}
+
+/** The x-axis position of a "0" label, when 0 lies well inside the range. */
+export function zeroLabel(lo: number, hi: number): { at: number; text: string } | null {
+  if (!(lo < 0 && hi > 0)) return null;
+  const f = valueFraction(0, lo, hi);
+  return f !== null && f > 0.12 && f < 0.88 ? { at: f, text: "0" } : null;
 }
 
 /** Short axis label of a value (four significant digits); the exact value is in the readout and the table. */

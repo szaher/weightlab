@@ -1,6 +1,6 @@
 // The A/B distribution overlay against a scripted backend that answers with real histograms (histogram/fixtures/
 // ab_f32.json: the backend's min-max and shared-range histograms of two synthetic tensors).
-import { fireEvent, render, screen, within } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it } from "vitest";
 import type { TensorRow } from "../../lib/api/compare";
@@ -34,16 +34,16 @@ interface Body {
 }
 
 /** Each POST /jobs is answered by `answer(model, body)`; GET/cancel of a job id answer from `jobs`. */
-function backend(answer: (model: string, body: Body) => Job | Response) {
+function backend(answer: (model: string, body: Body) => Job | Response | Promise<Job | Response>) {
   const jobs: Record<string, Job> = {};
-  const calls = fakeApi((c: Call) => {
+  const calls = fakeApi(async (c: Call) => {
     const k = `${c.method} ${c.url.pathname}`;
     if (k === "GET /api/v1/settings") return json({ memory_budget_mib: 1024, max_job_seconds: 600 });
     const m = /^GET \/api\/v1\/models\/(mod_[ab])\/tensors$/.exec(k);
     if (m) return json({ total: 1, items: [tensor(m[1]!)] });
     if (k === "POST /api/v1/jobs") {
       const body = c.body as Body;
-      const r = answer(body.source.model_id, body);
+      const r = await answer(body.source.model_id, body);
       if (r instanceof Response) return r;
       jobs[r.job_id] = r;
       return json(r);
@@ -147,6 +147,39 @@ describe("DistributionCompare", () => {
     expect(await screen.findByTestId("dist-error")).toHaveTextContent("Model files changed on disk");
     expect(calls.some((c) => c.method === "POST" && /\/jobs\/job_\d+\/cancel$/.test(c.url.pathname))).toBe(true);
     expect(screen.queryByTestId("dist-result")).not.toBeInTheDocument();
+  });
+
+  it("cancels the other side's job even when its submission was still in flight when this side failed", async () => {
+    withToken();
+    let release!: () => void;
+    const gate = new Promise<void>((r) => (release = r));
+    const { calls, jobs } = backend(async (model) => {
+      if (model === "mod_b") return apiError(409, "FILE_CHANGED", "model files changed since import");
+      await gate; // A's job is created only after B has already failed
+      return job("queued", { poll_after_ms: 5000 });
+    });
+    view();
+    await userEvent.click(screen.getByTestId("dist-run"));
+    expect(await screen.findByTestId("dist-error")).toHaveTextContent("Model files changed on disk");
+    release();
+    await waitFor(() => expect(calls.some((c) => c.method === "POST" && /\/jobs\/job_\d+\/cancel$/.test(c.url.pathname))).toBe(true));
+    expect(Object.values(jobs).map((j) => j.state)).toEqual(["canceled"]);
+  });
+
+  it("Cancel during submission cancels both jobs once they exist", async () => {
+    withToken();
+    let release!: () => void;
+    const gate = new Promise<void>((r) => (release = r));
+    const { jobs } = backend(async () => {
+      await gate;
+      return job("queued", { poll_after_ms: 5000 });
+    });
+    view();
+    await userEvent.click(screen.getByTestId("dist-run"));
+    await userEvent.click(await screen.findByRole("button", { name: "Cancel" }));
+    expect(screen.getByTestId("dist-canceled")).toBeInTheDocument();
+    release();
+    await waitFor(() => expect(Object.values(jobs).map((j) => j.state)).toEqual(["canceled", "canceled"]));
   });
 
   it("cancel asks both jobs to stop and shows no partial overlay", async () => {

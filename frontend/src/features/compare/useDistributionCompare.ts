@@ -3,11 +3,12 @@
 //   shared range: 1) min_max histograms of A and B (their finite ranges), 2) both binned over the union [lo, hi];
 //   explicit range: step 2 only, over the user's [lo, hi].
 // The overlay is shown only when the two returned bin edge lists are identical. Any failure cancels the other
-// side's pending job and shows no overlay. Leaving the drill-down stops waiting but never cancels the jobs.
+// side's job and shows no overlay; so does Cancel. Both abort with CANCEL_JOB, which also cancels a job whose
+// submission was still in flight. Leaving the drill-down stops waiting but never cancels the jobs.
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ApiRequestError, isAbort } from "../../lib/api/client";
 import {
-  histogramApi,
+  CANCEL_JOB,
   histogramBudget,
   runHistogramJob,
   type Consistency,
@@ -15,7 +16,7 @@ import {
   type HistogramOptions,
   type TensorHistogram,
 } from "../../lib/api/histogram";
-import { PENDING_JOB_STATES, type Job, type Tensor } from "../../lib/api/types";
+import type { Job, Tensor } from "../../lib/api/types";
 import { sameBins, sharedRange } from "../histogram/overlay";
 import { findTensor } from "./findTensor";
 
@@ -48,8 +49,6 @@ export interface DistributionCompare {
   cancel: () => Promise<void>;
 }
 
-const pending = (j: Job | null): j is Job => !!j && PENDING_JOB_STATES.includes(j.state);
-
 export function useDistributionCompare(
   rawKey: string,
   modelA: string | null,
@@ -70,15 +69,10 @@ export function useDistributionCompare(
     setJobs(jobsRef.current);
   }, []);
 
-  const cancelPending = useCallback(async () => {
-    const live = [jobsRef.current.a, jobsRef.current.b].filter(pending);
-    await Promise.allSettled(live.map((j) => histogramApi.cancel(j.job_id)));
-  }, []);
-
   const run = useCallback(
     async (r: OverlayRequest) => {
       if (!modelA || !modelB) return;
-      ctlRef.current?.abort();
+      ctlRef.current?.abort(CANCEL_JOB); // a new run supersedes the previous one, whose jobs would never be shown
       const ctl = new AbortController();
       ctlRef.current = ctl;
       const signal = ctl.signal;
@@ -112,20 +106,20 @@ export function useDistributionCompare(
         setPhase("done");
       } catch (e) {
         if (signal.aborted && isAbort(e)) return; // canceled or replaced; whoever aborted set the phase
-        ctl.abort(); // stop waiting on the other side
-        await cancelPending(); // and never leave it running for an overlay that will not be shown
+        ctl.abort(CANCEL_JOB); // the other side stops waiting and cancels its job, even one still being submitted
         setError(e);
         setPhase("failed");
       }
     },
-    [cancelPending, modelA, modelB, rawKey, settings, track],
+    [modelA, modelB, rawKey, settings, track],
   );
 
-  const cancel = useCallback(async () => {
-    ctlRef.current?.abort();
-    await cancelPending();
+  // Each side's runHistogramJob cancels its own job on this abort (pending, polling or still being submitted).
+  const cancel = useCallback(() => {
+    ctlRef.current?.abort(CANCEL_JOB);
     setPhase("canceled");
-  }, [cancelPending]);
+    return Promise.resolve();
+  }, []);
 
   return { phase, jobs, result, error, run, cancel };
 }

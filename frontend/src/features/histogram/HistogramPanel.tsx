@@ -21,7 +21,7 @@ import {
 import { PENDING_JOB_STATES, type ErrorBody, type Job, type Tensor } from "../../lib/api/types";
 import { formatBytes, formatInt } from "../../lib/format";
 import { BarChart, type Column } from "./BarChart";
-import { binInterval, edgeFractions, exactValue, magnitudeColumns, percent, shortValue, type YScale } from "./chart";
+import { binInterval, edgeFractions, exactValue, magnitudeColumns, percent, shortValue, zeroLabel, type YScale } from "./chart";
 import { MAX_POLL_FAILURES, useHistogramJob, type HistogramRun } from "./useHistogramJob";
 
 const BIN_CHOICES = [16, 32, 64, 128, 256, 512, MAX_BINS];
@@ -209,12 +209,12 @@ export function HistogramPanel({ modelId, tensor, settings }: Props) {
         </>
       ) : null}
 
-      {hj.result ? <HistogramResult h={hj.result.data.histogram} run={hj.result.run} verified={hj.result.data.consistency === "verified"} /> : null}
+      {hj.result ? <HistogramResult jobId={hj.result.jobId} h={hj.result.data.histogram} run={hj.result.run} verified={hj.result.data.consistency === "verified"} /> : null}
     </section>
   );
 }
 
-function HistogramResult({ h, run, verified }: { h: TensorHistogram; run: HistogramRun; verified: boolean }) {
+function HistogramResult({ jobId, h, run, verified }: { jobId: string; h: TensorHistogram; run: HistogramRun; verified: boolean }) {
   const [view, setView] = useState<"values" | "magnitude">("values");
   const [scale, setScale] = useState<YScale>("linear");
   const [table, setTable] = useState(false);
@@ -224,7 +224,7 @@ function HistogramResult({ h, run, verified }: { h: TensorHistogram; run: Histog
   const merged = b ? b.counts.length < b.requested_bins : false;
 
   return (
-    <div className="hist-result stack-sm" data-testid="hist-result">
+    <div className="hist-result stack-sm" data-testid="hist-result" data-job-id={jobId}>
       <p className="tensor-sub">
         {RANGE_TEXT[b?.range ?? run.options.range]}
         {b ? ` · ${b.counts.length} bin${b.counts.length === 1 ? "" : "s"}` : ""}
@@ -312,7 +312,8 @@ function ValuesView({ h, b, scale, table }: { h: TensorHistogram; b: HistogramBi
   ];
   const lo = toNumber(first);
   const hi = toNumber(last);
-  if (lo < 0 && hi > 0 && -lo / (hi - lo) > 0.12 && -lo / (hi - lo) < 0.88) xLabels.push({ at: -lo / (hi - lo), text: "0" });
+  const z = zeroLabel(lo, hi);
+  if (z) xLabels.push(z);
   const interval = (i: number) => binInterval(b.edges, i, h.value_domain, b.last_bin_closed);
   return (
     <>

@@ -7,7 +7,7 @@ import nonfiniteJson from "../../features/histogram/fixtures/f32_nonfinite.json"
 import i8Json from "../../features/histogram/fixtures/i8_symmetric.json";
 import { ApiRequestError } from "./client";
 import { fakeApi, json, withToken } from "../../test/fakeApi";
-import { histogramBudget, parseHistogramResult, runHistogramJob, toNumber } from "./histogram";
+import { CANCEL_JOB, histogramBudget, parseHistogramResult, runHistogramJob, toNumber } from "./histogram";
 
 const EXPECT = { modelId: "mod_1", tensorId: "ten_1" };
 const wrap = (h: unknown, extra: object = {}) => ({ kind: "tensor_histogram", model_id: "mod_1", tensor_id: "ten_1", consistency: "best_effort", histogram: h, ...extra });
@@ -135,6 +135,37 @@ describe("runHistogramJob", () => {
     ] as const) {
       fakeApi((c) => (c.method === "POST" ? json(job("queued")) : json(end)));
       await expect(runHistogramJob(args())).rejects.toMatchObject({ code });
+    }
+  });
+
+  it("a CANCEL_JOB abort during submission cancels the job as soon as its id arrives", async () => {
+    withToken();
+    let release!: () => void;
+    const gate = new Promise<void>((r) => (release = r));
+    const calls = fakeApi(async (c) => {
+      if (c.url.pathname === "/api/v1/jobs") {
+        await gate; // the submission is still in flight when the caller cancels
+        return json(job("queued"));
+      }
+      return json(job("canceled"));
+    });
+    const ctl = new AbortController();
+    const p = runHistogramJob({ ...args(), signal: ctl.signal });
+    ctl.abort(CANCEL_JOB);
+    release();
+    await expect(p).rejects.toMatchObject({ name: "AbortError" });
+    expect(calls.map((c) => `${c.method} ${c.url.pathname}`)).toEqual(["POST /api/v1/jobs", "POST /api/v1/jobs/job_1/cancel"]);
+  });
+
+  it("a CANCEL_JOB abort while polling cancels the job; any other abort leaves it running", async () => {
+    withToken();
+    for (const reason of [CANCEL_JOB, undefined]) {
+      const calls = fakeApi((c) => json(job(c.url.pathname.endsWith("/cancel") ? "canceled" : "running", { poll_after_ms: 5000 })));
+      const ctl = new AbortController();
+      const p = runHistogramJob({ ...args(), signal: ctl.signal, onJob: () => ctl.abort(reason) });
+      await expect(p).rejects.toMatchObject({ name: "AbortError" });
+      const cancels = calls.filter((c) => c.url.pathname.endsWith("/cancel"));
+      expect(cancels).toHaveLength(reason === CANCEL_JOB ? 1 : 0);
     }
   });
 

@@ -192,9 +192,9 @@ export const pollDelay = (j: Job, failures: number): number =>
 
 function sleep(ms: number, signal: AbortSignal): Promise<void> {
   return new Promise((ok, fail) => {
-    if (signal.aborted) return fail(new DOMException("aborted", "AbortError"));
+    if (signal.aborted) return fail(abortError());
     const t = setTimeout(ok, ms);
-    signal.addEventListener("abort", () => (clearTimeout(t), fail(new DOMException("aborted", "AbortError"))), { once: true });
+    signal.addEventListener("abort", () => (clearTimeout(t), fail(abortError())), { once: true });
   });
 }
 
@@ -206,8 +206,15 @@ export function jobEndError(j: Job): ApiRequestError {
   return new ApiRequestError({ status: 200, code, message });
 }
 
+/** The abort reason that also cancels the job (see runHistogramJob). */
+export const CANCEL_JOB = "weightlab:cancel-job";
+
+const abortError = () => new DOMException("aborted", "AbortError");
+
 /** Submits one tensor_histogram job and waits for it: the validated result, or the job's own error. `onJob` sees
- * every state. Aborting stops waiting; it never cancels the job (the caller cancels explicitly). */
+ * every state. Aborting stops waiting. Aborting with reason CANCEL_JOB also cancels the job, including a job whose
+ * submission was still in flight when the abort happened (it is canceled as soon as its id is known), so no job
+ * outlives an explicit cancel. Any other abort (e.g. leaving the screen) leaves the job running. */
 export async function runHistogramJob(p: {
   modelId: string;
   tensorId: string;
@@ -217,17 +224,34 @@ export async function runHistogramJob(p: {
   signal: AbortSignal;
   onJob: (j: Job) => void;
 }): Promise<HistogramJobResult> {
+  // No signal on the submission: if the caller aborts meanwhile, the job must still be learned so it can be canceled.
   let j = await histogramApi.submit(p.modelId, p.tensorId, p.options, p.consistency, p.budget);
+  const cancelIfAsked = async () => {
+    if (p.signal.reason !== CANCEL_JOB || !PENDING.has(j.state)) return;
+    try {
+      p.onJob(await cancelJob(j.job_id));
+    } catch {
+      // best effort: the job's own wall time still bounds it
+    }
+  };
+  if (p.signal.aborted) {
+    await cancelIfAsked();
+    throw abortError();
+  }
   p.onJob(j);
   let failures = 0;
   while (PENDING.has(j.state)) {
-    await sleep(pollDelay(j, failures), p.signal);
     try {
+      await sleep(pollDelay(j, failures), p.signal);
       j = await getJob(j.job_id, p.signal);
       failures = 0;
       p.onJob(j);
     } catch (e) {
-      if (p.signal.aborted || ++failures >= MAX_POLL_FAILURES) throw e;
+      if (p.signal.aborted) {
+        await cancelIfAsked();
+        throw e;
+      }
+      if (++failures >= MAX_POLL_FAILURES) throw e;
     }
   }
   if (j.state !== "completed") throw jobEndError(j);

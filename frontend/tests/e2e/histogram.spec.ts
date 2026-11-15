@@ -26,7 +26,7 @@ interface Hist {
   counts: { elements: number; finite: number; zeros: number; negatives: number; nan: number; pos_inf: number; neg_inf: number };
   min: number | null;
   max: number | null;
-  bins: { edges: number[]; counts: number[]; below: number; above: number } | null;
+  bins: { range: string; edges: number[]; counts: number[]; below: number; above: number } | null;
 }
 
 test.describe.configure({ mode: "serial" });
@@ -47,7 +47,8 @@ async function compute(page: Page, port: number, token: string): Promise<Hist> {
   const submitted = page.waitForResponse((r) => r.url().endsWith("/api/v1/jobs") && r.request().method() === "POST");
   await page.getByTestId("hist-compute").click();
   const job = (await (await submitted).json()) as { job_id: string };
-  await expect(page.getByTestId("hist-result")).toBeVisible();
+  // A previous histogram stays on screen while a recompute runs: wait for the one this job produced.
+  await expect(page.getByTestId("hist-result")).toHaveAttribute("data-job-id", job.job_id, { timeout: 60_000 });
   const r = await raw(port, "GET", `/api/v1/jobs/${job.job_id}`, { Authorization: `Bearer ${token}` });
   const body = JSON.parse(r.body) as { state: string; result: { histogram: Hist } };
   expect(body.state).toBe("completed");
@@ -187,10 +188,12 @@ test("A/B overlay in the Compare drill-down: shared range and every bin recounte
   const blocked = await loopbackOnly(context);
   const page = await context.newPage();
   const problems = watchConsole(page);
-  const submitted: string[] = [];
-  page.on("response", async (r) => {
+  // Job ids in response order (the handler is async, so A and B may arrive in either order: results are paired by
+  // their own model and range below, never by position).
+  const submitted: Promise<string>[] = [];
+  page.on("response", (r) => {
     if (r.url().endsWith("/api/v1/jobs") && r.request().method() === "POST" && (r.request().postData() ?? "").includes("tensor_histogram"))
-      submitted.push(((await r.json()) as { job_id: string }).job_id);
+      submitted.push(r.json().then((j) => (j as { job_id: string }).job_id));
   });
 
   await page.goto(server.url);
@@ -222,13 +225,27 @@ test("A/B overlay in the Compare drill-down: shared range and every bin recounte
   expect(submitted).toHaveLength(4);
   const auth = { Authorization: `Bearer ${server.token}` };
   const results = await Promise.all(
-    submitted.map(async (id) => (JSON.parse((await raw(server.port, "GET", `/api/v1/jobs/${id}`, auth)).body) as { result: { model_id: string; histogram: Hist } }).result),
+    (await Promise.all(submitted)).map(async (id) => {
+      const j = JSON.parse((await raw(server.port, "GET", `/api/v1/jobs/${id}`, auth)).body) as { state: string; result: { model_id: string; histogram: Hist } };
+      expect(j.state).toBe("completed"); // the overlay is shown only after all four completed
+      return j.result;
+    }),
   );
+  const getJson = async <T>(path: string): Promise<T> => JSON.parse((await raw(server.port, "GET", `/api/v1${path}`, auth)).body) as T;
+  const project = (await getJson<{ id: string }[]>("/projects"))[0]!.id;
+  const imported = await getJson<{ id: string; display_name: string }[]>(`/projects/${project}/models`);
+  const idOf = (name: string) => imported.find((m) => m.display_name === name)!.id;
+  const pick = (model: string, range: string) => {
+    const hit = results.filter((r) => r.model_id === model && r.histogram.bins!.range === range);
+    expect(hit).toHaveLength(1);
+    return hit[0]!.histogram;
+  };
+  expect(["min_max", "explicit"].flatMap((g) => [pick(idOf("tiny_base.safetensors"), g), pick(idOf("tiny_ft.safetensors"), g)])).toHaveLength(4);
   const va = (readTensor(base, key).values as number[]).filter(Number.isFinite);
   const vb = (readTensor(ft, key).values as number[]).filter(Number.isFinite);
   const lo = Math.min(...va, ...vb);
   const hi = Math.max(...va, ...vb);
-  const [sa, sb] = [results[2]!.histogram, results[3]!.histogram];
+  const [sa, sb] = [pick(idOf("tiny_base.safetensors"), "explicit"), pick(idOf("tiny_ft.safetensors"), "explicit")];
   expect(sa.bins!.edges).toEqual(sb.bins!.edges);
   expect(sa.bins!.edges[0]).toBe(lo);
   expect(sa.bins!.edges.at(-1)).toBe(hi);

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { binInterval, edgeFractions, exactValue, magnitudeColumns, percent, shortValue, yFraction, yTicks } from "./chart";
+import { binInterval, edgeFractions, exactValue, magnitudeColumns, percent, shortValue, valueFraction, yFraction, yTicks, zeroLabel } from "./chart";
 
 describe("y scales", () => {
   it("linear is proportional and log is log10 over [1, max]", () => {
@@ -24,6 +24,16 @@ describe("edges and labels", () => {
   it("places bins at their true widths", () => {
     expect(edgeFractions([-1, 0, 2, 3])).toEqual([0, 0.25, 0.75, 1]);
     expect(edgeFractions([5, 5])).toEqual([0, 1]); // a constant tensor's single closed bin
+  });
+
+  it("stays finite for ranges whose width overflows float64 (±1.8e308)", () => {
+    const M = Number.MAX_VALUE;
+    expect(M - -M).toBe(Infinity); // the naive span
+    expect(edgeFractions([-M, -M / 2, 0, M / 2, M])).toEqual([0, 0.25, 0.5, 0.75, 1]);
+    expect(valueFraction(0, -M, M)).toBe(0.5);
+    expect(zeroLabel(-M, M)).toEqual({ at: 0.5, text: "0" });
+    expect(valueFraction(1, 2, 2)).toBeNull(); // empty range
+    expect(edgeFractions([-M, Infinity])).toEqual([0, 1]); // never NaN: equal widths as a fallback
   });
 
   it("states each interval with the backend's rule", () => {
