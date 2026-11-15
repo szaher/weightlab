@@ -20,6 +20,7 @@ import re
 import shutil
 import sqlite3
 import tempfile
+import time
 from dataclasses import dataclass
 from importlib import resources
 from pathlib import Path
@@ -145,6 +146,10 @@ def _check_schema(conn: sqlite3.Connection, known: list[Migration]) -> int:
 
 
 SNAPSHOT_ATTEMPTS = 3
+# On Windows, opening a file whose deletion is pending fails with "access denied" rather than "not found": SQLite
+# deletes the -wal when the last connection to the database closes, so a copy racing that close sees
+# PermissionError. It is retried like the POSIX FileNotFoundError case.
+_WINDOWS = os.name == "nt"
 
 
 def _stat_key(p: Path) -> tuple[int, int, int, int] | None:
@@ -189,7 +194,10 @@ def _preflight(path: str | os.PathLike[str], known: list[Migration]) -> None:
     if raw == ":memory:" or not p.exists() or p.stat().st_size == 0:
         return  # nothing to protect: connect() creates it
     wal = Path(raw + "-wal")
-    for _ in range(SNAPSHOT_ATTEMPTS):
+    denied: PermissionError | None = None
+    for attempt in range(SNAPSHOT_ATTEMPTS):
+        if denied is not None:
+            time.sleep(0.05 * attempt)  # let the closing connection finish deleting the WAL
         before = (_stat_key(p), _stat_key(wal))
         if before[1] is None or before[1][0] == 0:  # re-evaluated per attempt: a writer may checkpoint meanwhile
             _inspect(p.resolve().as_uri() + "?mode=ro&immutable=1", known)
@@ -200,10 +208,17 @@ def _preflight(path: str | os.PathLike[str], known: list[Migration]) -> None:
                 _copy_snapshot(p, wal, snap)
             except FileNotFoundError:
                 continue  # checkpointed or moved while copying: look again
+            except PermissionError as e:
+                if not _WINDOWS:
+                    raise
+                denied = e  # Windows: the WAL is being deleted by a closing connection; look again
+                continue
             if (_stat_key(p), _stat_key(wal)) != before:
                 continue  # torn copy
             _inspect((snap / "db.sqlite3").as_uri(), known)  # read-write on the private copy only
             return
+    if denied is not None:
+        raise denied  # never settled into a readable state: report the OS error itself, not "kept changing"
     raise DatabaseVersionError(
         "database kept changing while it was inspected (is another program writing to it?); it was not modified"
     )

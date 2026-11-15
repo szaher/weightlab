@@ -21,6 +21,10 @@ Additive API extension for ROADMAP P0.2 (weight distribution histograms); contra
   - A failure on one side cancels the other side's job, and canceling stops both; no partial overlay is ever shown.
   - E2E recounts both sides' bins from the two fixture files.
 - **Accessibility fix (Compare grid):** each cell's accessible name now contains its visible, shortened value (WCAG 2.5.3, label in name), found by the overlay E2E's axe run.
+- **Fix (Windows): database open racing a closing connection.**
+  - Opening the database runs a preflight that copies a non-empty `-wal` file. If another connection closed at that moment, SQLite deleted the WAL, and Windows reports opening a file pending deletion as "access denied" (`PermissionError`).
+  - That error is now retried like the POSIX "not found" case (bounded, with a short backoff). An error that persists is reported as itself, not as "kept changing"; on other systems it is never retried.
+  - Found as an intermittent `windows-latest` CI failure in `test_cancel_is_linearized_with_completion`. Tests are in `tests/db/test_migrations.py`.
 - Contract examples: 3 positive and 8 negative `JobRequest` cases, 2 positive and 3 negative `Job` cases. Tests: `tests/unit/test_histogram.py`, `tests/api/test_histogram_api.py`, `tests/perf/test_histogram_bounded.py`.
 
 ## 0.1.0a2 — Alpha 2: Visual Checkpoint Comparison (2026-11-14)
