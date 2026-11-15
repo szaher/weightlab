@@ -1,9 +1,10 @@
-"""FastAPI application: routes of contracts/openapi.yaml 0.4.0 (Phase 1 Task 2; comparison reports: ADR-020).
+"""FastAPI application: routes of contracts/openapi.yaml 0.5.0 (Phase 1 Task 2; comparison reports: ADR-020;
+tensor histograms: ADR-021).
 
 Implemented: /health, /projects (+ /{id}), /projects/{id}/models, /models/{id}/relink, /models/{id}/tensors
 (+ /{tensor_id}), /tensors/roi (all four source kinds), /tiles (+ /{cache_key}/metadata; the complete quality
-decision table for kind=tensor sources, see api/tiles.py), /jobs (+ /{id}, /{id}/cancel; kinds pyramid_build and
-comparison_report), /comparisons (+ /{id}, /{id}/entries, /{id}/report), /projects/{id}/adapters,
+decision table for kind=tensor sources, see api/tiles.py), /jobs (+ /{id}, /{id}/cancel; kinds pyramid_build,
+comparison_report and tensor_histogram), /comparisons (+ /{id}, /{id}/entries, /{id}/report), /projects/{id}/adapters,
 /projects/{id}/bookmarks (+ /{bookmark_id}), /settings.
 Deferred (not registered, so they answer 404): /exports* (export jobs), /dialogs/select-directory (optional
 capability, not advertised). `IMPLEMENTED` and `DEFERRED` list them; tests check both against

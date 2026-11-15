@@ -42,6 +42,8 @@ For finite elements `x1...xn`:
 
 For deltas, pairs with non-finite in either input excluded from finite pair metrics but counted in `invalid_pair_count`. All metrics declare total tensor elements vs analyzed finite elements.
 
+**Exact value histograms (ADR-021).** Every element is counted; nothing is sampled. NaN, +Inf and −Inf are counted and never binned; zeros (negative zeros as a counted subset), positives and negatives are counted for every dtype. Ranges: `min_max` = [min, max] of the finite values, `symmetric` = [−m, m] with m = max(|min|, |max|) (both need a first pass), `explicit` = the client's [lo, hi] (one pass); finite values outside the range are counted as `below` / `above`, so `below + Σ counts + above = finite` always. Float edges are `e_i = lo·(1 − i/n) + hi·(i/n)` in float64 (no overflow for [−max, max]), forced monotone, clipped and de-duplicated; the published edges define the bins (`e_i ≤ x < e_(i+1)`, last bin closed), so a range with fewer than n representable steps gets fewer bins and a constant tensor has the single bin [v, v]; −0.0 bins as 0.0 and is reported as 0.0 for min/max. Integer dtypes (and BOOL as 0/1) use exact integer edges of width `ceil((hi − lo + 1)/n)` with a final edge `hi + 1`, all bins half-open; integers beyond ±(2^53 − 1) are JSON strings. Float dtypes also get a data-independent **magnitude** histogram: finite nonzero values by binary exponent `e` with `2^e ≤ |x| < 2^(e+1)` (from `frexp`, exact, subnormals included), positive and negative separately. Golden tests count independently against the same edges on F64/F32/F16/BF16 and I64/U64/I32/I8/U8/BOOL, including ±0, non-finite, subnormal, ±max and one-ulp boundary cases (`tests/unit/test_histogram.py`).
+
 ## 5. Sampling
 
 Supported sampling modes:

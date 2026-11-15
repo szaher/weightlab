@@ -772,6 +772,665 @@
           "retryable": false
         }
       }
+    },
+    {
+      "schema": "JobRequest",
+      "valid": true,
+      "why": "tensor histogram with default binning (ADR-021)",
+      "instance": {
+        "kind": "tensor_histogram",
+        "source": {
+          "kind": "tensor",
+          "model_id": "mod_a",
+          "tensor_id": "tns_0009"
+        },
+        "budget": {
+          "max_working_set_mib": 768,
+          "max_threads": 2,
+          "max_wall_seconds": 600
+        }
+      }
+    },
+    {
+      "schema": "JobRequest",
+      "valid": true,
+      "why": "verified symmetric tensor histogram",
+      "instance": {
+        "kind": "tensor_histogram",
+        "source": {
+          "kind": "tensor",
+          "model_id": "mod_a",
+          "tensor_id": "tns_0009"
+        },
+        "consistency": "verified",
+        "histogram": {
+          "bins": 128,
+          "range": "symmetric"
+        },
+        "budget": {
+          "max_working_set_mib": 768,
+          "max_threads": 2,
+          "max_wall_seconds": 600
+        }
+      }
+    },
+    {
+      "schema": "JobRequest",
+      "valid": true,
+      "why": "tensor histogram over an explicit range",
+      "instance": {
+        "kind": "tensor_histogram",
+        "source": {
+          "kind": "tensor",
+          "model_id": "mod_a",
+          "tensor_id": "tns_0009"
+        },
+        "histogram": {
+          "bins": 32,
+          "range": "explicit",
+          "lo": -0.25,
+          "hi": 0.25
+        },
+        "budget": {
+          "max_working_set_mib": 768,
+          "max_threads": 2,
+          "max_wall_seconds": 600
+        }
+      }
+    },
+    {
+      "schema": "JobRequest",
+      "valid": false,
+      "why": "tensor histogram without source",
+      "instance": {
+        "kind": "tensor_histogram",
+        "budget": {
+          "max_working_set_mib": 768,
+          "max_threads": 2,
+          "max_wall_seconds": 600
+        }
+      }
+    },
+    {
+      "schema": "JobRequest",
+      "valid": false,
+      "why": "tensor histogram with a view",
+      "instance": {
+        "kind": "tensor_histogram",
+        "source": {
+          "kind": "tensor",
+          "model_id": "mod_a",
+          "tensor_id": "tns_0009"
+        },
+        "view": {
+          "row_axis": 0,
+          "col_axis": 1,
+          "fixed_indices": {},
+          "transpose": false
+        },
+        "budget": {
+          "max_working_set_mib": 768,
+          "max_threads": 2,
+          "max_wall_seconds": 600
+        }
+      }
+    },
+    {
+      "schema": "JobRequest",
+      "valid": false,
+      "why": "tensor histogram with a model_id",
+      "instance": {
+        "kind": "tensor_histogram",
+        "source": {
+          "kind": "tensor",
+          "model_id": "mod_a",
+          "tensor_id": "tns_0009"
+        },
+        "model_id": "mod_a",
+        "budget": {
+          "max_working_set_mib": 768,
+          "max_threads": 2,
+          "max_wall_seconds": 600
+        }
+      }
+    },
+    {
+      "schema": "JobRequest",
+      "valid": false,
+      "why": "histogram options on another job kind",
+      "instance": {
+        "kind": "pyramid_build",
+        "source": {
+          "kind": "tensor",
+          "model_id": "mod_a",
+          "tensor_id": "tns_0009"
+        },
+        "view": {
+          "row_axis": 0,
+          "col_axis": 1,
+          "fixed_indices": {},
+          "transpose": false
+        },
+        "histogram": {
+          "bins": 8
+        },
+        "budget": {
+          "max_working_set_mib": 768,
+          "max_threads": 2,
+          "max_wall_seconds": 600
+        }
+      }
+    },
+    {
+      "schema": "JobRequest",
+      "valid": false,
+      "why": "explicit range without bounds",
+      "instance": {
+        "kind": "tensor_histogram",
+        "source": {
+          "kind": "tensor",
+          "model_id": "mod_a",
+          "tensor_id": "tns_0009"
+        },
+        "histogram": {
+          "range": "explicit",
+          "lo": 0
+        },
+        "budget": {
+          "max_working_set_mib": 768,
+          "max_threads": 2,
+          "max_wall_seconds": 600
+        }
+      }
+    },
+    {
+      "schema": "JobRequest",
+      "valid": false,
+      "why": "bounds without an explicit range",
+      "instance": {
+        "kind": "tensor_histogram",
+        "source": {
+          "kind": "tensor",
+          "model_id": "mod_a",
+          "tensor_id": "tns_0009"
+        },
+        "histogram": {
+          "lo": 0,
+          "hi": 1
+        },
+        "budget": {
+          "max_working_set_mib": 768,
+          "max_threads": 2,
+          "max_wall_seconds": 600
+        }
+      }
+    },
+    {
+      "schema": "JobRequest",
+      "valid": false,
+      "why": "more than 1024 bins",
+      "instance": {
+        "kind": "tensor_histogram",
+        "source": {
+          "kind": "tensor",
+          "model_id": "mod_a",
+          "tensor_id": "tns_0009"
+        },
+        "histogram": {
+          "bins": 1025
+        },
+        "budget": {
+          "max_working_set_mib": 768,
+          "max_threads": 2,
+          "max_wall_seconds": 600
+        }
+      }
+    },
+    {
+      "schema": "JobRequest",
+      "valid": false,
+      "why": "unknown histogram option",
+      "instance": {
+        "kind": "tensor_histogram",
+        "source": {
+          "kind": "tensor",
+          "model_id": "mod_a",
+          "tensor_id": "tns_0009"
+        },
+        "histogram": {
+          "bins": 8,
+          "log": true
+        },
+        "budget": {
+          "max_working_set_mib": 768,
+          "max_threads": 2,
+          "max_wall_seconds": 600
+        }
+      }
+    },
+    {
+      "schema": "Job",
+      "valid": true,
+      "why": "completed tensor histogram (float)",
+      "instance": {
+        "job_id": "job_h1",
+        "kind": "tensor_histogram",
+        "state": "completed",
+        "progress": 1.0,
+        "created_at": "2026-11-14T10:00:00Z",
+        "started_at": "2026-11-14T10:00:00Z",
+        "finished_at": "2026-11-14T10:00:01Z",
+        "estimated_bytes": 128,
+        "bytes_scanned": 128,
+        "result": {
+          "kind": "tensor_histogram",
+          "model_id": "mod_a",
+          "tensor_id": "tns_0009",
+          "consistency": "best_effort",
+          "histogram": {
+            "histogram_version": 1,
+            "tensor_key": "model.layers.0.mlp.up_proj.weight",
+            "dtype": "BF16",
+            "shape": [
+              4,
+              8
+            ],
+            "coverage": "complete",
+            "value_domain": "float",
+            "counts": {
+              "elements": 32,
+              "finite": 30,
+              "zeros": 3,
+              "negative_zeros": 1,
+              "positives": 14,
+              "negatives": 13,
+              "nan": 1,
+              "pos_inf": 1,
+              "neg_inf": 0
+            },
+            "min": -0.5,
+            "max": 0.75,
+            "bins": {
+              "range": "min_max",
+              "requested_bins": 4,
+              "lo": -0.5,
+              "hi": 0.75,
+              "edges": [
+                -0.5,
+                -0.1875,
+                0.125,
+                0.4375,
+                0.75
+              ],
+              "counts": [
+                9,
+                10,
+                6,
+                5
+              ],
+              "below": 0,
+              "above": 0,
+              "last_bin_closed": true,
+              "rule": "bin i holds e[i] <= x < e[i+1]; the last bin also holds x = e[n]"
+            },
+            "magnitude": {
+              "rule": "bucket e holds finite nonzero x with 2^e <= |x| < 2^(e+1)",
+              "buckets": [
+                {
+                  "exponent": -3,
+                  "positive": 4,
+                  "negative": 5
+                },
+                {
+                  "exponent": -2,
+                  "positive": 6,
+                  "negative": 6
+                },
+                {
+                  "exponent": -1,
+                  "positive": 4,
+                  "negative": 2
+                }
+              ]
+            },
+            "method": "exact streaming count of every element (no sampling); two passes: value range, then bins"
+          }
+        }
+      }
+    },
+    {
+      "schema": "Job",
+      "valid": true,
+      "why": "completed tensor histogram (U64, string extrema)",
+      "instance": {
+        "job_id": "job_h1",
+        "kind": "tensor_histogram",
+        "state": "completed",
+        "progress": 1.0,
+        "created_at": "2026-11-14T10:00:00Z",
+        "started_at": "2026-11-14T10:00:00Z",
+        "finished_at": "2026-11-14T10:00:01Z",
+        "estimated_bytes": 128,
+        "bytes_scanned": 128,
+        "result": {
+          "kind": "tensor_histogram",
+          "model_id": "mod_a",
+          "tensor_id": "tns_0009",
+          "consistency": "best_effort",
+          "histogram": {
+            "histogram_version": 1,
+            "tensor_key": "model.layers.0.mlp.up_proj.weight",
+            "dtype": "U64",
+            "shape": [
+              4,
+              8
+            ],
+            "coverage": "complete",
+            "value_domain": "integer",
+            "counts": {
+              "elements": 32,
+              "finite": 32,
+              "zeros": 3,
+              "negative_zeros": 0,
+              "positives": 29,
+              "negatives": 0,
+              "nan": 0,
+              "pos_inf": 0,
+              "neg_inf": 0
+            },
+            "min": 0,
+            "max": "18446744073709551615",
+            "bins": {
+              "range": "min_max",
+              "requested_bins": 1,
+              "lo": 0,
+              "hi": "18446744073709551615",
+              "edges": [
+                0,
+                "18446744073709551616"
+              ],
+              "counts": [
+                32
+              ],
+              "below": 0,
+              "above": 0,
+              "last_bin_closed": false,
+              "rule": "bin i holds e[i] <= x < e[i+1] (integers; the last edge is hi + 1)"
+            },
+            "magnitude": null,
+            "method": "exact streaming count of every element (no sampling); two passes: value range, then bins"
+          }
+        }
+      }
+    },
+    {
+      "schema": "Job",
+      "valid": false,
+      "why": "tensor histogram without the NaN count",
+      "instance": {
+        "job_id": "job_h1",
+        "kind": "tensor_histogram",
+        "state": "completed",
+        "progress": 1.0,
+        "created_at": "2026-11-14T10:00:00Z",
+        "started_at": "2026-11-14T10:00:00Z",
+        "finished_at": "2026-11-14T10:00:01Z",
+        "estimated_bytes": 128,
+        "bytes_scanned": 128,
+        "result": {
+          "kind": "tensor_histogram",
+          "model_id": "mod_a",
+          "tensor_id": "tns_0009",
+          "consistency": "best_effort",
+          "histogram": {
+            "histogram_version": 1,
+            "tensor_key": "model.layers.0.mlp.up_proj.weight",
+            "dtype": "BF16",
+            "shape": [
+              4,
+              8
+            ],
+            "coverage": "complete",
+            "value_domain": "float",
+            "counts": {
+              "elements": 32,
+              "finite": 30,
+              "zeros": 3,
+              "negative_zeros": 1,
+              "positives": 14,
+              "negatives": 13,
+              "pos_inf": 1,
+              "neg_inf": 0
+            },
+            "min": -0.5,
+            "max": 0.75,
+            "bins": {
+              "range": "min_max",
+              "requested_bins": 4,
+              "lo": -0.5,
+              "hi": 0.75,
+              "edges": [
+                -0.5,
+                -0.1875,
+                0.125,
+                0.4375,
+                0.75
+              ],
+              "counts": [
+                9,
+                10,
+                6,
+                5
+              ],
+              "below": 0,
+              "above": 0,
+              "last_bin_closed": true,
+              "rule": "bin i holds e[i] <= x < e[i+1]; the last bin also holds x = e[n]"
+            },
+            "magnitude": {
+              "rule": "bucket e holds finite nonzero x with 2^e <= |x| < 2^(e+1)",
+              "buckets": [
+                {
+                  "exponent": -3,
+                  "positive": 4,
+                  "negative": 5
+                },
+                {
+                  "exponent": -2,
+                  "positive": 6,
+                  "negative": 6
+                },
+                {
+                  "exponent": -1,
+                  "positive": 4,
+                  "negative": 2
+                }
+              ]
+            },
+            "method": "exact streaming count of every element (no sampling); two passes: value range, then bins"
+          }
+        }
+      }
+    },
+    {
+      "schema": "Job",
+      "valid": false,
+      "why": "tensor histogram claiming sampled coverage",
+      "instance": {
+        "job_id": "job_h1",
+        "kind": "tensor_histogram",
+        "state": "completed",
+        "progress": 1.0,
+        "created_at": "2026-11-14T10:00:00Z",
+        "started_at": "2026-11-14T10:00:00Z",
+        "finished_at": "2026-11-14T10:00:01Z",
+        "estimated_bytes": 128,
+        "bytes_scanned": 128,
+        "result": {
+          "kind": "tensor_histogram",
+          "model_id": "mod_a",
+          "tensor_id": "tns_0009",
+          "consistency": "best_effort",
+          "histogram": {
+            "histogram_version": 1,
+            "tensor_key": "model.layers.0.mlp.up_proj.weight",
+            "dtype": "BF16",
+            "shape": [
+              4,
+              8
+            ],
+            "coverage": "sampled",
+            "value_domain": "float",
+            "counts": {
+              "elements": 32,
+              "finite": 30,
+              "zeros": 3,
+              "negative_zeros": 1,
+              "positives": 14,
+              "negatives": 13,
+              "nan": 1,
+              "pos_inf": 1,
+              "neg_inf": 0
+            },
+            "min": -0.5,
+            "max": 0.75,
+            "bins": {
+              "range": "min_max",
+              "requested_bins": 4,
+              "lo": -0.5,
+              "hi": 0.75,
+              "edges": [
+                -0.5,
+                -0.1875,
+                0.125,
+                0.4375,
+                0.75
+              ],
+              "counts": [
+                9,
+                10,
+                6,
+                5
+              ],
+              "below": 0,
+              "above": 0,
+              "last_bin_closed": true,
+              "rule": "bin i holds e[i] <= x < e[i+1]; the last bin also holds x = e[n]"
+            },
+            "magnitude": {
+              "rule": "bucket e holds finite nonzero x with 2^e <= |x| < 2^(e+1)",
+              "buckets": [
+                {
+                  "exponent": -3,
+                  "positive": 4,
+                  "negative": 5
+                },
+                {
+                  "exponent": -2,
+                  "positive": 6,
+                  "negative": 6
+                },
+                {
+                  "exponent": -1,
+                  "positive": 4,
+                  "negative": 2
+                }
+              ]
+            },
+            "method": "exact streaming count of every element (no sampling); two passes: value range, then bins"
+          }
+        }
+      }
+    },
+    {
+      "schema": "Job",
+      "valid": false,
+      "why": "float extremum as a string",
+      "instance": {
+        "job_id": "job_h1",
+        "kind": "tensor_histogram",
+        "state": "completed",
+        "progress": 1.0,
+        "created_at": "2026-11-14T10:00:00Z",
+        "started_at": "2026-11-14T10:00:00Z",
+        "finished_at": "2026-11-14T10:00:01Z",
+        "estimated_bytes": 128,
+        "bytes_scanned": 128,
+        "result": {
+          "kind": "tensor_histogram",
+          "model_id": "mod_a",
+          "tensor_id": "tns_0009",
+          "consistency": "best_effort",
+          "histogram": {
+            "histogram_version": 1,
+            "tensor_key": "model.layers.0.mlp.up_proj.weight",
+            "dtype": "BF16",
+            "shape": [
+              4,
+              8
+            ],
+            "coverage": "complete",
+            "value_domain": "float",
+            "counts": {
+              "elements": 32,
+              "finite": 30,
+              "zeros": 3,
+              "negative_zeros": 1,
+              "positives": 14,
+              "negatives": 13,
+              "nan": 1,
+              "pos_inf": 1,
+              "neg_inf": 0
+            },
+            "min": "-0.5",
+            "max": 0.75,
+            "bins": {
+              "range": "min_max",
+              "requested_bins": 4,
+              "lo": -0.5,
+              "hi": 0.75,
+              "edges": [
+                -0.5,
+                -0.1875,
+                0.125,
+                0.4375,
+                0.75
+              ],
+              "counts": [
+                9,
+                10,
+                6,
+                5
+              ],
+              "below": 0,
+              "above": 0,
+              "last_bin_closed": true,
+              "rule": "bin i holds e[i] <= x < e[i+1]; the last bin also holds x = e[n]"
+            },
+            "magnitude": {
+              "rule": "bucket e holds finite nonzero x with 2^e <= |x| < 2^(e+1)",
+              "buckets": [
+                {
+                  "exponent": -3,
+                  "positive": 4,
+                  "negative": 5
+                },
+                {
+                  "exponent": -2,
+                  "positive": 6,
+                  "negative": 6
+                },
+                {
+                  "exponent": -1,
+                  "positive": 4,
+                  "negative": 2
+                }
+              ]
+            },
+            "method": "exact streaming count of every element (no sampling); two passes: value range, then bins"
+          }
+        }
+      }
     }
   ]
 }

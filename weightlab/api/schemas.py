@@ -1,4 +1,4 @@
-"""Request schemas: closed, strict mirrors of contracts/openapi.yaml 0.4.0 (1.2-final + ADR-020, binding).
+"""Request schemas: closed, strict mirrors of contracts/openapi.yaml 0.5.0 (1.2-final + ADR-020 + ADR-021, binding).
 
 Every model forbids unknown fields and validates strictly (no "1" -> 1 coercion, no bool -> int).
 tests/api/test_contract_schemas.py checks these models against the frozen JSON Schema itself: all
@@ -202,12 +202,42 @@ class Budget(Closed):
     max_wall_seconds: Annotated[int, Field(ge=1, le=86400)]
 
 
+F64_MAX = 1.7976931348623157e308
+Bound = Annotated[float | int, Field(ge=-F64_MAX, le=F64_MAX)]
+
+
+class HistogramOptions(Closed):
+    """tensor_histogram binning (ADR-021); semantics in weightlab/analysis/histogram.py. lo <= hi, and integer
+    bounds for integer tensors, are checked when the job is submitted (422 VALIDATION_ERROR)."""
+
+    bins: Annotated[int, Field(ge=1, le=1024)] = 64
+    range: Literal["min_max", "symmetric", "explicit"] = "min_max"
+    lo: Bound | None = None
+    hi: Bound | None = None
+
+    @model_validator(mode="before")
+    @classmethod
+    def _range(cls, data: Any) -> Any:
+        if isinstance(data, dict):
+            nulls = [k for k in ("bins", "range", "lo", "hi") if k in data and data[k] is None]
+            if nulls:
+                raise ValueError(f"{', '.join(nulls)} must not be null")
+            if data.get("range") == "explicit":
+                if "lo" not in data or "hi" not in data:
+                    raise ValueError("range explicit needs lo and hi")
+            elif "lo" in data or "hi" in data:
+                raise ValueError("lo and hi are only allowed with range explicit")
+        return data
+
+
 class JobRequest(Closed):
-    kind: Literal["tensor_stats", "pyramid_build", "compare_stats", "file_hash", "comparison_report"]
+    kind: Literal["tensor_stats", "pyramid_build", "compare_stats", "file_hash", "comparison_report",
+                  "tensor_histogram"]  # fmt: skip
     source: Source | None = None
     view: View | None = None
     model_id: Id | None = None
     comparison_id: Id | None = None
+    histogram: HistogramOptions | None = None
     consistency: Literal["best_effort", "verified"] = "best_effort"
     budget: Budget
 
@@ -215,11 +245,16 @@ class JobRequest(Closed):
     @classmethod
     def _shape(cls, data: Any) -> Any:
         if isinstance(data, dict):
-            fields = ("source", "view", "model_id", "comparison_id", "consistency")
+            fields = ("source", "view", "model_id", "comparison_id", "consistency", "histogram")
             nulls = [k for k in fields if k in data and data[k] is None]
             if nulls:
                 raise ValueError(f"{', '.join(nulls)} must not be null")
             kind = data.get("kind")
+            if kind == "tensor_histogram":
+                if "source" not in data or any(k in data for k in ("view", "model_id")):
+                    raise ValueError("tensor_histogram takes a source and no view or model_id")
+            elif "histogram" in data:
+                raise ValueError("only tensor_histogram takes histogram")
             if kind == "comparison_report":
                 if "comparison_id" not in data or any(k in data for k in ("source", "view", "model_id")):
                     raise ValueError("comparison_report takes comparison_id and no source, view or model_id")

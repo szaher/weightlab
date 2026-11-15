@@ -1,5 +1,6 @@
 """POST /tiles, GET /tiles/{cache_key}/metadata, the pyramid_build job and job submission (comparison_report jobs
-are implemented in api/reports.py) (doc 09 sections 3 and 5, doc 03 section 5).
+are implemented in api/reports.py, tensor_histogram jobs in api/histograms.py) (doc 09 sections 3 and 5, doc 03
+section 5).
 
 Quality decision table (doc 09 section 3), applied in this order; `covered` is the source bytes under the tile,
 `limit` = pyramid_exact_max_mib applied to the tensor's on-disk size:
@@ -32,7 +33,7 @@ from weightlab.analysis import pyramid as pyr
 from weightlab.analysis import sampling
 from weightlab.analysis import tile_codec as tc
 from weightlab.analysis.tile import MIB, TILE_FORMAT, Tile, TileBudget, compute_tile, tile_geometry
-from weightlab.api import reports
+from weightlab.api import histograms, reports
 from weightlab.api.catalog import open_model
 from weightlab.api.config import DEFAULT_SETTINGS
 from weightlab.api.errors import ApiError
@@ -128,7 +129,13 @@ class TileService:
             session_capacity=lambda: int(self.settings()["memory_budget_mib"]) * MIB // 4,
         )
         self.runner = JobRunner(
-            db, self.settings, {"pyramid_build": PyramidBuild(self), reports.KIND: reports.ComparisonReport(db)}
+            db,
+            self.settings,
+            {
+                "pyramid_build": PyramidBuild(self),
+                reports.KIND: reports.ComparisonReport(db),
+                histograms.KIND: histograms.TensorHistogram(self),
+            },
         )
         self._slots_lock = threading.Lock()
         self._active = 0
@@ -406,11 +413,13 @@ class TileService:
                            details=dict(caps))  # fmt: skip
         if req.kind == reports.KIND:
             return reports.submit(self.db, self.runner, req)
+        if req.kind == histograms.KIND:
+            return histograms.submit(self, req)
         if req.kind != "pyramid_build":
             raise ApiError(
                 ErrorCode.VALIDATION_ERROR,
-                f"job kind {req.kind} is not available in this release; only pyramid_build and "
-                f"{reports.KIND} are implemented",
+                f"job kind {req.kind} is not available in this release; only pyramid_build, "
+                f"{reports.KIND} and {histograms.KIND} are implemented",
                 details={"field": "kind"},
             )
         src = req.source

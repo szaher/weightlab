@@ -1,5 +1,15 @@
 # Changelog
 
+## Unreleased — contract 0.5.0 (ADR-021)
+
+Additive API extension for ROADMAP P0.2 (weight distribution histograms); contract `0.5.0-spec-1.2-final-adr-021`. No database migration.
+
+- **New job kind `tensor_histogram`** (`POST /jobs` with a tensor `source` and optional `histogram: {bins, range, lo, hi}`): the exact value histogram of one tensor. Every element is counted. NaN, +Inf and −Inf, zeros, negative zeros, positives and negatives are reported separately, together with the finite min/max, bins over `min_max`, `symmetric` or `explicit` ranges (values outside counted as `below` / `above`, never dropped) and, for float dtypes, a magnitude histogram by binary exponent.
+- **Defined binning**: float64 edges that define the bins (last bin closed; constant tensors get one bin; narrow ranges get fewer bins), exact integer edges for integer and BOOL tensors, JSON strings for integers beyond ±(2^53 − 1).
+- **Bounded and cancellable**: 64 MiB reservation, at most 1,024 bins, cancellation and wall time checked per chunk; `estimated_bytes` is exact (one or two passes, plus `verified` hashing).
+- **Fail closed**: invalid binning is refused before queueing; a file changed after import or after submission fails with `FILE_CHANGED`.
+- Contract examples: 3 positive and 8 negative `JobRequest` cases, 2 positive and 3 negative `Job` cases. Tests: `tests/unit/test_histogram.py`, `tests/api/test_histogram_api.py`, `tests/perf/test_histogram_bounded.py`.
+
 ## 0.1.0a2 — Alpha 2: Visual Checkpoint Comparison (2026-11-14)
 
 Package version `0.1.0a2`; API contract `0.4.0-spec-1.2-final-adr-020`; database schema version 3 (migration 0003, applied automatically to 0.1.0a1 databases). Release notes: [docs/releases/0.1.0a2.md](docs/releases/0.1.0a2.md). The PyPI publication date is recorded here when the maintainer publishes it.
