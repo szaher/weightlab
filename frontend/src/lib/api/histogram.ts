@@ -13,6 +13,19 @@ export const DEFAULT_BINS = 64;
 /** The job's fixed working-memory reservation (histogram.WORKING_SET); smaller budgets are refused with 422. */
 export const HISTOGRAM_WORKING_SET_MIB = 64;
 
+export const INTEGER_DTYPES: ReadonlySet<string> = new Set(["I64", "I32", "I16", "I8", "U64", "U32", "U16", "U8", "BOOL"]);
+
+/** Parses an explicit bound; null with a reason when it is not usable for this tensor. */
+export function parseBound(text: string, integer: boolean): { value: number | null; error: string | null } {
+  const t = text.trim();
+  if (t === "") return { value: null, error: "required" };
+  const v = Number(t);
+  if (!Number.isFinite(v)) return { value: null, error: "not a finite number" };
+  if (integer && !Number.isInteger(v)) return { value: null, error: "must be a whole number for an integer tensor" };
+  if (integer && Math.abs(v) > Number.MAX_SAFE_INTEGER) return { value: null, error: "beyond ±(2^53 − 1)" };
+  return { value: v, error: null };
+}
+
 export interface HistogramOptions {
   bins: number;
   range: HistogramRange;
@@ -170,3 +183,77 @@ export const histogramApi = {
   job: getJob,
   cancel: cancelJob,
 };
+
+const PENDING = new Set(["created", "queued", "running"]);
+export const MAX_POLL_FAILURES = 5;
+/** The next poll: the server's poll_after_ms (100 ms .. 10 s), or bounded backoff after failed polls. */
+export const pollDelay = (j: Job, failures: number): number =>
+  failures === 0 ? Math.min(10_000, Math.max(100, j.poll_after_ms ?? 500)) : Math.min(8_000, 1_000 * 2 ** (failures - 1));
+
+function sleep(ms: number, signal: AbortSignal): Promise<void> {
+  return new Promise((ok, fail) => {
+    if (signal.aborted) return fail(abortError());
+    const t = setTimeout(ok, ms);
+    signal.addEventListener("abort", () => (clearTimeout(t), fail(abortError())), { once: true });
+  });
+}
+
+/** The job's own end as an error: its error body when it failed, CANCELED / INTERRUPTED otherwise. */
+export function jobEndError(j: Job): ApiRequestError {
+  if (j.state === "failed" && j.error) return new ApiRequestError({ status: 200, code: j.error.code, message: j.error.message, retryable: j.error.retryable });
+  const code = j.state === "canceled" ? "CANCELED" : "INTERRUPTED";
+  const message = j.state === "canceled" ? "the histogram job was canceled" : "WeightLab stopped while the histogram job ran";
+  return new ApiRequestError({ status: 200, code, message });
+}
+
+/** The abort reason that also cancels the job (see runHistogramJob). */
+export const CANCEL_JOB = "weightlab:cancel-job";
+
+const abortError = () => new DOMException("aborted", "AbortError");
+
+/** Submits one tensor_histogram job and waits for it: the validated result, or the job's own error. `onJob` sees
+ * every state. Aborting stops waiting. Aborting with reason CANCEL_JOB also cancels the job, including a job whose
+ * submission was still in flight when the abort happened (it is canceled as soon as its id is known), so no job
+ * outlives an explicit cancel. Any other abort (e.g. leaving the screen) leaves the job running. */
+export async function runHistogramJob(p: {
+  modelId: string;
+  tensorId: string;
+  options: HistogramOptions;
+  consistency: Consistency;
+  budget: HistogramBudget;
+  signal: AbortSignal;
+  onJob: (j: Job) => void;
+}): Promise<HistogramJobResult> {
+  // No signal on the submission: if the caller aborts meanwhile, the job must still be learned so it can be canceled.
+  let j = await histogramApi.submit(p.modelId, p.tensorId, p.options, p.consistency, p.budget);
+  const cancelIfAsked = async () => {
+    if (p.signal.reason !== CANCEL_JOB || !PENDING.has(j.state)) return;
+    try {
+      p.onJob(await cancelJob(j.job_id));
+    } catch {
+      // best effort: the job's own wall time still bounds it
+    }
+  };
+  if (p.signal.aborted) {
+    await cancelIfAsked();
+    throw abortError();
+  }
+  p.onJob(j);
+  let failures = 0;
+  while (PENDING.has(j.state)) {
+    try {
+      await sleep(pollDelay(j, failures), p.signal);
+      j = await getJob(j.job_id, p.signal);
+      failures = 0;
+      p.onJob(j);
+    } catch (e) {
+      if (p.signal.aborted) {
+        await cancelIfAsked();
+        throw e;
+      }
+      if (++failures >= MAX_POLL_FAILURES) throw e;
+    }
+  }
+  if (j.state !== "completed") throw jobEndError(j);
+  return parseHistogramResult(j.result, { modelId: p.modelId, tensorId: p.tensorId });
+}

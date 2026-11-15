@@ -22,7 +22,7 @@ export interface HistogramJob {
   /** What the current job was submitted with. */
   run: HistogramRun | null;
   /** The validated histogram of the last completed job, with the options it was computed with. */
-  result: { data: HistogramJobResult; run: HistogramRun } | null;
+  result: { data: HistogramJobResult; run: HistogramRun; jobId: string } | null;
   /** The last submit / cancel / status error, or a result that failed validation (not the job's own error). */
   error: unknown;
   busy: boolean;
@@ -35,7 +35,7 @@ export interface HistogramJob {
 export function useHistogramJob(modelId: string, tensorId: string, settings: Record<string, number | boolean> | undefined): HistogramJob {
   const [job, setJob] = useState<Job | null>(null);
   const [run, setRun] = useState<HistogramRun | null>(null);
-  const [result, setResult] = useState<{ data: HistogramJobResult; run: HistogramRun } | null>(null);
+  const [result, setResult] = useState<{ data: HistogramJobResult; run: HistogramRun; jobId: string } | null>(null);
   const [error, setError] = useState<unknown>(null);
   const [busy, setBusy] = useState(false);
   const [failures, setFailures] = useState(0);
@@ -55,7 +55,7 @@ export function useHistogramJob(modelId: string, tensorId: string, settings: Rec
       if (next.state === "completed") {
         try {
           const data = parseHistogramResult(next.result, { modelId, tensorId });
-          if (runRef.current) setResult({ data, run: runRef.current });
+          if (runRef.current) setResult({ data, run: runRef.current, jobId: next.job_id });
         } catch (e) {
           setError(e);
         }

@@ -3,11 +3,10 @@
 // implemented yet and is shown as unavailable, not as a working action.
 import { useState } from "react";
 import { ErrorPanel } from "../../components/ErrorPanel";
-import { ApiRequestError } from "../../lib/api/client";
 import { TENSOR_METRICS, type TensorRow } from "../../lib/api/compare";
-import { api } from "../../lib/api/endpoints";
-import { DEFAULT_QUERY, MAX_SEARCH } from "../../lib/api/tensorQuery";
 import { formatInt, formatShape } from "../../lib/format";
+import { DistributionCompare } from "./DistributionCompare";
+import { findTensor } from "./findTensor";
 import { METRIC_INFO, metricVal, valText, valTitle } from "./metrics";
 
 const COUNT_LABELS: [string, string][] = [
@@ -41,20 +40,7 @@ export function TensorDetail({ row, modelA, modelB, onInspect, onClose }: Props)
     setBusy(modelId);
     setError(null);
     try {
-      // The catalog search is a substring match; the exact raw key picks the one tensor (keys are unique per model).
-      const query = row.key.slice(0, MAX_SEARCH);
-      let offset = 0;
-      for (;;) {
-        const page = await api.listTensors(modelId, { ...DEFAULT_QUERY, q: query, limit: 200, offset });
-        const t = page.items.find((x) => x.raw_key === row.key);
-        if (t) {
-          onInspect(modelId, t.id);
-          return;
-        }
-        offset += page.items.length;
-        if (!page.items.length || offset >= page.total) break;
-      }
-      throw new ApiRequestError({ status: 404, code: "NOT_FOUND", message: `“${row.key}” is not in this model's catalog.` });
+      onInspect(modelId, (await findTensor(modelId, row.key)).id);
     } catch (e) {
       setError(e);
     } finally {
@@ -155,6 +141,7 @@ export function TensorDetail({ row, modelA, modelB, onInspect, onClose }: Props)
           ))}
         </dl>
       </details>
+      <DistributionCompare key={row.key} row={row} modelA={modelA} modelB={modelB} />
       <div className="row">
         {modelA ? (
           <button type="button" className="btn btn-small" disabled={busy !== null} onClick={() => void inspect(modelA.id)}>

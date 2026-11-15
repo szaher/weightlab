@@ -1,0 +1,652 @@
+{
+ "a_minmax": {
+  "histogram_version": 1,
+  "tensor_key": "w",
+  "dtype": "F32",
+  "shape": [
+   2048
+  ],
+  "coverage": "complete",
+  "value_domain": "float",
+  "counts": {
+   "elements": 2048,
+   "finite": 2048,
+   "zeros": 0,
+   "negative_zeros": 0,
+   "positives": 1043,
+   "negatives": 1005,
+   "nan": 0,
+   "pos_inf": 0,
+   "neg_inf": 0
+  },
+  "min": -0.0654895007610321,
+  "max": 0.07247135043144226,
+  "bins": {
+   "range": "min_max",
+   "requested_bins": 24,
+   "lo": -0.0654895007610321,
+   "hi": 0.07247135043144226,
+   "edges": [
+    -0.0654895007610321,
+    -0.05974113196134568,
+    -0.05399276316165924,
+    -0.04824439436197281,
+    -0.04249602556228638,
+    -0.036747656762599945,
+    -0.030999287962913513,
+    -0.025250919163227074,
+    -0.019502550363540656,
+    -0.013754181563854218,
+    -0.008005812764167779,
+    -0.0022574439644813607,
+    0.003490924835205078,
+    0.009239293634891503,
+    0.014987662434577949,
+    0.020736031234264374,
+    0.0264844000339508,
+    0.032232768833637244,
+    0.03798113763332367,
+    0.043729506433010094,
+    0.04947787523269654,
+    0.055226244032382965,
+    0.06097461283206939,
+    0.06672298163175583,
+    0.07247135043144226
+   ],
+   "counts": [
+    4,
+    7,
+    11,
+    9,
+    37,
+    57,
+    94,
+    133,
+    146,
+    186,
+    233,
+    220,
+    249,
+    206,
+    142,
+    126,
+    84,
+    48,
+    27,
+    14,
+    9,
+    5,
+    0,
+    1
+   ],
+   "below": 0,
+   "above": 0,
+   "last_bin_closed": true,
+   "rule": "bin i holds e[i] <= x < e[i+1]; the last bin also holds x = e[n]"
+  },
+  "magnitude": {
+   "rule": "bucket e holds finite nonzero x with 2^e <= |x| < 2^(e+1)",
+   "buckets": [
+    {
+     "exponent": -20,
+     "positive": 1,
+     "negative": 0
+    },
+    {
+     "exponent": -16,
+     "positive": 1,
+     "negative": 1
+    },
+    {
+     "exponent": -15,
+     "positive": 0,
+     "negative": 1
+    },
+    {
+     "exponent": -14,
+     "positive": 1,
+     "negative": 1
+    },
+    {
+     "exponent": -13,
+     "positive": 6,
+     "negative": 5
+    },
+    {
+     "exponent": -12,
+     "positive": 8,
+     "negative": 10
+    },
+    {
+     "exponent": -11,
+     "positive": 13,
+     "negative": 24
+    },
+    {
+     "exponent": -10,
+     "positive": 43,
+     "negative": 35
+    },
+    {
+     "exponent": -9,
+     "positive": 77,
+     "negative": 96
+    },
+    {
+     "exponent": -8,
+     "positive": 182,
+     "negative": 141
+    },
+    {
+     "exponent": -7,
+     "positive": 271,
+     "negative": 246
+    },
+    {
+     "exponent": -6,
+     "positive": 322,
+     "negative": 324
+    },
+    {
+     "exponent": -5,
+     "positive": 117,
+     "negative": 119
+    },
+    {
+     "exponent": -4,
+     "positive": 1,
+     "negative": 2
+    }
+   ]
+  },
+  "method": "exact streaming count of every element (no sampling); two passes: value range, then bins"
+ },
+ "b_minmax": {
+  "histogram_version": 1,
+  "tensor_key": "w",
+  "dtype": "F32",
+  "shape": [
+   2048
+  ],
+  "coverage": "complete",
+  "value_domain": "float",
+  "counts": {
+   "elements": 2048,
+   "finite": 2047,
+   "zeros": 0,
+   "negative_zeros": 0,
+   "positives": 1172,
+   "negatives": 875,
+   "nan": 1,
+   "pos_inf": 0,
+   "neg_inf": 0
+  },
+  "min": -0.08113634586334229,
+  "max": 0.09821275621652603,
+  "bins": {
+   "range": "min_max",
+   "requested_bins": 24,
+   "lo": -0.08113634586334229,
+   "hi": 0.09821275621652603,
+   "edges": [
+    -0.08113634586334229,
+    -0.07366346661001445,
+    -0.06619058735668658,
+    -0.058717708103358746,
+    -0.05124482885003091,
+    -0.04377194959670304,
+    -0.036299070343375206,
+    -0.028826191090047353,
+    -0.02135331183671952,
+    -0.013880432583391666,
+    -0.006407553330063813,
+    0.0010653259232640197,
+    0.008538205176591873,
+    0.016011084429919713,
+    0.023483963683247573,
+    0.030956842936575413,
+    0.03842972218990325,
+    0.04590260144323111,
+    0.05337548069655895,
+    0.06084835994988679,
+    0.06832123920321465,
+    0.07579411845654249,
+    0.08326699770987032,
+    0.0907398769631982,
+    0.09821275621652603
+   ],
+   "counts": [
+    4,
+    7,
+    11,
+    9,
+    37,
+    57,
+    94,
+    133,
+    146,
+    186,
+    233,
+    219,
+    249,
+    206,
+    142,
+    126,
+    84,
+    48,
+    27,
+    14,
+    9,
+    5,
+    0,
+    1
+   ],
+   "below": 0,
+   "above": 0,
+   "last_bin_closed": true,
+   "rule": "bin i holds e[i] <= x < e[i+1]; the last bin also holds x = e[n]"
+  },
+  "magnitude": {
+   "rule": "bucket e holds finite nonzero x with 2^e <= |x| < 2^(e+1)",
+   "buckets": [
+    {
+     "exponent": -19,
+     "positive": 0,
+     "negative": 1
+    },
+    {
+     "exponent": -16,
+     "positive": 2,
+     "negative": 0
+    },
+    {
+     "exponent": -15,
+     "positive": 0,
+     "negative": 2
+    },
+    {
+     "exponent": -14,
+     "positive": 1,
+     "negative": 1
+    },
+    {
+     "exponent": -13,
+     "positive": 5,
+     "negative": 4
+    },
+    {
+     "exponent": -12,
+     "positive": 9,
+     "negative": 8
+    },
+    {
+     "exponent": -11,
+     "positive": 21,
+     "negative": 21
+    },
+    {
+     "exponent": -10,
+     "positive": 31,
+     "negative": 33
+    },
+    {
+     "exponent": -9,
+     "positive": 59,
+     "negative": 53
+    },
+    {
+     "exponent": -8,
+     "positive": 106,
+     "negative": 112
+    },
+    {
+     "exponent": -7,
+     "positive": 263,
+     "negative": 184
+    },
+    {
+     "exponent": -6,
+     "positive": 371,
+     "negative": 268
+    },
+    {
+     "exponent": -5,
+     "positive": 277,
+     "negative": 171
+    },
+    {
+     "exponent": -4,
+     "positive": 27,
+     "negative": 17
+    }
+   ]
+  },
+  "method": "exact streaming count of every element (no sampling); two passes: value range, then bins"
+ },
+ "a_shared": {
+  "histogram_version": 1,
+  "tensor_key": "w",
+  "dtype": "F32",
+  "shape": [
+   2048
+  ],
+  "coverage": "complete",
+  "value_domain": "float",
+  "counts": {
+   "elements": 2048,
+   "finite": 2048,
+   "zeros": 0,
+   "negative_zeros": 0,
+   "positives": 1043,
+   "negatives": 1005,
+   "nan": 0,
+   "pos_inf": 0,
+   "neg_inf": 0
+  },
+  "min": -0.0654895007610321,
+  "max": 0.07247135043144226,
+  "bins": {
+   "range": "explicit",
+   "requested_bins": 24,
+   "lo": -0.08113634586334229,
+   "hi": 0.09821275621652603,
+   "edges": [
+    -0.08113634586334229,
+    -0.07366346661001445,
+    -0.06619058735668658,
+    -0.058717708103358746,
+    -0.05124482885003091,
+    -0.04377194959670304,
+    -0.036299070343375206,
+    -0.028826191090047353,
+    -0.02135331183671952,
+    -0.013880432583391666,
+    -0.006407553330063813,
+    0.0010653259232640197,
+    0.008538205176591873,
+    0.016011084429919713,
+    0.023483963683247573,
+    0.030956842936575413,
+    0.03842972218990325,
+    0.04590260144323111,
+    0.05337548069655895,
+    0.06084835994988679,
+    0.06832123920321465,
+    0.07579411845654249,
+    0.08326699770987032,
+    0.0907398769631982,
+    0.09821275621652603
+   ],
+   "counts": [
+    0,
+    0,
+    4,
+    13,
+    11,
+    44,
+    91,
+    146,
+    185,
+    246,
+    298,
+    322,
+    262,
+    179,
+    126,
+    67,
+    31,
+    17,
+    5,
+    0,
+    1,
+    0,
+    0,
+    0
+   ],
+   "below": 0,
+   "above": 0,
+   "last_bin_closed": true,
+   "rule": "bin i holds e[i] <= x < e[i+1]; the last bin also holds x = e[n]"
+  },
+  "magnitude": {
+   "rule": "bucket e holds finite nonzero x with 2^e <= |x| < 2^(e+1)",
+   "buckets": [
+    {
+     "exponent": -20,
+     "positive": 1,
+     "negative": 0
+    },
+    {
+     "exponent": -16,
+     "positive": 1,
+     "negative": 1
+    },
+    {
+     "exponent": -15,
+     "positive": 0,
+     "negative": 1
+    },
+    {
+     "exponent": -14,
+     "positive": 1,
+     "negative": 1
+    },
+    {
+     "exponent": -13,
+     "positive": 6,
+     "negative": 5
+    },
+    {
+     "exponent": -12,
+     "positive": 8,
+     "negative": 10
+    },
+    {
+     "exponent": -11,
+     "positive": 13,
+     "negative": 24
+    },
+    {
+     "exponent": -10,
+     "positive": 43,
+     "negative": 35
+    },
+    {
+     "exponent": -9,
+     "positive": 77,
+     "negative": 96
+    },
+    {
+     "exponent": -8,
+     "positive": 182,
+     "negative": 141
+    },
+    {
+     "exponent": -7,
+     "positive": 271,
+     "negative": 246
+    },
+    {
+     "exponent": -6,
+     "positive": 322,
+     "negative": 324
+    },
+    {
+     "exponent": -5,
+     "positive": 117,
+     "negative": 119
+    },
+    {
+     "exponent": -4,
+     "positive": 1,
+     "negative": 2
+    }
+   ]
+  },
+  "method": "exact streaming count of every element (no sampling); one pass, explicit range"
+ },
+ "b_shared": {
+  "histogram_version": 1,
+  "tensor_key": "w",
+  "dtype": "F32",
+  "shape": [
+   2048
+  ],
+  "coverage": "complete",
+  "value_domain": "float",
+  "counts": {
+   "elements": 2048,
+   "finite": 2047,
+   "zeros": 0,
+   "negative_zeros": 0,
+   "positives": 1172,
+   "negatives": 875,
+   "nan": 1,
+   "pos_inf": 0,
+   "neg_inf": 0
+  },
+  "min": -0.08113634586334229,
+  "max": 0.09821275621652603,
+  "bins": {
+   "range": "explicit",
+   "requested_bins": 24,
+   "lo": -0.08113634586334229,
+   "hi": 0.09821275621652603,
+   "edges": [
+    -0.08113634586334229,
+    -0.07366346661001445,
+    -0.06619058735668658,
+    -0.058717708103358746,
+    -0.05124482885003091,
+    -0.04377194959670304,
+    -0.036299070343375206,
+    -0.028826191090047353,
+    -0.02135331183671952,
+    -0.013880432583391666,
+    -0.006407553330063813,
+    0.0010653259232640197,
+    0.008538205176591873,
+    0.016011084429919713,
+    0.023483963683247573,
+    0.030956842936575413,
+    0.03842972218990325,
+    0.04590260144323111,
+    0.05337548069655895,
+    0.06084835994988679,
+    0.06832123920321465,
+    0.07579411845654249,
+    0.08326699770987032,
+    0.0907398769631982,
+    0.09821275621652603
+   ],
+   "counts": [
+    4,
+    7,
+    11,
+    9,
+    37,
+    57,
+    94,
+    133,
+    146,
+    186,
+    233,
+    219,
+    249,
+    206,
+    142,
+    126,
+    84,
+    48,
+    27,
+    14,
+    9,
+    5,
+    0,
+    1
+   ],
+   "below": 0,
+   "above": 0,
+   "last_bin_closed": true,
+   "rule": "bin i holds e[i] <= x < e[i+1]; the last bin also holds x = e[n]"
+  },
+  "magnitude": {
+   "rule": "bucket e holds finite nonzero x with 2^e <= |x| < 2^(e+1)",
+   "buckets": [
+    {
+     "exponent": -19,
+     "positive": 0,
+     "negative": 1
+    },
+    {
+     "exponent": -16,
+     "positive": 2,
+     "negative": 0
+    },
+    {
+     "exponent": -15,
+     "positive": 0,
+     "negative": 2
+    },
+    {
+     "exponent": -14,
+     "positive": 1,
+     "negative": 1
+    },
+    {
+     "exponent": -13,
+     "positive": 5,
+     "negative": 4
+    },
+    {
+     "exponent": -12,
+     "positive": 9,
+     "negative": 8
+    },
+    {
+     "exponent": -11,
+     "positive": 21,
+     "negative": 21
+    },
+    {
+     "exponent": -10,
+     "positive": 31,
+     "negative": 33
+    },
+    {
+     "exponent": -9,
+     "positive": 59,
+     "negative": 53
+    },
+    {
+     "exponent": -8,
+     "positive": 106,
+     "negative": 112
+    },
+    {
+     "exponent": -7,
+     "positive": 263,
+     "negative": 184
+    },
+    {
+     "exponent": -6,
+     "positive": 371,
+     "negative": 268
+    },
+    {
+     "exponent": -5,
+     "positive": 277,
+     "negative": 171
+    },
+    {
+     "exponent": -4,
+     "positive": 27,
+     "negative": 17
+    }
+   ]
+  },
+  "method": "exact streaming count of every element (no sampling); one pass, explicit range"
+ },
+ "lo": -0.08113634586334229,
+ "hi": 0.09821275621652603
+}
