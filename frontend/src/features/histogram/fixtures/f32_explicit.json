@@ -1,0 +1,146 @@
+{
+ "histogram_version": 1,
+ "tensor_key": "w",
+ "dtype": "F32",
+ "shape": [
+  4096
+ ],
+ "coverage": "complete",
+ "value_domain": "float",
+ "counts": {
+  "elements": 4096,
+  "finite": 4093,
+  "zeros": 2,
+  "negative_zeros": 1,
+  "positives": 1991,
+  "negatives": 2100,
+  "nan": 1,
+  "pos_inf": 1,
+  "neg_inf": 1
+ },
+ "min": -0.07322163879871368,
+ "max": 0.0638684630393982,
+ "bins": {
+  "range": "explicit",
+  "requested_bins": 16,
+  "lo": -0.02,
+  "hi": 0.02,
+  "edges": [
+   -0.02,
+   -0.017499999999999998,
+   -0.015000000000000001,
+   -0.0125,
+   -0.009999999999999998,
+   -0.0075,
+   -0.005000000000000001,
+   -0.0024999999999999988,
+   0.0,
+   0.0024999999999999988,
+   0.005000000000000001,
+   0.0075,
+   0.009999999999999998,
+   0.0125,
+   0.015000000000000001,
+   0.017499999999999998,
+   0.02
+  ],
+  "counts": [
+   140,
+   145,
+   178,
+   152,
+   180,
+   205,
+   207,
+   227,
+   228,
+   181,
+   192,
+   169,
+   159,
+   166,
+   118,
+   145
+  ],
+  "below": 666,
+  "above": 635,
+  "last_bin_closed": true,
+  "rule": "bin i holds e[i] <= x < e[i+1]; the last bin also holds x = e[n]"
+ },
+ "magnitude": {
+  "rule": "bucket e holds finite nonzero x with 2^e <= |x| < 2^(e+1)",
+  "buckets": [
+   {
+    "exponent": -19,
+    "positive": 0,
+    "negative": 2
+   },
+   {
+    "exponent": -16,
+    "positive": 2,
+    "negative": 1
+   },
+   {
+    "exponent": -15,
+    "positive": 1,
+    "negative": 1
+   },
+   {
+    "exponent": -14,
+    "positive": 11,
+    "negative": 6
+   },
+   {
+    "exponent": -13,
+    "positive": 7,
+    "negative": 7
+   },
+   {
+    "exponent": -12,
+    "positive": 20,
+    "negative": 26
+   },
+   {
+    "exponent": -11,
+    "positive": 35,
+    "negative": 44
+   },
+   {
+    "exponent": -10,
+    "positive": 93,
+    "negative": 98
+   },
+   {
+    "exponent": -9,
+    "positive": 155,
+    "negative": 153
+   },
+   {
+    "exponent": -8,
+    "positive": 305,
+    "negative": 327
+   },
+   {
+    "exponent": -7,
+    "positive": 499,
+    "negative": 525
+   },
+   {
+    "exponent": -6,
+    "positive": 628,
+    "negative": 685
+   },
+   {
+    "exponent": -5,
+    "positive": 232,
+    "negative": 222
+   },
+   {
+    "exponent": -4,
+    "positive": 3,
+    "negative": 3
+   }
+  ]
+ },
+ "method": "exact streaming count of every element (no sampling); one pass, explicit range"
+}

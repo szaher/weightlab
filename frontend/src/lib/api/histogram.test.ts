@@ -1,0 +1,104 @@
+// parseHistogramResult against real backend histograms (features/histogram/fixtures, written by
+// weightlab/analysis/histogram.py) and against each invariant broken one at a time.
+import { describe, expect, it } from "vitest";
+import explicitJson from "../../features/histogram/fixtures/f32_explicit.json";
+import minmaxJson from "../../features/histogram/fixtures/f32_minmax.json";
+import nonfiniteJson from "../../features/histogram/fixtures/f32_nonfinite.json";
+import i8Json from "../../features/histogram/fixtures/i8_symmetric.json";
+import { ApiRequestError } from "./client";
+import { histogramBudget, parseHistogramResult, toNumber } from "./histogram";
+
+const EXPECT = { modelId: "mod_1", tensorId: "ten_1" };
+const wrap = (h: unknown, extra: object = {}) => ({ kind: "tensor_histogram", model_id: "mod_1", tensor_id: "ten_1", consistency: "best_effort", histogram: h, ...extra });
+const clone = <T>(v: T): T => JSON.parse(JSON.stringify(v)) as T;
+type H = typeof minmaxJson & Record<string, unknown>;
+
+function rejects(mutate: (h: H) => void, extra: object = {}): void {
+  const h = clone(minmaxJson) as H;
+  mutate(h);
+  let err: unknown;
+  try {
+    parseHistogramResult(wrap(h, extra), EXPECT);
+  } catch (e) {
+    err = e;
+  }
+  expect(err).toBeInstanceOf(ApiRequestError);
+  expect((err as ApiRequestError).code).toBe("BAD_RESPONSE");
+}
+
+describe("parseHistogramResult", () => {
+  it.each([
+    ["f32 min_max", minmaxJson],
+    ["f32 explicit", explicitJson],
+    ["i8 symmetric", i8Json],
+    ["no finite values", nonfiniteJson],
+  ])("accepts the backend's %s histogram unchanged", (_, h) => {
+    const r = parseHistogramResult(wrap(h), EXPECT);
+    expect(r.histogram).toEqual(h);
+  });
+
+  it("refuses a result for another tensor or kind", () => {
+    expect(() => parseHistogramResult(wrap(minmaxJson, { tensor_id: "ten_2" }), EXPECT)).toThrow(/different tensor/);
+    expect(() => parseHistogramResult(wrap(minmaxJson, { kind: "tensor_stats" }), EXPECT)).toThrow(ApiRequestError);
+    expect(() => parseHistogramResult(null, EXPECT)).toThrow(ApiRequestError);
+  });
+
+  it("refuses unknown versions and sampled coverage", () => {
+    rejects((h) => (h.histogram_version = 2 as 1));
+    rejects((h) => (h.coverage = "sampled"));
+    rejects((h) => (h.value_domain = "complex"));
+  });
+
+  it("refuses counts that do not add up", () => {
+    rejects((h) => (h.counts.elements += 1));
+    rejects((h) => (h.counts.nan += 1));
+    rejects((h) => (h.counts.zeros += 1));
+    rejects((h) => (h.counts.negative_zeros = h.counts.zeros + 1));
+    rejects((h) => (h.counts.finite = -1));
+    rejects((h) => (h.counts.positives = 1.5));
+  });
+
+  it("refuses bins that do not cover the finite values", () => {
+    rejects((h) => (h.bins.counts[0]! += 1));
+    rejects((h) => (h.bins.below += 1));
+    rejects((h) => h.bins.edges.pop());
+    rejects((h) => h.bins.edges.reverse());
+    rejects((h) => (h.bins.requested_bins = 4));
+    rejects((h) => ((h as Record<string, unknown>).bins = null));
+  });
+
+  it("refuses min / max that contradict the counts", () => {
+    rejects((h) => ((h as Record<string, unknown>).min = null));
+    rejects((h) => {
+      const t = h.min;
+      h.min = h.max;
+      h.max = t;
+    });
+  });
+
+  it("refuses a magnitude view that is missing, misordered or does not add up", () => {
+    rejects((h) => ((h as Record<string, unknown>).magnitude = null));
+    rejects((h) => h.magnitude.buckets.reverse());
+    rejects((h) => (h.magnitude.buckets[0]!.positive += 1));
+    const i8 = clone(i8Json) as Record<string, unknown>;
+    i8.magnitude = { rule: "x", buckets: [] };
+    expect(() => parseHistogramResult(wrap(i8), EXPECT)).toThrow(/magnitude/);
+  });
+
+  it("keeps 64-bit integers that arrive as decimal strings", () => {
+    const h = clone(i8Json) as Record<string, unknown> & typeof i8Json;
+    (h as Record<string, unknown>).max = "9007199254740993";
+    const r = parseHistogramResult(wrap(h), EXPECT);
+    expect(r.histogram.max).toBe("9007199254740993");
+    expect(toNumber("9007199254740993")).toBe(9007199254740992);
+    (h as Record<string, unknown>).max = "12abc";
+    expect(() => parseHistogramResult(wrap(h), EXPECT)).toThrow(ApiRequestError);
+  });
+});
+
+describe("histogramBudget", () => {
+  it("uses the server's caps from Settings", () => {
+    expect(histogramBudget({ memory_budget_mib: 512, max_job_seconds: 90 })).toEqual({ max_working_set_mib: 512, max_threads: 1, max_wall_seconds: 90 });
+    expect(histogramBudget(undefined)).toEqual({ max_working_set_mib: 1024, max_threads: 1, max_wall_seconds: 600 });
+  });
+});

@@ -1354,3 +1354,79 @@ code,
 .rank-table .key-cell {
   min-width: 28ch;
 }
+
+/* Histogram (ADR-021): one hue for counts; text stays in text tokens; the readout and tables carry the numbers. */
+.hist-controls {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 10px 12px;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+}
+/* `.row .input` grows along the row; inside a column `.field` that would stretch the control vertically. */
+.hist-controls .field .input {
+  flex: none;
+  width: auto;
+}
+.hist-controls .field-num {
+  flex: 0 1 auto;
+}
+.hist-toolbar {
+  gap: 20px;
+  flex-wrap: wrap;
+}
+.hist-plot {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  padding: 4px;
+}
+.hist-plot svg {
+  display: block;
+  max-height: 300px;
+}
+.hist-grid line {
+  stroke: var(--border);
+  stroke-width: 1;
+}
+.hist-grid text,
+.hist-xlabel {
+  fill: var(--muted);
+  font-family: var(--mono);
+  font-size: 11px;
+}
+.hist-axis {
+  stroke: var(--muted);
+  stroke-width: 1;
+}
+.hist-bar {
+  fill: var(--heat);
+}
+.hist-col-on .hist-bar {
+  fill: var(--focus);
+}
+.hist-hit {
+  fill: transparent;
+}
+.hist-readout {
+  min-height: 1.4em;
+  margin: 0;
+}
+.hist-warn {
+  color: var(--warn);
+  font-weight: 600;
+}
+.hist-table {
+  max-height: 320px;
+}
+@media (forced-colors: active) {
+  .hist-bar {
+    fill: CanvasText;
+  }
+  .hist-col-on .hist-bar {
+    fill: Highlight;
+  }
+}

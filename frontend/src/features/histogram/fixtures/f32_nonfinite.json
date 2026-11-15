@@ -1,0 +1,29 @@
+{
+ "histogram_version": 1,
+ "tensor_key": "w",
+ "dtype": "F32",
+ "shape": [
+  2
+ ],
+ "coverage": "complete",
+ "value_domain": "float",
+ "counts": {
+  "elements": 2,
+  "finite": 0,
+  "zeros": 0,
+  "negative_zeros": 0,
+  "positives": 0,
+  "negatives": 0,
+  "nan": 1,
+  "pos_inf": 1,
+  "neg_inf": 0
+ },
+ "min": null,
+ "max": null,
+ "bins": null,
+ "magnitude": {
+  "rule": "bucket e holds finite nonzero x with 2^e <= |x| < 2^(e+1)",
+  "buckets": []
+ },
+ "method": "exact streaming count of every element (no sampling); two passes: value range, then bins"
+}

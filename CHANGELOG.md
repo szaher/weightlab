@@ -8,6 +8,12 @@ Additive API extension for ROADMAP P0.2 (weight distribution histograms); contra
 - **Defined binning**: float64 edges that define the bins (last bin closed; constant tensors get one bin; narrow ranges get fewer bins), exact integer edges for integer and BOOL tensors, JSON strings for integers beyond ±(2^53 − 1).
 - **Bounded and cancellable**: 64 MiB reservation, at most 1,024 bins, cancellation and wall time checked per chunk; `estimated_bytes` is exact (one or two passes, plus `verified` hashing).
 - **Fail closed**: invalid binning is refused before queueing; a file changed after import or after submission fails with `FILE_CHANGED`.
+- **Histogram tab in Explore** (UI): every non-empty tensor, including rank-0/1 tensors, gets a Histogram tab. You choose the bins (up to 1,024) and the range (min–max, symmetric, or explicit lo/hi checked against the dtype), then run best effort or verified with the read cost shown up front; progress, cancel and failure advice work as in Compare.
+  - The validated result shows min/max, finite count, zeros (incl. −0), positive and negative counts, NaN, ±Inf and below/above.
+  - Bins are drawn at their true widths on a linear or log count axis, alongside a mirrored magnitude view by binary exponent for float tensors.
+  - Hover or arrow-key readout of exact intervals, and a table view.
+  - A result that breaks the histogram invariants is refused. A changed file clears the shown histogram.
+  - E2E (`frontend/tests/e2e/histogram.spec.ts`) recounts every bin from the fixture's bytes and runs axe in light and dark.
 - Contract examples: 3 positive and 8 negative `JobRequest` cases, 2 positive and 3 negative `Job` cases. Tests: `tests/unit/test_histogram.py`, `tests/api/test_histogram_api.py`, `tests/perf/test_histogram_bounded.py`.
 
 ## 0.1.0a2 — Alpha 2: Visual Checkpoint Comparison (2026-11-14)
