@@ -27,19 +27,18 @@ from typing import Literal
 
 import numpy as np
 
+from weightlab.analysis.readers import Reader, TensorReader
 from weightlab.analysis.tile import (
     NOT_REPRESENTABLE,
     Aggregation,
     BlockAggregates,
     Tile,
-    _as_float64,
     columns_are_slow,
     precision_warnings,
     tile_geometry,
 )
 from weightlab.core.errors import ErrorCode, fail
 from weightlab.formats.checkpoint import Checkpoint
-from weightlab.formats.dtypes import lookup
 from weightlab.formats.selection import View, resolve_view
 
 MASK64 = (1 << 64) - 1
@@ -97,7 +96,7 @@ class SamplePlan:
 
 
 def plan_sample(
-    ck: Checkpoint,
+    ck: Checkpoint | Reader,
     key: str,
     view: View | None,
     *,
@@ -111,18 +110,19 @@ def plan_sample(
     max_cells: int,
 ) -> SamplePlan:
     """Choose rows per block (the requested number, or the largest default <= 8 that fits the read budget) and check
-    the read and cell budgets before anything is read."""
-    meta = ck.tensor(key)
-    rv = resolve_view(meta.shape, view)
+    the read and cell budgets before anything is read. `ck` may be a reader (a paired source reads both inputs:
+    its bytes per cell are summed)."""
+    src = TensorReader(ck, key) if isinstance(ck, Checkpoint) else ck
+    rv = resolve_view(src.shape, view)
     g = tile_geometry(rv.rows, rv.cols, level, x, y, size)
-    if columns_are_slow(rv, meta.shape):
+    if columns_are_slow(rv, src.shape):
         raise fail(
             ErrorCode.RESOURCE_LIMIT,
             "row sampling reads whole view rows, which are strided in storage for this (transposed) view; "
             "request the exact pyramid or the untransposed view",
         )
     width = g.col_end - g.col_start
-    esize = lookup(meta.dtype).size
+    esize = src.esize
     nblocks = g.rows
     real = [min(g.row_end, g.row_start + (i + 1) * g.block) - (g.row_start + i * g.block) for i in range(nblocks)]
 
@@ -149,7 +149,7 @@ def plan_sample(
 
 
 def sampled_tile(
-    ck: Checkpoint,
+    ck: Checkpoint | Reader,
     key: str,
     view: View | None,
     *,
@@ -164,16 +164,15 @@ def sampled_tile(
 ) -> Tile:
     if plan.complete:
         raise ValueError("a complete selection is an exact tile; compute it with compute_tile")
-    meta = ck.tensor(key)
-    rv = resolve_view(meta.shape, view)
+    src = TensorReader(ck, key) if isinstance(ck, Checkpoint) else ck
+    rv = resolve_view(src.shape, view)
     g = tile_geometry(rv.rows, rv.cols, level, x, y, size)
-    dt = lookup(meta.dtype)
     mix = seed_mix(pyramid_id, level, x, y, plan.seed) if plan.seed is not None else 0
     acc = BlockAggregates.empty(g.rows, g.cols)
     rounded = False
     bytes_read = 0
     width = g.col_end - g.col_start
-    per_row = max(1, min(width, band_cells // max(1, plan.rows_per_block), ck.limits.roi_hard_max_cells))
+    per_row = max(1, min(width, band_cells // max(1, plan.rows_per_block), src.limits.roi_hard_max_cells))
     for i in range(g.rows):
         r0 = g.row_start + i * g.block
         n = min(g.row_end, r0 + g.block) - r0
@@ -181,16 +180,18 @@ def sampled_tile(
         offsets = select_rows(n, k, policy=plan.policy, mix=mix, block_row=(r0 // g.block))
         for c0 in range(g.col_start, g.col_end, per_row):  # column segments; partial blocks merge by addition
             c1 = min(g.col_end, c0 + per_row)
-            rows = []
+            rows, overs = [], []
             for off in offsets:
-                raw = ck.read_roi_raw(key, r0 + off, r0 + off + 1, c0, c1, view, max_cells=max(c1 - c0, 1))
-                bytes_read += raw.stripe_bytes
-                vals, rnd = _as_float64(raw.values(), dt)
-                rounded |= rnd
-                rows.append(vals)
-            part = BlockAggregates.of_values(np.vstack(rows), 0, (c0 - g.col_start) % g.block, g.block)
+                got = src.roi(r0 + off, r0 + off + 1, c0, c1, view, max_cells=max(c1 - c0, 1))
+                bytes_read += got.nbytes
+                rounded |= got.rounded
+                rows.append(got.v)
+                overs.append(got.overflow if got.overflow is not None else np.zeros(got.v.shape, bool))
+            over = np.vstack(overs)
+            part = BlockAggregates.of_values(np.vstack(rows), 0, (c0 - g.col_start) % g.block, g.block,
+                                             over if over.any() else None)  # fmt: skip
             acc.merge_into(part, i, (c0 - g.col_start) // g.block)
-    ck.check()
+    src.check()
     values, status = acc.display(aggregation)
     finite = int(acc.finite.sum())
     counted = int(acc.finite.sum() + acc.nan.sum() + acc.pos_inf.sum() + acc.neg_inf.sum())
@@ -205,13 +206,13 @@ def sampled_tile(
     return Tile(
         geometry=g,
         aggregation=aggregation,
-        source_dtype=dt.name,
+        source_dtype=src.source_dtype,
         values=values,
         status=status,
         finite_count=finite,
         nonfinite_count=counted - finite,
         numeric_precision="overflowed" if not_repr else "rounded",
-        covered_bytes=g.covered_cells * dt.size,
+        covered_bytes=g.covered_cells * src.esize,
         bytes_read=bytes_read,
         quality="row_sampled",
         warnings=tuple(warnings),

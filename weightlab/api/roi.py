@@ -21,6 +21,7 @@ from typing import Any
 import numpy as np
 import numpy.typing as npt
 
+from weightlab.analysis.readers import delta_values
 from weightlab.analysis.roi import ValueEncoding, encode_roi
 from weightlab.api.catalog import open_model
 from weightlab.api.config import DEFAULT_SETTINGS
@@ -108,7 +109,9 @@ def _derived(values: F64, overflow: npt.NDArray[np.bool_], source_dtype: str, wa
     }
 
 
-def _delta(conn: sqlite3.Connection, src: DeltaSource, req: RoiRequest, cap: int) -> dict[str, Any]:
+def delta_entry(conn: sqlite3.Connection, src: DeltaSource) -> tuple[dict[str, Any], dict[str, Any]]:
+    """The comparison and entry of a `delta` source: 404 when either is unknown, 409 INCOMPATIBLE_TENSOR when the
+    entry has no elementwise B - A (not matched / dtype_mismatch, or not analyzable)."""
     cmp_row = store.get_comparison(conn, src.comparison_id)
     if cmp_row is None:
         raise ApiError(ErrorCode.NOT_FOUND, "comparison not found")
@@ -117,30 +120,33 @@ def _delta(conn: sqlite3.Connection, src: DeltaSource, req: RoiRequest, cap: int
         raise ApiError(ErrorCode.NOT_FOUND, "entry not found in this comparison")
     if entry["status"] not in ("matched", "dtype_mismatch") or not entry["detail_json"].get("analyzable"):
         raise ApiError(ErrorCode.INCOMPATIBLE_TENSOR, f"entry is {entry['status']}: no elementwise B - A exists")
+    return cmp_row, entry
+
+
+def delta_warnings(cmp_row: dict[str, Any], src: DeltaSource, dtype_a: str, dtype_b: str) -> list[str]:
+    """Caveats every delta result carries: unverified lineage, mixed dtypes, the relative_abs formula."""
+    lineage = cmp_row["compatibility_json"]["lineage"]
+    warnings = []
+    if lineage["compatibility_class"] in ("S", "X"):
+        warnings.append(f"Class {lineage['compatibility_class']}: raw deltas may be meaningless (no verified lineage)")
+    if dtype_a != dtype_b:
+        warnings.append(f"dtypes differ: A {dtype_a}, B {dtype_b}; both promoted to float64")
+    if src.transform == "relative_abs":
+        warnings.append(f"relative_abs = |B - A| / max(|A|, {src.epsilon!r})")
+    return warnings
+
+
+def _delta(conn: sqlite3.Connection, src: DeltaSource, req: RoiRequest, cap: int) -> dict[str, Any]:
+    cmp_row, entry = delta_entry(conn, src)
     key, view = entry["raw_key"], _view(req.view)
     with open_model(conn, cmp_row["model_a_id"]) as a, open_model(conn, cmp_row["model_b_id"]) as b:
         ra = a.read_roi_raw(key, *_roi_args(req), view, max_cells=cap)
         rb = b.read_roi_raw(key, *_roi_args(req), view, max_cells=cap)
         a.check()
         b.check()
-    va, vb = ra.values().astype(np.float64), rb.values().astype(np.float64)
-    finite_in = np.isfinite(va) & np.isfinite(vb)
-    with np.errstate(over="ignore", invalid="ignore", divide="ignore"):
-        d = vb - va
-        if src.transform == "abs_b_minus_a":
-            d = np.abs(d)
-        elif src.transform == "relative_abs":
-            d = np.abs(d) / np.maximum(np.abs(va), src.epsilon)
-    overflow = finite_in & ~np.isfinite(d)
-    lineage = cmp_row["compatibility_json"]["lineage"]
-    warnings = []
-    if lineage["compatibility_class"] in ("S", "X"):
-        warnings.append(f"Class {lineage['compatibility_class']}: raw deltas may be meaningless (no verified lineage)")
-    if ra.dtype.name != rb.dtype.name:
-        warnings.append(f"dtypes differ: A {ra.dtype.name}, B {rb.dtype.name}; both promoted to float64")
-    if src.transform == "relative_abs":
-        warnings.append(f"relative_abs = |B - A| / max(|A|, {src.epsilon!r})")
-    return _derived(d, overflow, ra.dtype.name, warnings)
+    d, overflow = delta_values(ra.values().astype(np.float64), rb.values().astype(np.float64), src.transform,
+                               src.epsilon)  # fmt: skip
+    return _derived(d, overflow, ra.dtype.name, delta_warnings(cmp_row, src, ra.dtype.name, rb.dtype.name))
 
 
 def _read(ck: Checkpoint, key: str, r0: int, r1: int, c0: int, c1: int) -> F64:

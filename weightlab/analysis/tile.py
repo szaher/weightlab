@@ -35,11 +35,12 @@ import numpy as np
 import numpy.typing as npt
 
 from weightlab.analysis.diff import NUMERICS_VERSION
+from weightlab.analysis.readers import Reader, TensorReader
+from weightlab.analysis.readers import as_float64 as _as_float64  # noqa: F401  (re-exported for older callers)
 from weightlab.core.errors import ErrorCode, fail
 from weightlab.core.limits import MAX_SAFE_INTEGER
 from weightlab.formats.base import Consistency
 from weightlab.formats.checkpoint import Checkpoint
-from weightlab.formats.dtypes import DType, lookup
 from weightlab.formats.selection import ResolvedView, View, resolve_view
 
 F64 = npt.NDArray[np.float64]
@@ -128,6 +129,20 @@ def tile_geometry(view_rows: int, view_cols: int, level: int, x: int, y: int, si
 
 
 # --------------------------------------------------------------------------------------------- block aggregates
+def finite_mask(
+    v: F64, overflow: npt.NDArray[np.bool_] | None
+) -> tuple[npt.NDArray[np.bool_], npt.NDArray[np.bool_], npt.NDArray[np.bool_], npt.NDArray[np.bool_]]:
+    """Finite / NaN / +Inf / -Inf masks for aggregation. A derived value that overflowed float64 although its inputs
+    were finite (`overflow`, holding +/-Inf in `v`) is a finite element whose value cannot be represented: it counts
+    as finite and enters the sums and extrema as +/-Inf, so every sum it touches overflows (the record's overflow
+    flags) and an extreme it determines is beyond float32: all are NOT_REPRESENTABLE, never a source Inf. Extrema it
+    does not determine stay exact."""
+    if overflow is None or not overflow.any():
+        return np.isfinite(v), np.isnan(v), np.isposinf(v), np.isneginf(v)
+    keep = ~overflow
+    return np.isfinite(v) | overflow, np.isnan(v) & keep, np.isposinf(v) & keep, np.isneginf(v) & keep
+
+
 @dataclass
 class BlockAggregates:
     """Record-format-v1 fields for a grid of blocks (struct of arrays). Merges by addition and min/max."""
@@ -155,21 +170,26 @@ class BlockAggregates:
                    np.full((rows, cols), np.inf), np.full((rows, cols), -np.inf))  # fmt: skip
 
     @classmethod
-    def of_values(cls, v: F64, row_phase: int, col_phase: int, block: int) -> BlockAggregates:
+    def of_values(
+        cls, v: F64, row_phase: int, col_phase: int, block: int, overflow: npt.NDArray[np.bool_] | None = None
+    ) -> BlockAggregates:
         """Aggregates of a 2D float64 array whose first row / column sit at offset `row_phase` / `col_phase`
         (mod `block`) from a block boundary. Returns one record per (partial) block the array touches.
 
         Only the array's own cells are reduced: memory is O(array), whatever the block size (a level-52 block is
-        2^52 x 2^52 cells; nothing is ever padded to it). Sums start from -0.0, which keeps a lone -0.0's sign."""
-        fin = np.isfinite(v)
+        2^52 x 2^52 cells; nothing is ever padded to it). Sums start from -0.0, which keeps a lone -0.0's sign.
+
+        `overflow` marks derived values that overflowed float64 although their inputs were finite (`v` holds +/-Inf
+        there): see `finite_mask`."""
+        fin, nan, pos, neg = finite_mask(v, overflow)
         with np.errstate(over="ignore", invalid="ignore"):
             fv = np.where(fin, v, -0.0)
             red = _BlockReducer(v.shape, row_phase, col_phase, block)
             out = cls(
                 red.count(fin),
-                red.count(np.isnan(v)),
-                red.count(np.isposinf(v)),
-                red.count(np.isneginf(v)),
+                red.count(nan),
+                red.count(pos),
+                red.count(neg),
                 np.zeros(red.grid, np.uint8),
                 red.sum(fv),
                 red.sum(np.abs(fv)),
@@ -352,19 +372,6 @@ class Tile:
     seed: int | None = None
 
 
-def _as_float64(vals: npt.NDArray[Any], dt: DType) -> tuple[F64, bool]:
-    """Values for aggregation and whether any was rounded on the way (64-bit integers beyond 2^53)."""
-    if dt.kind == "float":
-        return vals.astype(np.float64, copy=False), False
-    if dt.kind == "bool":
-        return vals.astype(np.float64), False
-    rounded = False
-    if dt.size == 8 and vals.size:
-        big = vals > MAX_SAFE_INTEGER if dt.kind == "uint" else (vals > MAX_SAFE_INTEGER) | (vals < -MAX_SAFE_INTEGER)
-        rounded = bool(big.any())
-    return vals.astype(np.float64), rounded
-
-
 def storage_strides(shape: tuple[int, ...]) -> list[int]:
     strides = [1] * len(shape)
     for k in range(len(shape) - 2, -1, -1):
@@ -415,21 +422,37 @@ def compute_tile(
     budget: TileBudget | None = None,
     consistency: Consistency = Consistency.BEST_EFFORT,
 ) -> Tile:
+    """One exact tile of a stored tensor by direct bounded reads (see `compute_source_tile`)."""
+    return compute_source_tile(TensorReader(ck, key), view, level=level, x=x, y=y, size=size,
+                               aggregation=aggregation, budget=budget, consistency=consistency)  # fmt: skip
+
+
+def compute_source_tile(
+    src: Reader,
+    view: View | None,
+    *,
+    level: int,
+    x: int,
+    y: int,
+    size: int = TILE_SIZE,
+    aggregation: Aggregation,
+    budget: TileBudget | None = None,
+    consistency: Consistency = Consistency.BEST_EFFORT,
+) -> Tile:
     """One exact tile by direct bounded reads. Raises RESOURCE_LIMIT before reading when the tile needs more than
-    the direct-read, read or memory budget (such tiles need the exact pyramid), and FILE_CHANGED if the source
-    changes at any point; no partial tile is ever returned."""
+    the direct-read, read or memory budget (such tiles need the exact pyramid), and FILE_CHANGED if a source
+    changes at any point; no partial tile is ever returned. For a paired source the covered bytes are those of
+    both inputs."""
     budget = budget or TileBudget()
     if aggregation not in AGGREGATIONS:
         raise fail(ErrorCode.VALIDATION_ERROR, f"aggregation must be one of {', '.join(AGGREGATIONS)}")
-    meta = ck.tensor(key)
-    rv = resolve_view(meta.shape, view)
+    rv = resolve_view(src.shape, view)
     g = tile_geometry(rv.rows, rv.cols, level, x, y, size)
     if g.rows * g.cols > budget.max_tile_cells:
         raise fail(
             ErrorCode.RESOURCE_LIMIT, f"tile has {g.rows * g.cols} cells, above max_tile_cells {budget.max_tile_cells}"
         )
-    dt = lookup(meta.dtype)
-    covered = g.covered_cells * dt.size
+    covered = g.covered_cells * src.esize
     if covered > budget.direct_tile_max_bytes:
         raise fail(
             ErrorCode.RESOURCE_LIMIT,
@@ -437,15 +460,15 @@ def compute_tile(
             f"({budget.direct_tile_max_bytes // MIB} MiB); "
             "it needs the exact pyramid, which is not available yet",
         )
-    need = working_set_bytes(budget, g.rows * g.cols, ck.limits.read_chunk_bytes)
+    need = working_set_bytes(budget, g.rows * g.cols, src.limits.read_chunk_bytes)
     if need > budget.memory_bytes:
         raise fail(
             ErrorCode.RESOURCE_LIMIT,
             f"tile needs ~{need} bytes of working memory, above its budget {budget.memory_bytes}",
         )
-    band = min(budget.band_cells, ck.limits.roi_hard_max_cells)
-    rects = _rectangles(rv, meta.shape, g, band)
-    planned = sum(ck.roi_read_bytes(key, r0, r1, c0, c1, view, max_cells=band) for r0, r1, c0, c1 in rects)
+    band = min(budget.band_cells, src.limits.roi_hard_max_cells)
+    rects = _rectangles(rv, src.shape, g, band)
+    planned = sum(src.roi_read_bytes(r0, r1, c0, c1, view, max_cells=band) for r0, r1, c0, c1 in rects)
     if planned > budget.max_read_bytes:
         raise fail(
             ErrorCode.RESOURCE_LIMIT,
@@ -456,15 +479,15 @@ def compute_tile(
     rounded = False
     bytes_read = 0
     for r0, r1, c0, c1 in rects:
-        raw = ck.read_roi_raw(key, r0, r1, c0, c1, view, max_cells=band, consistency=consistency)
-        bytes_read += raw.stripe_bytes
-        vals, rnd = _as_float64(raw.values(), dt)
-        rounded |= rnd
+        part_v = src.roi(r0, r1, c0, c1, view, max_cells=band, consistency=consistency)
+        bytes_read += part_v.nbytes
+        rounded |= part_v.rounded
         rel_r, rel_c = r0 - g.row_start, c0 - g.col_start
-        part = BlockAggregates.of_values(vals, rel_r % g.block, rel_c % g.block, g.block)
+        part = BlockAggregates.of_values(part_v.v, rel_r % g.block, rel_c % g.block, g.block, part_v.overflow)
         acc.merge_into(part, rel_r // g.block, rel_c // g.block)
-    ck.check()  # a change after the last read also invalidates the tile
-    return finish_tile(g, aggregation, acc, dt.name, rounded=rounded, covered_bytes=covered, bytes_read=bytes_read)
+    src.check()  # a change after the last read also invalidates the tile
+    return finish_tile(g, aggregation, acc, src.source_dtype, rounded=rounded, covered_bytes=covered,
+                       bytes_read=bytes_read, derived=src.derived)  # fmt: skip
 
 
 def finish_tile(
@@ -476,15 +499,17 @@ def finish_tile(
     rounded: bool,
     covered_bytes: int,
     bytes_read: int,
+    derived: bool = False,
 ) -> Tile:
     """An exact tile from the merged records of its blocks (direct reads or a pyramid): display values, status,
-    counts, numeric_precision and warnings."""
+    counts, numeric_precision and warnings. A derived source (float64 arithmetic of its inputs, doc 09 section 2)
+    is never `lossless`."""
     values, status = acc.display(aggregation)
     finite = int(acc.finite.sum())
     not_repr = int(np.count_nonzero(status & NOT_REPRESENTABLE))
     exact_agg = aggregation in ("min", "max") or (g.level == 0 and aggregation in ("mean", "mean_abs"))
     precision: Literal["lossless", "rounded", "overflowed"] = (
-        "overflowed" if not_repr else "rounded" if rounded or not exact_agg else "lossless"
+        "overflowed" if not_repr else "rounded" if rounded or derived or not exact_agg else "lossless"
     )
     return Tile(
         geometry=g,

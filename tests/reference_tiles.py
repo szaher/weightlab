@@ -89,30 +89,96 @@ def aggregate(block: list[float], aggregation: str) -> float | None:
     return float(q) if abs(q) <= Fraction(1.7976931348623157e308) else None
 
 
-def ref_tile(view: npt.NDArray[Any], level: int, x: int, y: int, size: int, aggregation: str) -> dict[str, Any]:
-    """Reference tile of a 2D view: values (float32, NaN where not drawable), status, geometry, counts."""
+def _overflowed_block(plain: list[float], over: list[float], aggregation: str) -> tuple[int, float | None]:
+    """Status and value of a block holding derived values that overflowed float64 (`over`, as +/-inf): they are
+    finite elements whose value cannot be represented, so a mean / mean_abs / rms over them is withheld, and so is
+    a min / max they determine; a min / max they do not determine is exact."""
+    v: float | None = None
+    if aggregation in ("min", "max"):
+        cand = [x for x in plain if math.isfinite(x)] + over
+        m = min(cand) if aggregation == "min" else max(cand)
+        v = None if math.isinf(m) else m
+    bits = 2 if any(math.isnan(x) for x in plain) else 0
+    bits |= 4 if any(x == math.inf for x in plain) else 0
+    bits |= 8 if any(x == -math.inf for x in plain) else 0
+    if v is None or not abs(v) <= F32_MAX:
+        bits |= 16
+    return bits, v
+
+
+def ref_tile(
+    view: npt.NDArray[Any], level: int, x: int, y: int, size: int, aggregation: str,
+    overflow: npt.NDArray[np.bool_] | None = None,
+) -> dict[str, Any]:  # fmt: skip
+    """Reference tile of a 2D view: values (float32, NaN where not drawable), status, geometry, counts.
+    `overflow` marks derived values beyond float64 (see `ref_delta`)."""
     b = 1 << level
     span = size * b
     r0, c0 = y * span, x * span
     r1, c1 = min(view.shape[0], r0 + span), min(view.shape[1], c0 + span)
     sub = view[r0:r1, c0:c1]
+    osub = np.zeros(sub.shape, bool) if overflow is None else overflow[r0:r1, c0:c1]
     rows, cols = -(-(r1 - r0) // b), -(-(c1 - c0) // b)
     values = np.full((rows, cols), np.nan, np.float32)
     status = np.zeros((rows, cols), np.uint8)
     exact = np.full((rows, cols), np.nan)
     for i in range(rows):
         for j in range(cols):
-            blk = [float(v) for v in np.asarray(sub[i * b : (i + 1) * b, j * b : (j + 1) * b]).ravel()]
-            v = aggregate(blk, aggregation)
-            st = _status(blk, v if v is not None else (None if not any(map(math.isfinite, blk)) else math.inf))
+            cells = (slice(i * b, (i + 1) * b), slice(j * b, (j + 1) * b))
+            blk = [float(v) for v in np.asarray(sub[cells]).ravel()]
+            ov = [bool(o) for o in np.asarray(osub[cells]).ravel()]
+            if any(ov):
+                plain = [v for v, o in zip(blk, ov, strict=True) if not o]
+                st, v = _overflowed_block(plain, [v for v, o in zip(blk, ov, strict=True) if o], aggregation)
+            else:
+                v = aggregate(blk, aggregation)
+                st = _status(blk, v if v is not None else (None if not any(map(math.isfinite, blk)) else math.inf))
             status[i, j] = st
             if st & 17 == 0 and v is not None:
                 values[i, j] = np.float32(v)
                 exact[i, j] = v
     flat = [float(v) for v in np.asarray(sub).ravel()]
-    finite = sum(1 for v in flat if math.isfinite(v))
+    finite = sum(1 for v, o in zip(flat, np.asarray(osub).ravel(), strict=True) if o or math.isfinite(v))
     return {"values": values, "status": status, "exact": exact, "rows": rows, "cols": cols,
             "range": (r0, r1, c0, c1), "finite": finite, "nonfinite": len(flat) - finite}  # fmt: skip
+
+
+def ref_delta(
+    a: npt.NDArray[Any], b: npt.NDArray[Any], transform: str, epsilon: float = 1e-8
+) -> tuple[npt.NDArray[np.float64], npt.NDArray[np.bool_]]:
+    """Elementwise reference of a delta source (doc 09 section 4) with exact rational arithmetic: B - A rounded once
+    to float64, then |.|, then for relative_abs one more correctly rounded division by max(|A|, epsilon). A result
+    beyond float64 although both inputs are finite is overflow (+/-inf in the values, True in the mask); a pair with
+    a non-finite input takes the IEEE result of the same operations on Python floats."""
+    out = np.empty(a.shape)
+    over = np.zeros(a.shape, bool)
+    for idx in np.ndindex(a.shape):
+        x, y = a[idx], b[idx]
+        fx, fy = float(x), float(y)
+        if not (math.isfinite(fx) and math.isfinite(fy)):
+            d = fy - fx
+            if transform != "b_minus_a":
+                d = abs(d)
+            if transform == "relative_abs":
+                d = d / max(abs(fx), epsilon)
+            out[idx] = d
+            continue
+        q = Fraction(y) - Fraction(x)
+        try:
+            d = float(q)
+        except OverflowError:
+            out[idx], over[idx] = (-math.inf if transform == "b_minus_a" and q < 0 else math.inf), True
+            continue
+        if transform != "b_minus_a":
+            d = abs(d)
+        if transform == "relative_abs":
+            try:
+                d = float(Fraction(d) / Fraction(max(abs(fx), epsilon)))
+            except OverflowError:
+                out[idx], over[idx] = math.inf, True
+                continue
+        out[idx] = d
+    return out, over
 
 
 U64 = 2.0**-53  # float64 unit roundoff
