@@ -14,6 +14,10 @@ Additive API extension for ROADMAP P0.2 (weight distribution histograms); contra
   - Hover or arrow-key readout of exact intervals, and a table view.
   - A result that breaks the histogram invariants is refused. A changed file clears the shown histogram.
   - E2E (`frontend/tests/e2e/histogram.spec.ts`) recounts every bin from the fixture's bytes and runs axe in light and dark.
+- **Fix (Windows): database open racing a closing connection.**
+  - Opening the database runs a preflight that copies a non-empty `-wal` file. If another connection closed at that moment, SQLite deleted the WAL, and Windows reports opening a file pending deletion as "access denied" (`PermissionError`).
+  - That error is now retried like the POSIX "not found" case (bounded, with a short backoff). An error that persists is reported as itself, not as "kept changing"; on other systems it is never retried.
+  - Found as an intermittent `windows-latest` CI failure in `test_cancel_is_linearized_with_completion`. Tests are in `tests/db/test_migrations.py`.
 - Contract examples: 3 positive and 8 negative `JobRequest` cases, 2 positive and 3 negative `Job` cases. Tests: `tests/unit/test_histogram.py`, `tests/api/test_histogram_api.py`, `tests/perf/test_histogram_bounded.py`.
 
 ## 0.1.0a2 — Alpha 2: Visual Checkpoint Comparison (2026-11-14)

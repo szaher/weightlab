@@ -258,6 +258,50 @@ def test_preflight_refuses_a_database_that_keeps_changing(tmp_path: Path, monkey
     assert calls == mig.SNAPSHOT_ATTEMPTS
 
 
+def _deny_wal_copies(monkeypatch: pytest.MonkeyPatch, times: int) -> list[int]:
+    """The WAL copy fails `times` times with PermissionError (Windows: the -wal has a pending delete)."""
+    real = mig._copy_snapshot
+    calls: list[int] = []
+
+    def flaky(src: Path, wal: Path, dest: Path) -> None:
+        calls.append(1)
+        if len(calls) <= times:
+            raise PermissionError(13, "Permission denied", str(wal))
+        real(src, wal, dest)
+
+    monkeypatch.setattr(mig, "_copy_snapshot", flaky)
+    monkeypatch.setattr(mig.time, "sleep", lambda _s: None)
+    return calls
+
+
+def test_preflight_retries_a_wal_being_deleted_on_windows(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """CI (windows-latest): a second Database opened while another connection closes raced SQLite deleting the
+    -wal; Windows reports that as PermissionError. It is retried like FileNotFoundError, and the database opens."""
+    path = tmp_path / "w.sqlite3"
+    Database(path)
+    _hot_wal_database(path, ["INSERT INTO projects VALUES ('prj_1', 'kept', 't', 't', '{}')"])
+    monkeypatch.setattr(mig, "_WINDOWS", True)
+    calls = _deny_wal_copies(monkeypatch, times=mig.SNAPSHOT_ATTEMPTS - 1)
+    migrate(path)
+    assert len(calls) == mig.SNAPSHOT_ATTEMPTS
+    with Database(path).session() as c:  # the WAL's committed row survived the inspection and the open
+        assert [tuple(r) for r in c.execute("SELECT name FROM projects")] == [("kept",)]
+
+
+def test_preflight_reports_a_lasting_permission_error(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """A WAL that stays unreadable is the OS error, not "kept changing"; elsewhere it is not retried at all."""
+    path = tmp_path / "w.sqlite3"
+    _hot_wal_database(path, ["CREATE TABLE notes (x TEXT)"])
+    before = _snapshot(tmp_path)
+    for windows, attempts in ((True, mig.SNAPSHOT_ATTEMPTS), (False, 1)):
+        monkeypatch.setattr(mig, "_WINDOWS", windows)
+        calls = _deny_wal_copies(monkeypatch, times=99)
+        with pytest.raises(PermissionError):
+            migrate(path)
+        assert len(calls) == attempts
+    assert _snapshot(tmp_path) == before
+
+
 def test_alpha1_database_upgrades_to_comparison_reports(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """A 0.1.0a1 database (schema version 2) with a comparison gains migration 0003 without losing data; the
     legacy comparison is kept as is (record_version absent), so report jobs refuse it (ADR-020 item 8)."""
