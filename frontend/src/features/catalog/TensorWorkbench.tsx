@@ -1,24 +1,28 @@
-// Overview and Exact ROI of one tensor, on one shared view (axes, slice, transpose): a block selected in the
-// overview opens Exact ROI on exactly its raw bounds, read with POST /tensors/roi by the existing explorer (its
-// decoder and precision rules are the only way exact values are ever shown). Rank 0/1 and empty tensors have no
-// 2D overview and keep the exact representation only.
+// Overview, Exact ROI and Histogram of one tensor. Overview and Exact ROI share one view (axes, slice, transpose): a
+// block selected in the overview opens Exact ROI on exactly its raw bounds, read with POST /tensors/roi by the
+// existing explorer (its decoder and precision rules are the only way exact values are ever shown). Rank 0/1 tensors
+// have no 2D overview; empty tensors keep the exact representation only. The histogram (an exact tensor_histogram
+// job) stays mounted while another tab is shown, so a running job and its result survive switching tabs.
 import { useState, type KeyboardEvent } from "react";
 import { api } from "../../lib/api/endpoints";
 import type { Aggregation, Tensor } from "../../lib/api/types";
 import { formatShape } from "../../lib/format";
 import { useResource } from "../../lib/useResource";
+import { HistogramPanel } from "../histogram/HistogramPanel";
 import { Overview } from "../overview/Overview";
 import type { RawRect } from "../overview/geometry";
 import { RoiExplorer } from "../roi/RoiExplorer";
 import { defaultView, viewDims, viewError, type ViewState, type Win } from "../roi/view";
 
-type Tab = "overview" | "roi";
+type Tab = "overview" | "roi" | "histogram";
+const LABELS: Record<Tab, string> = { overview: "Overview", roi: "Exact ROI", histogram: "Histogram" };
 
 export function TensorWorkbench({ modelId, tensor }: { modelId: string; tensor: Tensor }) {
   const shape = tensor.shape;
   const empty = tensor.numel === 0 || shape.some((d) => d === 0);
   const canOverview = shape.length >= 2 && !empty;
-  const [tab, setTab] = useState<Tab>(canOverview ? "overview" : "roi");
+  const tabs: Tab[] = empty ? ["roi"] : canOverview ? ["overview", "roi", "histogram"] : ["roi", "histogram"];
+  const [tab, setTab] = useState<Tab>(tabs[0] ?? "roi");
   const [view, setView] = useState<ViewState>(() => defaultView(shape));
   const [aggregation, setAggregation] = useState<Aggregation>("mean_abs");
   const [focus, setFocus] = useState<{ win: Win; nonce: number; from: RawRect } | null>(null);
@@ -26,7 +30,7 @@ export function TensorWorkbench({ modelId, tensor }: { modelId: string; tensor: 
   const vErr = viewError(shape, view);
   const dims = vErr ? null : viewDims(shape, view);
 
-  if (!canOverview) return <RoiExplorer modelId={modelId} tensor={tensor} />;
+  if (empty) return <RoiExplorer modelId={modelId} tensor={tensor} />;
 
   function inspect(r: RawRect) {
     setFocus((f) => ({ win: { r0: r.r0, c0: r.c0, h: r.r1 - r.r0, w: r.c1 - r.c0 }, nonce: (f?.nonce ?? 0) + 1, from: r }));
@@ -34,79 +38,78 @@ export function TensorWorkbench({ modelId, tensor }: { modelId: string; tensor: 
     requestAnimationFrame(() => document.getElementById("wb-tab-roi")?.focus());
   }
 
-  const tabs: [Tab, string][] = [
-    ["overview", "Overview"],
-    ["roi", "Exact ROI"],
-  ];
   function onKeyDown(e: KeyboardEvent<HTMLDivElement>) {
     if (e.key !== "ArrowLeft" && e.key !== "ArrowRight") return;
     e.preventDefault();
-    const next: Tab = tab === "overview" ? "roi" : "overview";
+    const i = tabs.indexOf(tab);
+    const next = tabs[(i + (e.key === "ArrowRight" ? 1 : tabs.length - 1)) % tabs.length] ?? tab;
     setTab(next);
     document.getElementById(`wb-tab-${next}`)?.focus();
   }
   return (
     <div className="workbench stack-sm">
       <div role="tablist" aria-label="Tensor views" className="tabs" onKeyDown={onKeyDown}>
-        {tabs.map(([t, label]) => (
+        {tabs.map((t) => (
           <button
             key={t}
             type="button"
             role="tab"
             id={`wb-tab-${t}`}
             aria-selected={tab === t}
-            aria-controls={tab === t ? `wb-panel-${t}` : undefined}
+            aria-controls={tab === t || t === "histogram" ? `wb-panel-${t}` : undefined}
             tabIndex={tab === t ? 0 : -1}
             className="tab"
             onClick={() => setTab(t)}
           >
-            {label}
+            {LABELS[t]}
           </button>
         ))}
       </div>
-      <div role="tabpanel" id={`wb-panel-${tab}`} aria-labelledby={`wb-tab-${tab}`}>
-        {tab === "overview" ? (
-          <>
-            {shape.length > 2 ? <SliceControls shape={shape} view={view} onView={setView} /> : null}
-            {vErr || !dims ? (
-              <p className="notice notice-warn" role="alert" data-testid="overview-view-error">
-                <span>
-                  <strong>Unsupported view:</strong> {vErr}. Nothing is read until the view is valid.
-                </span>
-              </p>
-            ) : (
-              <Overview
-                key={JSON.stringify(view)}
-                modelId={modelId}
-                tensor={tensor}
-                view={view}
-                dims={dims}
-                settings={settings.data}
-                aggregation={aggregation}
-                onAggregation={setAggregation}
-                onViewChange={setView}
-                onInspect={inspect}
-              />
-            )}
-          </>
-        ) : (
-          <>
-            {focus ? (
-              <p className="notice notice-info" data-testid="roi-from-overview">
-                Opened from the overview selection: rows [{focus.from.r0}, {focus.from.r1}) × columns [{focus.from.c0}, {focus.from.c1}). These are exact values read from the
-                checkpoint, not the overview's aggregates.
-              </p>
-            ) : null}
-            <RoiExplorer
-              key={focus ? `focus-${focus.nonce}` : "roi"}
+      {tab === "overview" ? (
+        <div role="tabpanel" id="wb-panel-overview" aria-labelledby="wb-tab-overview">
+          {shape.length > 2 ? <SliceControls shape={shape} view={view} onView={setView} /> : null}
+          {vErr || !dims ? (
+            <p className="notice notice-warn" role="alert" data-testid="overview-view-error">
+              <span>
+                <strong>Unsupported view:</strong> {vErr}. Nothing is read until the view is valid.
+              </span>
+            </p>
+          ) : (
+            <Overview
+              key={JSON.stringify(view)}
               modelId={modelId}
               tensor={tensor}
-              initialView={view}
-              initialWin={focus?.win}
+              view={view}
+              dims={dims}
+              settings={settings.data}
+              aggregation={aggregation}
+              onAggregation={setAggregation}
               onViewChange={setView}
+              onInspect={inspect}
             />
-          </>
-        )}
+          )}
+        </div>
+      ) : null}
+      {tab === "roi" ? (
+        <div role="tabpanel" id="wb-panel-roi" aria-labelledby="wb-tab-roi">
+          {focus ? (
+            <p className="notice notice-info" data-testid="roi-from-overview">
+              Opened from the overview selection: rows [{focus.from.r0}, {focus.from.r1}) × columns [{focus.from.c0}, {focus.from.c1}). These are exact values read from the
+              checkpoint, not the overview's aggregates.
+            </p>
+          ) : null}
+          <RoiExplorer
+            key={focus ? `focus-${focus.nonce}` : "roi"}
+            modelId={modelId}
+            tensor={tensor}
+            initialView={canOverview ? view : undefined}
+            initialWin={focus?.win}
+            onViewChange={canOverview ? setView : undefined}
+          />
+        </div>
+      ) : null}
+      <div role="tabpanel" id="wb-panel-histogram" aria-labelledby="wb-tab-histogram" hidden={tab !== "histogram"}>
+        <HistogramPanel modelId={modelId} tensor={tensor} settings={settings.data} />
       </div>
     </div>
   );

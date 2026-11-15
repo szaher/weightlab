@@ -915,6 +915,16 @@ One persistent top bar: project, active models, CPU/RAM budget status and task i
 └────────────────────────────────────────────────────────────────────────┘
 ```
 
+### Histogram tab (ROADMAP P0.2, ADR-021)
+
+Explore's tensor workbench has a **Histogram** tab for every non-empty tensor (rank 0/1 included).
+
+- **Running it.** The user picks a bin count (at most 1,024) and a range: min–max, symmetric around 0, or explicit lo/hi, validated against the dtype before submission. Before anything runs, the panel states the read cost: one or two passes, plus hashing when verified. Nothing is computed in the browser; the panel draws the completed `tensor_histogram` job's result after checking its invariants.
+- **Counts.** Special values sit beside the chart and are never binned: NaN, ±Inf, zeros (including −0), and below/above an explicit range.
+- **Charts.** Bars sit at their true widths on a linear or log count axis. The magnitude view, for float tensors only, mirrors positive (up) and negative (down) counts per binary exponent on one scale.
+- **Reading values.** Hovering, or focusing the chart and pressing the arrow keys, reads a bin's exact interval and count. A table view lists every bin.
+- **Lifecycle.** The result survives switching tabs. A failed, canceled or interrupted job never shows a partial histogram. FILE_CHANGED clears the previous one, which described the old bytes.
+
 ## 3. Compare view
 
 Header requires A file and B file plus `compatibility badge` with click-through reasons. Shared tensor selector and four modes: A / B / delta / abs delta. Two-panel synchronized zoom with optional lock, legend that states whether scales shared. Below heatmaps: delta metric strip, per-layer summary list and links to exact ROI. Prominent caution when lineage unverified. Optional "Show alignment details" reveals raw keys/shapes/dtypes/mapping. Never imply "B is better" from delta without an eval result.

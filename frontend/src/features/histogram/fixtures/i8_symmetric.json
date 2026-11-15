@@ -1,0 +1,60 @@
+{
+ "histogram_version": 1,
+ "tensor_key": "w",
+ "dtype": "I8",
+ "shape": [
+  1000
+ ],
+ "coverage": "complete",
+ "value_domain": "integer",
+ "counts": {
+  "elements": 1000,
+  "finite": 1000,
+  "zeros": 3,
+  "negative_zeros": 0,
+  "positives": 461,
+  "negatives": 536,
+  "nan": 0,
+  "pos_inf": 0,
+  "neg_inf": 0
+ },
+ "min": -128,
+ "max": 127,
+ "bins": {
+  "range": "symmetric",
+  "requested_bins": 10,
+  "lo": -128,
+  "hi": 128,
+  "edges": [
+   -128,
+   -102,
+   -76,
+   -50,
+   -24,
+   2,
+   28,
+   54,
+   80,
+   106,
+   129
+  ],
+  "counts": [
+   124,
+   94,
+   109,
+   115,
+   101,
+   83,
+   93,
+   85,
+   115,
+   81
+  ],
+  "below": 0,
+  "above": 0,
+  "last_bin_closed": false,
+  "rule": "bin i holds e[i] <= x < e[i+1] (integers; the last edge is hi + 1)"
+ },
+ "magnitude": null,
+ "method": "exact streaming count of every element (no sampling); two passes: value range, then bins"
+}
