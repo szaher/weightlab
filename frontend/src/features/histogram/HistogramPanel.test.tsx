@@ -7,6 +7,7 @@ import type { Job, Tensor } from "../../lib/api/types";
 import { apiError, fakeApi, json, withToken, type Call } from "../../test/fakeApi";
 import { TensorWorkbench } from "../catalog/TensorWorkbench";
 import explicitJson from "./fixtures/f32_explicit.json";
+import f64Json from "./fixtures/f64_extreme.json";
 import minmaxJson from "./fixtures/f32_minmax.json";
 import nonfiniteJson from "./fixtures/f32_nonfinite.json";
 import i8Json from "./fixtures/i8_symmetric.json";
@@ -175,6 +176,21 @@ describe("HistogramPanel", () => {
     expect(counts.getByText("Above 0.02").nextSibling).toHaveTextContent(String(explicitJson.bins.above));
     await userEvent.click(screen.getByTestId("hist-table-toggle"));
     expect(within(screen.getByTestId("hist-values-table")).getAllByRole("row")).toHaveLength(1 + 1 + explicitJson.bins.counts.length + 1);
+  });
+
+  it("draws an F64 tensor spanning ±1.8e308 with finite coordinates", async () => {
+    withToken();
+    backend(done(f64Json));
+    panel(tensor({ dtype: "F64", shape: [8], numel: 8, byte_length: 64 }));
+    await userEvent.click(screen.getByTestId("hist-compute"));
+    await screen.findByTestId("hist-result");
+    const svg = screen.getByTestId("hist-values").querySelector("svg")!;
+    const coords = [...svg.querySelectorAll("rect, line, text")].flatMap((el) => ["x", "y", "width", "height", "x1", "x2", "y1", "y2"].map((a) => el.getAttribute(a)).filter((v) => v !== null));
+    expect(coords.length).toBeGreaterThan(0);
+    expect(coords.every((v) => Number.isFinite(Number(v)))).toBe(true);
+    const bars = [...svg.querySelectorAll("rect.hist-bar")].map((r) => Number(r.getAttribute("width")));
+    expect(bars).toHaveLength(f64Json.bins.counts.filter((n) => n > 0).length);
+    expect(svg.textContent).toContain("0"); // the zero label is placed mid-axis
   });
 
   it("a tensor without finite values has counts but no bins", async () => {

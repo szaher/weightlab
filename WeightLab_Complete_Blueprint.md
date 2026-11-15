@@ -925,6 +925,13 @@ Explore's tensor workbench has a **Histogram** tab for every non-empty tensor (r
 - **Reading values.** Hovering, or focusing the chart and pressing the arrow keys, reads a bin's exact interval and count. A table view lists every bin.
 - **Lifecycle.** The result survives switching tabs. A failed, canceled or interrupted job never shows a partial histogram. FILE_CHANGED clears the previous one, which described the old bytes.
 
+**A/B overlay.** The Compare drill-down's "Value distributions, A vs B" section runs the same job on both checkpoints over one shared range.
+- **Shared range:** by default, the union of both finite ranges (a min–max job per side, then an explicit job per side); otherwise an explicit lo/hi.
+- **Drawing:** the two histograms share one axis only when the returned edges are identical. A is filled bars and B a 2px outline, in a validated colour pair, with a legend, so colour is not the only cue.
+- **Reading values:** the readout shows A, B and B − A per bin, and the tables give every count.
+- **Mixed domains:** integer-vs-float pairs are refused, because their bins cannot be the same.
+- **Failure and cancel:** a failure on either side cancels the other, and canceling stops both. No partial overlay is drawn.
+
 ## 3. Compare view
 
 Header requires A file and B file plus `compatibility badge` with click-through reasons. Shared tensor selector and four modes: A / B / delta / abs delta. Two-panel synchronized zoom with optional lock, legend that states whether scales shared. Below heatmaps: delta metric strip, per-layer summary list and links to exact ROI. Prominent caution when lineage unverified. Optional "Show alignment details" reveals raw keys/shapes/dtypes/mapping. Never imply "B is better" from delta without an eval result.

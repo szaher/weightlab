@@ -14,6 +14,13 @@ Additive API extension for ROADMAP P0.2 (weight distribution histograms); contra
   - Hover or arrow-key readout of exact intervals, and a table view.
   - A result that breaks the histogram invariants is refused. A changed file clears the shown histogram.
   - E2E (`frontend/tests/e2e/histogram.spec.ts`) recounts every bin from the fixture's bytes and runs axe in light and dark.
+- **A/B distribution overlay** (UI): the Compare drill-down has a "Value distributions, A vs B" section.
+  - It histograms the tensor in both checkpoints over one shared range: either the union of both finite ranges (a min–max job per side, then an explicit job per side) or an explicit lo/hi.
+  - The two histograms are drawn on one axis only after their returned bin edges are checked to be identical. A is filled bars and B an outline, with a legend and a readout of A, B and B − A per bin.
+  - Count and bin tables are included. Mixed integer and float pairs are refused.
+  - A failure on one side cancels the other side's job, and canceling stops both; no partial overlay is ever shown.
+  - E2E recounts both sides' bins from the two fixture files.
+- **Accessibility fix (Compare grid):** each cell's accessible name now contains its visible, shortened value (WCAG 2.5.3, label in name), found by the overlay E2E's axe run.
 - Contract examples: 3 positive and 8 negative `JobRequest` cases, 2 positive and 3 negative `Job` cases. Tests: `tests/unit/test_histogram.py`, `tests/api/test_histogram_api.py`, `tests/perf/test_histogram_bounded.py`.
 
 ## 0.1.0a2 — Alpha 2: Visual Checkpoint Comparison (2026-11-14)

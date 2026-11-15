@@ -1,0 +1,80 @@
+{
+ "histogram_version": 1,
+ "tensor_key": "w",
+ "dtype": "F64",
+ "shape": [
+  8
+ ],
+ "coverage": "complete",
+ "value_domain": "float",
+ "counts": {
+  "elements": 8,
+  "finite": 8,
+  "zeros": 1,
+  "negative_zeros": 0,
+  "positives": 4,
+  "negatives": 3,
+  "nan": 0,
+  "pos_inf": 0,
+  "neg_inf": 0
+ },
+ "min": -1.7976931348623157e+308,
+ "max": 1.7976931348623157e+308,
+ "bins": {
+  "range": "min_max",
+  "requested_bins": 8,
+  "lo": -1.7976931348623157e+308,
+  "hi": 1.7976931348623157e+308,
+  "edges": [
+   -1.7976931348623157e+308,
+   -1.3482698511467367e+308,
+   -8.988465674311578e+307,
+   -4.494232837155789e+307,
+   0.0,
+   4.494232837155789e+307,
+   8.988465674311578e+307,
+   1.3482698511467367e+308,
+   1.7976931348623157e+308
+  ],
+  "counts": [
+   1,
+   0,
+   0,
+   2,
+   4,
+   0,
+   0,
+   1
+  ],
+  "below": 0,
+  "above": 0,
+  "last_bin_closed": true,
+  "rule": "bin i holds e[i] <= x < e[i+1]; the last bin also holds x = e[n]"
+ },
+ "magnitude": {
+  "rule": "bucket e holds finite nonzero x with 2^e <= |x| < 2^(e+1)",
+  "buckets": [
+   {
+    "exponent": -1074,
+    "positive": 1,
+    "negative": 0
+   },
+   {
+    "exponent": 0,
+    "positive": 1,
+    "negative": 1
+   },
+   {
+    "exponent": 996,
+    "positive": 1,
+    "negative": 1
+   },
+   {
+    "exponent": 1023,
+    "positive": 1,
+    "negative": 1
+   }
+  ]
+ },
+ "method": "exact streaming count of every element (no sampling); two passes: value range, then bins"
+}
