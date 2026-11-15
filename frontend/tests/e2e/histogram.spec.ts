@@ -175,3 +175,81 @@ test("exact histogram: counts recomputed from the file, special values, table, k
   expect(blocked).toEqual([]);
   await context.close();
 });
+
+test("A/B overlay in the Compare drill-down: shared range and every bin recounted from both files", async ({ browser }) => {
+  test.setTimeout(240_000);
+  const models = tempDir("ab-models");
+  const base = copyFixture("tiny_base.safetensors", models);
+  const ft = copyFixture("tiny_ft.safetensors", models);
+  const server = await startServer(tempDir("ab-data"));
+  cleanup.push(() => server.stop());
+  const context = await browser.newContext();
+  const blocked = await loopbackOnly(context);
+  const page = await context.newPage();
+  const problems = watchConsole(page);
+  const submitted: string[] = [];
+  page.on("response", async (r) => {
+    if (r.url().endsWith("/api/v1/jobs") && r.request().method() === "POST" && (r.request().postData() ?? "").includes("tensor_histogram"))
+      submitted.push(((await r.json()) as { job_id: string }).job_id);
+  });
+
+  await page.goto(server.url);
+  await page.getByLabel("New project name").fill("Overlay");
+  await page.getByRole("button", { name: "Create project" }).click();
+  for (const path of [base, ft]) {
+    await page.getByLabel(/Model path/).fill(path);
+    await page.getByLabel(/Selected root/).fill(models);
+    await page.getByRole("button", { name: "Import model" }).click();
+    await expect(page.getByText(/Imported “/).last()).toBeVisible();
+  }
+  await page.getByRole("navigation", { name: "Main" }).getByRole("button", { name: "Compare" }).click();
+  await page.getByLabel("Base checkpoint (A)").selectOption({ label: "tiny_base.safetensors" });
+  await page.getByLabel("Derived checkpoint (B)").selectOption({ label: "tiny_ft.safetensors" });
+  await page.getByRole("radio", { name: /Strict/ }).check();
+  await page.getByRole("button", { name: "Create comparison" }).click();
+  await page.getByRole("button", { name: "Run analysis" }).click();
+  await expect(page.getByRole("grid", { name: /Relative L2 by layer and role/ })).toBeVisible({ timeout: 60_000 });
+
+  // The top-ranked tensor's drill-down.
+  const key = ((await page.getByRole("tabpanel", { name: /Tensors/ }).locator("tbody tr td.key-cell").first().textContent()) ?? "").trim();
+  await page.getByRole("button", { name: key, exact: true }).click();
+  const detail = page.getByRole("region", { name: key });
+  await detail.getByTestId("dist-bins").selectOption("16");
+  await detail.getByTestId("dist-run").click();
+  await expect(detail.getByTestId("dist-result")).toBeVisible({ timeout: 60_000 });
+
+  // Four jobs: min_max of A and B, then both over the union of their ranges.
+  expect(submitted).toHaveLength(4);
+  const auth = { Authorization: `Bearer ${server.token}` };
+  const results = await Promise.all(
+    submitted.map(async (id) => (JSON.parse((await raw(server.port, "GET", `/api/v1/jobs/${id}`, auth)).body) as { result: { model_id: string; histogram: Hist } }).result),
+  );
+  const va = (readTensor(base, key).values as number[]).filter(Number.isFinite);
+  const vb = (readTensor(ft, key).values as number[]).filter(Number.isFinite);
+  const lo = Math.min(...va, ...vb);
+  const hi = Math.max(...va, ...vb);
+  const [sa, sb] = [results[2]!.histogram, results[3]!.histogram];
+  expect(sa.bins!.edges).toEqual(sb.bins!.edges);
+  expect(sa.bins!.edges[0]).toBe(lo);
+  expect(sa.bins!.edges.at(-1)).toBe(hi);
+  expect(recount(readTensor(base, key).values as number[], sa.bins!.edges)).toEqual({ counts: sa.bins!.counts, below: 0, above: 0 });
+  expect(recount(readTensor(ft, key).values as number[], sb.bins!.edges)).toEqual({ counts: sb.bins!.counts, below: 0, above: 0 });
+
+  // The chart, readout and table show those counts.
+  await expect(detail.getByTestId("overlay-chart").locator("rect.hist-bar-a")).toHaveCount(sa.bins!.counts.filter((n) => n > 0).length);
+  await detail.getByTestId("overlay-chart").focus();
+  await page.keyboard.press("Home");
+  await expect(detail.getByTestId("overlay-readout")).toContainText(`A ${sa.bins!.counts[0]!.toLocaleString("en-US")}`);
+  await expect(detail.getByTestId("overlay-readout")).toContainText(`B ${sb.bins!.counts[0]!.toLocaleString("en-US")}`);
+  await detail.getByTestId("dist-table-toggle").check();
+  await expect(detail.getByTestId("dist-bins-table").locator("tbody tr")).toHaveCount(sa.bins!.counts.length);
+  await shot(page, "hist-06-overlay");
+  await axe(page, "overlay light");
+  await page.emulateMedia({ colorScheme: "dark" });
+  await axe(page, "overlay dark");
+  await shot(page, "hist-07-overlay-dark");
+
+  expect(problems).toEqual([]);
+  expect(blocked).toEqual([]);
+  await context.close();
+});

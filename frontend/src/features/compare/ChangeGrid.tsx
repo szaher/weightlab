@@ -82,7 +82,8 @@ export function ChangeGrid({ grid, metric, log, selected, onSelect }: Props) {
                   const text = cell && v ? valText(v) : "";
                   const label =
                     cell && v
-                      ? `${layerName(layer)}, ${role}: ${info.label} ${valTitle(v)}, ${cell.tensors.length} tensor${cell.tensors.length === 1 ? "" : "s"}${isSel ? ", filtering rankings" : ""}`
+                      ? // the visible (shortened) value comes first, so the accessible name contains it (WCAG 2.5.3)
+                        `${layerName(layer)}, ${role}: ${info.label} ${text}${valTitle(v) !== text ? ` (${valTitle(v)})` : ""}, ${cell.tensors.length} tensor${cell.tensors.length === 1 ? "" : "s"}${isSel ? ", filtering rankings" : ""}`
                       : `${layerName(layer)}, ${role}: no tensors`;
                   return (
                     <td

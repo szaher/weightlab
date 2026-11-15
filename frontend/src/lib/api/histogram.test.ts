@@ -6,7 +6,8 @@ import minmaxJson from "../../features/histogram/fixtures/f32_minmax.json";
 import nonfiniteJson from "../../features/histogram/fixtures/f32_nonfinite.json";
 import i8Json from "../../features/histogram/fixtures/i8_symmetric.json";
 import { ApiRequestError } from "./client";
-import { histogramBudget, parseHistogramResult, toNumber } from "./histogram";
+import { fakeApi, json, withToken } from "../../test/fakeApi";
+import { histogramBudget, parseHistogramResult, runHistogramJob, toNumber } from "./histogram";
 
 const EXPECT = { modelId: "mod_1", tensorId: "ten_1" };
 const wrap = (h: unknown, extra: object = {}) => ({ kind: "tensor_histogram", model_id: "mod_1", tensor_id: "ten_1", consistency: "best_effort", histogram: h, ...extra });
@@ -100,5 +101,46 @@ describe("histogramBudget", () => {
   it("uses the server's caps from Settings", () => {
     expect(histogramBudget({ memory_budget_mib: 512, max_job_seconds: 90 })).toEqual({ max_working_set_mib: 512, max_threads: 1, max_wall_seconds: 90 });
     expect(histogramBudget(undefined)).toEqual({ max_working_set_mib: 1024, max_threads: 1, max_wall_seconds: 600 });
+  });
+});
+
+describe("runHistogramJob", () => {
+  const job = (state: string, extra: object = {}) => ({ job_id: "job_1", kind: "tensor_histogram", state, progress: state === "completed" ? 1 : 0.5, poll_after_ms: 100, created_at: "2026-11-15T00:00:00Z", ...extra });
+  const args = (onJob: (j: unknown) => void = () => undefined) => ({
+    modelId: "mod_1",
+    tensorId: "ten_1",
+    options: { bins: 32, range: "min_max" as const },
+    consistency: "best_effort" as const,
+    budget: histogramBudget(undefined),
+    signal: new AbortController().signal,
+    onJob,
+  });
+
+  it("submits, polls until completed and returns the validated result", async () => {
+    withToken();
+    const states: string[] = [];
+    const polls = [job("running"), job("completed", { result: wrap(minmaxJson) })];
+    fakeApi((c) => (c.method === "POST" ? json(job("queued")) : json(polls.shift())));
+    const r = await runHistogramJob(args((j) => states.push((j as { state: string }).state)));
+    expect(r.histogram).toEqual(minmaxJson);
+    expect(states).toEqual(["queued", "running", "completed"]);
+  });
+
+  it("turns a failed, canceled or interrupted job into its error", async () => {
+    withToken();
+    for (const [end, code] of [
+      [job("failed", { error: { code: "FILE_CHANGED", message: "changed", retryable: false } }), "FILE_CHANGED"],
+      [job("canceled"), "CANCELED"],
+      [job("interrupted"), "INTERRUPTED"],
+    ] as const) {
+      fakeApi((c) => (c.method === "POST" ? json(job("queued")) : json(end)));
+      await expect(runHistogramJob(args())).rejects.toMatchObject({ code });
+    }
+  });
+
+  it("refuses a completed result that is not valid", async () => {
+    withToken();
+    fakeApi(() => json(job("completed", { result: wrap({ ...minmaxJson, coverage: "sampled" }) })));
+    await expect(runHistogramJob(args())).rejects.toMatchObject({ code: "BAD_RESPONSE" });
   });
 });

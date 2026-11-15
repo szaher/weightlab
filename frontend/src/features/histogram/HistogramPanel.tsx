@@ -14,6 +14,8 @@ import {
   type HistogramBins,
   type HistogramRange,
   type TensorHistogram,
+  INTEGER_DTYPES,
+  parseBound,
   toNumber,
 } from "../../lib/api/histogram";
 import { PENDING_JOB_STATES, type ErrorBody, type Job, type Tensor } from "../../lib/api/types";
@@ -23,8 +25,6 @@ import { binInterval, edgeFractions, exactValue, magnitudeColumns, percent, shor
 import { MAX_POLL_FAILURES, useHistogramJob, type HistogramRun } from "./useHistogramJob";
 
 const BIN_CHOICES = [16, 32, 64, 128, 256, 512, MAX_BINS];
-const INTEGER_DTYPES = new Set(["I64", "I32", "I16", "I8", "U64", "U32", "U16", "U8", "BOOL"]);
-const MAX_SAFE = Number.MAX_SAFE_INTEGER;
 
 /** What resolves each failure of a histogram job (submit errors and failed jobs). */
 export const HISTOGRAM_ADVICE: Record<string, string> = {
@@ -59,17 +59,6 @@ interface Props {
   modelId: string;
   tensor: Tensor;
   settings: Record<string, number | boolean> | undefined;
-}
-
-/** Parses an explicit bound; null with a reason when it is not usable for this tensor. */
-function parseBound(text: string, integer: boolean): { value: number | null; error: string | null } {
-  const t = text.trim();
-  if (t === "") return { value: null, error: "required" };
-  const v = Number(t);
-  if (!Number.isFinite(v)) return { value: null, error: "not a finite number" };
-  if (integer && !Number.isInteger(v)) return { value: null, error: "must be a whole number for an integer tensor" };
-  if (integer && Math.abs(v) > MAX_SAFE) return { value: null, error: "beyond ±(2^53 − 1)" };
-  return { value: v, error: null };
 }
 
 export function HistogramPanel({ modelId, tensor, settings }: Props) {
