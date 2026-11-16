@@ -14,7 +14,18 @@ import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent, type
 import { ErrorPanel } from "../../components/ErrorPanel";
 import { ApiRequestError, isAbort } from "../../lib/api/client";
 import { cancelJob, fetchTile, fetchTileMetadata, getJob, type DecodedTile } from "../../lib/api/tiles";
-import { AGGREGATIONS, PENDING_JOB_STATES, type Aggregation, type Job, type Settings, type Tensor, type TileMetadata, type TileRequest } from "../../lib/api/types";
+import {
+  AGGREGATIONS,
+  PENDING_JOB_STATES,
+  type Aggregation,
+  type DeltaSource,
+  type Job,
+  type Settings,
+  type Tensor,
+  type TileMetadata,
+  type TileRequest,
+  type ValueSource,
+} from "../../lib/api/types";
 import { formatBytes, formatInt } from "../../lib/format";
 import { useResource } from "../../lib/useResource";
 import { readTheme } from "../roi/paint";
@@ -70,6 +81,23 @@ interface Props {
   onViewChange: (v: ViewState) => void;
   /** Open Exact ROI on raw bounds `r` of this view. */
   onInspect: (r: RawRect) => void;
+  /** P1.1: draw a derived source (a comparison entry's B − A) instead of the tensor, whose catalog row then only
+   *  supplies the geometry. Every cost and dtype disclosure comes from here, never from the tensor alone. */
+  derived?: Derived | undefined;
+}
+
+export interface Derived {
+  source: DeltaSource;
+  /** Heading of the heatmap, e.g. "Delta heatmap, B − A". */
+  title: string;
+  /** What is drawn, e.g. "B − A of BF16 inputs"; shown as the source badge and in the tile details. */
+  sourceLabel: string;
+  /** Source bytes of one full pass (both inputs). */
+  readBytes: number;
+  /** The size pyramid_exact_max_mib applies to (the larger input). */
+  limitBytes: number;
+  initialPalette: Palette;
+  initialMode: ScaleMode;
 }
 
 interface QualityReq {
@@ -124,7 +152,7 @@ export const pollBackoff = (j: Job, failures: number): number => (failures === 0
 const pollDelay = (j: Job) => Math.min(10_000, Math.max(100, j.poll_after_ms ?? 500));
 const isPending = (j: Job | null) => !!j && PENDING_JOB_STATES.includes(j.state);
 
-export function Overview({ modelId, tensor, view, dims, settings, aggregation: agg, onAggregation: setAgg, onViewChange, onInspect }: Props) {
+export function Overview({ modelId, tensor, view, dims, settings, aggregation: agg, onAggregation: setAgg, onViewChange, onInspect, derived }: Props) {
   const [wrapRef, width] = useWidth();
   const dpr = useDpr();
   // Plot height follows the view's aspect ratio within [MIN_PLOT_HEIGHT, PLOT_HEIGHT], so wide matrices do not
@@ -137,8 +165,8 @@ export function Overview({ modelId, tensor, view, dims, settings, aggregation: a
   const [levelMode, setLevelMode] = useState<"auto" | number>("auto");
   const [quality, setQuality] = useState<QualityReq>({ mode: "auto", seed: null });
   const [seedText, setSeedText] = useState("");
-  const [mode, setMode] = useState<ScaleMode>("auto");
-  const [palette, setPalette] = useState<Palette>("sequential");
+  const [mode, setMode] = useState<ScaleMode>(derived?.initialMode ?? "auto");
+  const [palette, setPalette] = useState<Palette>(derived?.initialPalette ?? "sequential");
   const [fixed, setFixed] = useState<FixedRange>({ min: "0", max: "1" });
   const [selection, setSelection] = useState<RawRect | null>(null);
   const [hoverInfo, setHoverInfo] = useState<{ rect: RawRect; text: string } | null>(null);
@@ -192,10 +220,13 @@ export function Overview({ modelId, tensor, view, dims, settings, aggregation: a
   const level = levelMode === "auto" ? autoLevel(vp, dims) : Math.min(levelMode, top);
 
   // ---- requests
-  const ns = useMemo(
-    () => JSON.stringify({ m: modelId, t: tensor.id, v: reqView, a: agg, q: quality }),
-    [modelId, tensor.id, reqView, agg, quality],
+  const source: ValueSource = useMemo(
+    () => derived?.source ?? { kind: "tensor", model_id: modelId, tensor_id: tensor.id },
+    // A derived source is identified by its fields, not by the object the parent happens to pass.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [modelId, tensor.id, JSON.stringify(derived?.source ?? null)],
   );
+  const ns = useMemo(() => JSON.stringify({ s: source, v: reqView, a: agg, q: quality }), [source, reqView, agg, quality]);
   const states = useRef(new Map<string, TileState>());
   const onResult = useCallback((id: string, o: Outcome) => {
     if (o.kind === "tile") states.current.delete(id);
@@ -245,9 +276,9 @@ export function Overview({ modelId, tensor, view, dims, settings, aggregation: a
     (x: number, y: number, l: number): TileRequest => {
       const q: TileRequest["quality"] = { mode: quality.mode };
       if (quality.seed !== null) q.seed = quality.seed;
-      return { source: { kind: "tensor", model_id: modelId, tensor_id: tensor.id }, view: reqView, tile: { level: l, x, y, size: 256 }, aggregation: agg, quality: q };
+      return { source, view: reqView, tile: { level: l, x, y, size: 256 }, aggregation: agg, quality: q };
     },
-    [modelId, tensor.id, reqView, agg, quality],
+    [source, reqView, agg, quality],
   );
   useEffect(() => {
     if (!range || tooMany) {
@@ -462,7 +493,7 @@ export function Overview({ modelId, tensor, view, dims, settings, aggregation: a
   function onReset() {
     setSelection(null);
     setLevelMode("auto");
-    setMode("auto");
+    setMode(derived?.initialMode ?? "auto"); // a signed delta goes back to its zero-centred scale, not min–max
     setViewport(fitViewport(dims, size), true);
   }
 
@@ -632,7 +663,10 @@ export function Overview({ modelId, tensor, view, dims, settings, aggregation: a
 
   // ---- disclosures
   const limitMib = typeof settings?.pyramid_exact_max_mib === "number" ? settings.pyramid_exact_max_mib : null;
-  const aboveLimit = limitMib !== null && tensor.byte_length > limitMib * 1024 * 1024;
+  const limitBytes = derived?.limitBytes ?? tensor.byte_length;
+  const readBytes = derived?.readBytes ?? tensor.byte_length;
+  const sourceLabel = derived?.sourceLabel ?? `${tensor.dtype} source`;
+  const aboveLimit = limitMib !== null && limitBytes > limitMib * 1024 * 1024;
   const pending = isPending(job);
   const transposeSampleError = drawn.errors.find(
     (e) => e instanceof ApiRequestError && e.code === "RESOURCE_LIMIT" && /row sampling/i.test(e.message),
@@ -664,7 +698,7 @@ export function Overview({ modelId, tensor, view, dims, settings, aggregation: a
     <section className="overview" aria-labelledby="overview-h" data-testid="overview">
       <div className="roi-head">
         <h3 id="overview-h" className="h3">
-          Whole-tensor overview
+          {derived?.title ?? "Whole-tensor overview"}
         </h3>
         <p className="roi-precision" data-testid="overview-badges">
           {coverage ? (
@@ -678,7 +712,7 @@ export function Overview({ modelId, tensor, view, dims, settings, aggregation: a
             </span>
           ) : null}
           <span className="pill">float32 visualization</span>
-          <span className="pill mono">{tensor.dtype} source</span>
+          <span className="pill mono">{sourceLabel}</span>
         </p>
       </div>
 
@@ -865,7 +899,7 @@ export function Overview({ modelId, tensor, view, dims, settings, aggregation: a
         <div className="notice notice-info" data-testid="sampling-panel">
           <p className="notice-title">This is a row-sampled preview, not exact</p>
           <p>
-            The tensor is {formatBytes(tensor.byte_length)}, above pyramid_exact_max_mib ({limitMib ?? "?"} MiB), so Auto shows a labelled preview instead of reading
+            {derived ? "The larger input is" : "The tensor is"} {formatBytes(limitBytes)}, above pyramid_exact_max_mib ({limitMib ?? "?"} MiB), so Auto shows a labelled preview instead of reading
             everything. {meta.data ? qualityText("row_sampled", meta.data.sampled_rows ?? null, meta.data.sampling_policy, meta.data.seed) : sampledTile ? qualityText("row_sampled", sampledTile.sampledRows, null, null) : ""}
           </p>
           <form className="row" onSubmit={onSeed} aria-label="Sampling seed">
@@ -896,7 +930,8 @@ export function Overview({ modelId, tensor, view, dims, settings, aggregation: a
         <div className="notice notice-warn" role="group" aria-label="Confirm exact overview build" data-testid="confirm-exact">
           <p className="notice-title">Build the exact overview?</p>
           <p>
-            Estimated read: <strong>{formatBytes(tensor.byte_length)}</strong> (the whole tensor, once) to build an exact pyramid. It runs as a background job you can cancel;
+            Estimated read: <strong>{formatBytes(readBytes)}</strong> ({derived ? "the tensor in both checkpoints, once" : "the whole tensor, once"}) to build an
+            exact pyramid. It runs as a background job you can cancel;
             the sampled preview stays until it completes.
           </p>
           <div className="row">
@@ -957,9 +992,17 @@ export function Overview({ modelId, tensor, view, dims, settings, aggregation: a
             <dd className="mono">{blockText(level)}</dd>
           </div>
           <div>
-            <dt>Source dtype</dt>
-            <dd className="mono">{tensor.dtype}</dd>
+            <dt>{derived ? "Source" : "Source dtype"}</dt>
+            <dd className="mono">{derived ? sourceLabel : tensor.dtype}</dd>
           </div>
+          {typeof meta.data?.invalid_pair_count === "number" ? (
+            <div>
+              <dt>Pairs with a non-finite side (this tile)</dt>
+              <dd className="mono" data-testid="invalid-pairs">
+                {formatInt(meta.data.invalid_pair_count)}
+              </dd>
+            </div>
+          ) : null}
         </dl>
         {meta.data?.warnings && meta.data.warnings.length > 0 ? (
           <div className="notice notice-warn">

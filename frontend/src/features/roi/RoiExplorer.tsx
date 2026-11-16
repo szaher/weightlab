@@ -9,7 +9,7 @@
 import { useState, type FormEvent, type KeyboardEvent } from "react";
 import { ErrorPanel } from "../../components/ErrorPanel";
 import { api } from "../../lib/api/endpoints";
-import type { RoiRequest, Tensor } from "../../lib/api/types";
+import type { DeltaSource, RoiRequest, Tensor } from "../../lib/api/types";
 import { formatInt, formatShape } from "../../lib/format";
 import { useDebounced, useResource } from "../../lib/useResource";
 import { HeatmapCanvas, type CellRef } from "./HeatmapCanvas";
@@ -47,11 +47,18 @@ interface Props {
   initialWin?: Win | undefined;
   /** Told about every view change, so the overview stays on the same view. */
   onViewChange?: ((v: ViewState) => void) | undefined;
+  /** A derived source to read instead of the tensor itself (P1.1: a comparison entry's B − A); `tensor` then
+   *  supplies the shape and the dtype the server reports (A's). Its values are float64, never lossless. */
+  source?: DeltaSource | undefined;
+  /** What the values are, e.g. "B − A in float64 (inputs BF16)"; replaces the dtype · encoding badge. */
+  valueLabel?: string | undefined;
+  initialPalette?: Palette | undefined;
+  initialMode?: ScaleMode | undefined;
 }
 
 type Tab = "heatmap" | "values";
 
-export function RoiExplorer({ modelId, tensor, initialView, initialWin, onViewChange }: Props) {
+export function RoiExplorer({ modelId, tensor, initialView, initialWin, onViewChange, source, valueLabel, initialPalette, initialMode }: Props) {
   const settings = useResource("settings", (signal) => api.settings(signal));
   const capRaw = settings.data?.roi_max_cells;
   const cap = typeof capRaw === "number" && Number.isSafeInteger(capRaw) && capRaw > 0 ? capRaw : null;
@@ -68,8 +75,8 @@ export function RoiExplorer({ modelId, tensor, initialView, initialWin, onViewCh
     onViewChange?.(v);
   }
   const [tab, setTab] = useState<Tab>("heatmap");
-  const [mode, setMode] = useState<ScaleMode>("auto");
-  const [palette, setPalette] = useState<Palette>("sequential");
+  const [mode, setMode] = useState<ScaleMode>(initialMode ?? "auto");
+  const [palette, setPalette] = useState<Palette>(initialPalette ?? "sequential");
   const [fixed, setFixed] = useState<FixedRange>({ min: "-1", max: "1" });
   const [jump, setJump] = useState({ row: "", col: "", error: "" });
 
@@ -83,7 +90,7 @@ export function RoiExplorer({ modelId, tensor, initialView, initialWin, onViewCh
   const req: RoiRequest | null =
     bounds && !bErr
       ? {
-          source: { kind: "tensor", model_id: modelId, tensor_id: tensor.id },
+          source: source ?? { kind: "tensor", model_id: modelId, tensor_id: tensor.id },
           view: toRequestView(view),
           roi: bounds,
           value_encoding: "auto",
@@ -299,7 +306,7 @@ export function RoiExplorer({ modelId, tensor, initialView, initialWin, onViewCh
           <p className="roi-precision" data-testid="roi-precision">
             <span className="pill">coverage: {grid.coverage}</span>
             <span className={`pill ${grid.precision === "lossless" ? "prec-lossless" : "prec-rounded"}`}>numeric precision: {grid.precision}</span>
-            <span className="pill mono">{grid.dtype} · {grid.encoding}</span>
+            <span className="pill mono">{valueLabel ?? `${grid.dtype} · ${grid.encoding}`}</span>
           </p>
         ) : null}
       </div>

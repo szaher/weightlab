@@ -131,7 +131,8 @@ test("import, compare, analyze, visualize, drill down; parity with the CLI; S po
   const top = expected.tensors[0]!.key;
   await page.getByRole("button", { name: top, exact: true }).click();
   const detail = page.getByRole("region", { name: top });
-  await expect(detail.getByRole("button", { name: /Delta heatmap/ })).toBeDisabled();
+  // The delta heatmap is offered collapsed: nothing is read until it is opened (drawn and checked in delta.spec.ts).
+  await expect(detail.getByRole("button", { name: "Show delta heatmap" })).toHaveAttribute("aria-expanded", "false");
   await shot(page, "compare-04-tensor-detail");
   await detail.getByRole("button", { name: /Inspect in B/ }).click();
   // Explore opens on checkpoint B with exactly this tensor in the inspector (the existing single-tensor views).

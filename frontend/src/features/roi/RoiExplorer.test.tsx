@@ -4,7 +4,7 @@
 import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it } from "vitest";
-import type { RoiRequest, Tensor } from "../../lib/api/types";
+import type { RoiRequest, Tensor, TensorSource } from "../../lib/api/types";
 import { apiError, fakeApi, json, withToken, type Call } from "../../test/fakeApi";
 import { RoiExplorer, ROI_QUIET_MS } from "./RoiExplorer";
 
@@ -75,7 +75,7 @@ function serve(tensors: Tensor[], roi?: RoiHandler): Call[] {
     if (call.url.pathname === "/api/v1/tensors/roi") {
       const body = call.body as RoiRequest;
       if (roi) return roi(body, call);
-      const t = tensors.find((x) => x.id === body.source.tensor_id)!;
+      const t = tensors.find((x) => x.id === (body.source as TensorSource).tensor_id)!;
       return json(answer(t, body));
     }
     return apiError(404, "NOT_FOUND", "unexpected route in test");
@@ -190,7 +190,7 @@ describe("RoiExplorer", () => {
     const b = tensor("tns_b", [8, 8]);
     let releaseA: (() => void) | undefined;
     const calls = serve([a, b], (body) => {
-      if (body.source.tensor_id === "tns_a") {
+      if ((body.source as TensorSource).tensor_id === "tns_a") {
         return new Promise<Response>((ok) => {
           releaseA = () => ok(json(answer(a, body)));
         });

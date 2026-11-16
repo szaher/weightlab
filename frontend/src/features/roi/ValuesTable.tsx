@@ -49,7 +49,7 @@ export function ValuesTable({ grid, selected, onSelect }: Props) {
       <div className="table-wrap values-scroll">
         <table className="table values-table" data-testid="values-table">
           <caption className="visually-hidden">
-            Exact values, rows [{r0}, {r0 + grid.rows}) and columns [{c0}, {c0 + grid.cols}), dtype {grid.dtype}
+            Exact values, rows [{r0}, {r0 + grid.rows}) and columns [{c0}, {c0 + grid.cols}), values {grid.valueType}
           </caption>
           <thead>
             <tr>
@@ -89,7 +89,7 @@ export function ValuesTable({ grid, selected, onSelect }: Props) {
                       {cellText(cell)}
                     </button>
                   </td>
-                  <td className="mono">{grid.dtype}</td>
+                  <td className="mono">{grid.valueType}</td>
                   <td>{cell.state === "finite" ? (cell.color === null ? "finite (colour withheld)" : STATE_LABEL.finite) : <strong>{STATE_LABEL[cell.state]}</strong>}</td>
                   <td>
                     <CopyButton value={copyText(cell)} label={`Copy exact value at row ${row}, column ${col}`} />

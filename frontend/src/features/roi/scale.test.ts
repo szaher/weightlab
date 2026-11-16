@@ -14,6 +14,7 @@ function grid(rows: number, cols: number, vals: (number | CellState | null)[]): 
     rows,
     cols,
     dtype: "F64",
+    valueType: "F64",
     encoding: "float_json",
     precision: "lossless",
     coverage: "complete",

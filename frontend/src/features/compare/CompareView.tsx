@@ -305,6 +305,7 @@ function Dashboard({ comparisonId, models, onListChanged, onInspect }: { compari
           </section>
           {row ? (
             <TensorDetail
+              comparisonId={comparisonId}
               row={row}
               modelA={ma ? { id: ma.id, name: ma.display_name } : null}
               modelB={mb ? { id: mb.id, name: mb.display_name } : null}
