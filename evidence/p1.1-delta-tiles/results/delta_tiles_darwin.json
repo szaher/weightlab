@@ -1,0 +1,173 @@
+{
+  "machine": {
+    "platform": "macOS-26.0-arm64-arm-64bit",
+    "processor": "arm",
+    "cpu_count": 12,
+    "ram_gib": 36.0,
+    "python": "3.12.11"
+  },
+  "budget": {
+    "max_working_set_mib": 1024,
+    "max_threads": 1,
+    "max_wall_seconds": 1800
+  },
+  "settings": {
+    "direct_tile_max_mib": 8
+  },
+  "pairs": [
+    {
+      "a": "Qwen2.5-0.5B",
+      "b": "Qwen2.5-0.5B-Instruct",
+      "class": "S",
+      "tensors": [
+        {
+          "key": "model.embed_tokens.weight",
+          "shape": [
+            151936,
+            896
+          ],
+          "dtypes": [
+            "BF16",
+            "BF16"
+          ],
+          "direct_l3": {
+            "status": 200,
+            "body_bytes": 143360,
+            "seconds": 0.066,
+            "peak_rss_mib": 86.1
+          },
+          "build": {
+            "consistency": "best_effort",
+            "wall_seconds": 1.41,
+            "estimated_bytes": 544538624,
+            "rss_before_mib": 86.6,
+            "peak_rss_mib": 104.8,
+            "level_requested": 11
+          },
+          "exact_tile": {
+            "level": 11,
+            "quality": "exact",
+            "cells": 75,
+            "finite_count": 136134656,
+            "invalid_pair_count": 0,
+            "matches_numpy": true,
+            "max_rel_error": 5.025803950109265e-08
+          }
+        },
+        {
+          "key": "model.layers.0.mlp.down_proj.weight",
+          "shape": [
+            896,
+            4864
+          ],
+          "dtypes": [
+            "BF16",
+            "BF16"
+          ],
+          "direct_l3": {
+            "status": 200,
+            "body_bytes": 143360,
+            "seconds": 0.053,
+            "peak_rss_mib": 93.5
+          },
+          "build": {
+            "consistency": "best_effort",
+            "wall_seconds": 0.12,
+            "estimated_bytes": 17432576,
+            "rss_before_mib": 100.0,
+            "peak_rss_mib": 100.3,
+            "level_requested": 6
+          },
+          "exact_tile": {
+            "level": 6,
+            "quality": "exact",
+            "cells": 1064,
+            "finite_count": 4358144,
+            "invalid_pair_count": 0,
+            "matches_numpy": true,
+            "max_rel_error": 5.8661358361240983e-08
+          }
+        }
+      ]
+    },
+    {
+      "a": "Qwen2.5-Math-1.5B",
+      "b": "Qwen2.5-Math-1.5B-Instruct",
+      "class": "S",
+      "tensors": [
+        {
+          "key": "model.embed_tokens.weight",
+          "shape": [
+            151936,
+            1536
+          ],
+          "dtypes": [
+            "BF16",
+            "BF16"
+          ],
+          "direct_l3": {
+            "status": 200,
+            "body_bytes": 245760,
+            "seconds": 0.081,
+            "peak_rss_mib": 101.2
+          },
+          "build": {
+            "consistency": "best_effort",
+            "wall_seconds": 2.4,
+            "estimated_bytes": 933494784,
+            "rss_before_mib": 100.5,
+            "peak_rss_mib": 100.9,
+            "level_requested": 11
+          },
+          "exact_tile": {
+            "level": 11,
+            "quality": "exact",
+            "cells": 75,
+            "finite_count": 233373696,
+            "invalid_pair_count": 0,
+            "matches_numpy": true,
+            "max_rel_error": 4.972492478785695e-08
+          }
+        },
+        {
+          "key": "model.layers.0.mlp.down_proj.weight",
+          "shape": [
+            1536,
+            8960
+          ],
+          "dtypes": [
+            "BF16",
+            "BF16"
+          ],
+          "direct_l3": {
+            "status": 200,
+            "body_bytes": 245760,
+            "seconds": 0.088,
+            "peak_rss_mib": 98.0
+          },
+          "build": {
+            "consistency": "best_effort",
+            "wall_seconds": 0.23,
+            "estimated_bytes": 55050240,
+            "rss_before_mib": 98.0,
+            "peak_rss_mib": 98.5,
+            "level_requested": 7
+          },
+          "exact_tile": {
+            "level": 7,
+            "quality": "exact",
+            "cells": 840,
+            "finite_count": 13762560,
+            "invalid_pair_count": 0,
+            "matches_numpy": true,
+            "max_rel_error": 5.933792992629576e-08
+          }
+        }
+      ]
+    }
+  ],
+  "idle_rss_mib": 62.0,
+  "weightlab_version": "0.1.0a2",
+  "final_rss_mib": 98.2,
+  "failures": []
+}
