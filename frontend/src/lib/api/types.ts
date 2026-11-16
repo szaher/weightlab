@@ -98,13 +98,28 @@ export interface ErrorEnvelope {
   request_id: string;
 }
 
-// ---- Exact ROI (POST /tensors/roi; doc 09 section 2). Only the `tensor` source kind is used by the UI today.
+// ---- Exact ROI (POST /tensors/roi; doc 09 section 2). The UI uses the `tensor` and `delta` source kinds.
 
 export interface TensorSource {
   kind: "tensor";
   model_id: string;
   tensor_id: string;
 }
+
+export const DELTA_TRANSFORMS = ["b_minus_a", "abs_b_minus_a", "relative_abs"] as const;
+export type DeltaTransform = (typeof DELTA_TRANSFORMS)[number];
+
+/** Elementwise B − A of one matched comparison entry (doc 09 section 4), computed by the server in a paired pass. */
+export interface DeltaSource {
+  kind: "delta";
+  comparison_id: string;
+  entry_id: string;
+  transform: DeltaTransform;
+  /** relative_abs only: |B − A| / max(|A|, epsilon); 0 < epsilon <= 1. */
+  epsilon?: number;
+}
+
+export type ValueSource = TensorSource | DeltaSource;
 
 export interface RoiView {
   row_axis: number | null;
@@ -121,7 +136,7 @@ export interface RoiBounds {
 }
 
 export interface RoiRequest {
-  source: TensorSource;
+  source: ValueSource;
   view: RoiView;
   roi: RoiBounds;
   value_encoding: "auto";
@@ -155,7 +170,7 @@ export type TileQuality = "exact" | "row_sampled";
 export type SamplingPolicy = "stride" | "splitmix64_rows";
 
 export interface TileRequest {
-  source: TensorSource;
+  source: ValueSource;
   view: RoiView;
   tile: { level: number; x: number; y: number; size: number };
   aggregation: Aggregation;

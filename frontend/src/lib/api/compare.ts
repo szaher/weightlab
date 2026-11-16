@@ -187,7 +187,36 @@ export function reportBudget(settings: Record<string, number | boolean> | undefi
   return { max_working_set_mib: n("memory_budget_mib", 1024), max_threads: 1, max_wall_seconds: n("max_job_seconds", 600) };
 }
 
+/** One entry of a comparison (GET /comparisons/{id}/entries, ComparisonEntry). */
+export interface ComparisonEntry {
+  entry_id: string;
+  raw_key: string;
+  status: "matched" | "missing_in_a" | "missing_in_b" | "tied" | "shape_mismatch" | "dtype_mismatch";
+  tensor_id_a?: string | null;
+  tensor_id_b?: string | null;
+  shape_a?: number[] | null;
+  shape_b?: number[] | null;
+  dtype_a?: string | null;
+  dtype_b?: string | null;
+  reasons: string[];
+}
+
+export interface EntryPage {
+  total: number;
+  items: ComparisonEntry[];
+}
+
+/** Entry statuses with an elementwise B − A (doc 09 section 4; the server also requires the entry to be analyzable). */
+export const DELTA_STATUSES = ["matched", "dtype_mismatch"] as const;
+
 export const compareApi = {
+  entries: (comparisonId: string, p: { status: readonly string[]; limit: number; offset: number }, signal?: Sig) => {
+    const q = new URLSearchParams();
+    for (const s of p.status) q.append("status", s);
+    q.set("limit", String(p.limit));
+    q.set("offset", String(p.offset));
+    return request<EntryPage>(`/comparisons/${id(comparisonId)}/entries`, { query: q, signal });
+  },
   list: (projectId: string, signal?: Sig) => request<Comparison[]>(`/projects/${id(projectId)}/comparisons`, { signal }),
   get: (comparisonId: string, signal?: Sig) => request<Comparison>(`/comparisons/${id(comparisonId)}`, { signal }),
   create: (body: ComparisonRequest) => request<Comparison>("/comparisons", { method: "POST", body }),

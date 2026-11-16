@@ -9,7 +9,7 @@
 //   copy. A colour is derived only when |v| <= 2^53-1 (otherwise colour is withheld and the text stays exact).
 // - bool_json: true/false.
 import { ApiRequestError } from "../../lib/api/client";
-import type { Dtype, NonfiniteKind, NumericPrecision, RoiBounds, RoiRequest, RoiResponse, ValueEncoding } from "../../lib/api/types";
+import type { Dtype, NonfiniteKind, NumericPrecision, RoiBounds, RoiRequest, RoiResponse, ValueEncoding, ValueSource } from "../../lib/api/types";
 
 export type CellState = "finite" | NonfiniteKind;
 
@@ -26,6 +26,8 @@ export interface RoiGrid {
   rows: number;
   cols: number;
   dtype: Dtype;
+  /** What each value is: the tensor's dtype, or "float64 (derived)" for a derived source (whose dtype is its input's). */
+  valueType: string;
   encoding: ValueEncoding;
   precision: NumericPrecision;
   coverage: "complete";
@@ -96,6 +98,21 @@ function decimalCell(v: unknown, dtype: Dtype): { cell: Cell; unsafe: boolean } 
   return { cell: { text: v, state: "finite", color: safe ? Number(v) : null }, unsafe: !safe };
 }
 
+/** Whether an answer's echoed `source` is the requested one (every field the request names; epsilon only matters
+ *  where the transform uses it, and the server echoes it exactly as sent). */
+function sameSource(got: unknown, want: ValueSource): boolean {
+  if (typeof got !== "object" || got === null) return false;
+  const g = got as Record<string, unknown>;
+  if (want.kind === "tensor") return g.kind === "tensor" && g.model_id === want.model_id && g.tensor_id === want.tensor_id;
+  return (
+    g.kind === "delta" &&
+    g.comparison_id === want.comparison_id &&
+    g.entry_id === want.entry_id &&
+    g.transform === want.transform &&
+    (want.transform !== "relative_abs" || g.epsilon === want.epsilon)
+  );
+}
+
 /** Validates `resp` against `req` and the tensor's dtype, returning the grid or throwing a BAD_RESPONSE error. */
 export function parseRoi(resp: unknown, req: RoiRequest, dtype: Dtype): RoiGrid {
   try {
@@ -114,11 +131,8 @@ function parse(resp: unknown, req: RoiRequest, dtype: Dtype): RoiGrid {
   check(typeof resp === "object" && resp !== null, "not an object");
   const r = resp as Partial<RoiResponse>;
   check(r.schema_version === 2, "unknown schema_version");
-  const src = r.source as { kind?: unknown; model_id?: unknown; tensor_id?: unknown } | undefined;
-  check(
-    src?.kind === "tensor" && src.model_id === req.source.model_id && src.tensor_id === req.source.tensor_id,
-    "answer is for a different tensor",
-  );
+  check(sameSource(r.source, req.source), req.source.kind === "tensor" ? "answer is for a different tensor" : "answer is for a different delta source");
+  const derived = req.source.kind !== "tensor";
   check(typeof r.roi === "object" && r.roi !== null && sameBounds(r.roi, req.roi), "answer is for a different region");
   const rows = req.roi.r1 - req.roi.r0;
   const cols = req.roi.c1 - req.roi.c0;
@@ -126,10 +140,13 @@ function parse(resp: unknown, req: RoiRequest, dtype: Dtype): RoiGrid {
   check(r.source_dtype === dtype, `dtype ${String(r.source_dtype)} differs from the catalog's ${dtype}`);
   check(r.coverage === "complete", "coverage is not complete");
   check(r.numeric_precision === "lossless" || r.numeric_precision === "rounded" || r.numeric_precision === "overflowed", "unknown numeric_precision");
-  // A raw tensor source is lossless by contract (doc 09 section 2): rounded/overflowed belongs to derived sources only.
-  check(req.source.kind !== "tensor" || r.numeric_precision === "lossless", `a raw tensor read must be lossless, not ${String(r.numeric_precision)}`);
+  // A raw tensor source is lossless by contract (doc 09 section 2): rounded/overflowed belongs to derived sources only,
+  // which are float64 arithmetic of their inputs and never lossless.
+  check(derived || r.numeric_precision === "lossless", `a raw tensor read must be lossless, not ${String(r.numeric_precision)}`);
+  check(!derived || r.numeric_precision !== "lossless", "a derived value is float64 arithmetic, never lossless");
   const enc = r.value_encoding;
-  check(enc === autoEncoding(dtype), `encoding ${String(enc)} is not the lossless encoding of ${dtype}`);
+  if (derived) check(enc === "float_json", `a derived source is float64 JSON, not ${String(enc)}`);
+  else check(enc === autoEncoding(dtype), `encoding ${String(enc)} is not the lossless encoding of ${dtype}`);
   check(Array.isArray(r.warnings) && r.warnings.every((w) => typeof w === "string"), "warnings malformed");
   const values = r.values;
   check(Array.isArray(values) && values.length === rows, "row count differs from the region");
@@ -178,6 +195,7 @@ function parse(resp: unknown, req: RoiRequest, dtype: Dtype): RoiGrid {
     rows,
     cols,
     dtype,
+    valueType: derived ? "float64 (derived)" : dtype,
     encoding: enc,
     precision: r.numeric_precision,
     coverage: "complete",

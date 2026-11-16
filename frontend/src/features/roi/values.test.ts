@@ -168,3 +168,43 @@ describe("parseRoi: anything malformed or mismatched is an error, never data", (
     expect(() => parseRoi(resp(one, "I32", "int_json", [[2 ** 53]]), one, "I32")).toThrow(ApiRequestError);
   });
 });
+
+describe("parseRoi: delta sources (derived float64 values)", () => {
+  const delta = (transform: "b_minus_a" | "relative_abs", epsilon?: number): RoiRequest => ({
+    ...req(1, 2),
+    source: { kind: "delta", comparison_id: "cmp_1", entry_id: "ent_1", transform, ...(epsilon === undefined ? {} : { epsilon }) },
+  });
+  const bad = (f: () => unknown, why: RegExp) => {
+    try {
+      f();
+    } catch (e) {
+      expect(e).toBeInstanceOf(ApiRequestError);
+      expect((e as ApiRequestError).message).toMatch(why);
+      return;
+    }
+    throw new Error("expected a BAD_RESPONSE");
+  };
+
+  it("accepts rounded float64 values of an I8 tensor's delta, with the overflow mask", () => {
+    const r = delta("b_minus_a");
+    const g = parseRoi(resp(r, "I8", "float_json", [[0.5, null]], [[null, "overflow"]], { numeric_precision: "overflowed" }), r, "I8");
+    expect(g.cells.map((c) => [c.text, c.state])).toEqual([
+      ["0.5", "finite"],
+      ["", "overflow"],
+    ]);
+    expect(g.precision).toBe("overflowed");
+  });
+
+  it("refuses lossless claims, non-float encodings and answers for another transform or ε", () => {
+    const r = delta("relative_abs", 0.5);
+    const ok = { numeric_precision: "rounded" };
+    expect(parseRoi(resp(r, "F32", "float_json", [[1, 2]], null, ok), r, "F32").precision).toBe("rounded");
+    bad(() => parseRoi(resp(r, "F32", "float_json", [[1, 2]]), r, "F32"), /never lossless/);
+    bad(() => parseRoi(resp(r, "I8", "int_json", [[1, 2]], null, ok), r, "I8"), /float64 JSON/);
+    const other = { ...r.source, transform: "abs_b_minus_a" };
+    bad(() => parseRoi(resp(r, "F32", "float_json", [[1, 2]], null, { ...ok, source: other }), r, "F32"), /different delta source/);
+    bad(() => parseRoi(resp(r, "F32", "float_json", [[1, 2]], null, { ...ok, source: { ...r.source, epsilon: 0.25 } }), r, "F32"), /different delta source/);
+    const t = req(1, 2);
+    bad(() => parseRoi(resp(t, "F32", "float_json", [[1, 2]], null, { ...ok, source: r.source }), t, "F32"), /different tensor/);
+  });
+});

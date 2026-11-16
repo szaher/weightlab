@@ -116,7 +116,7 @@ export function TensorWorkbench({ modelId, tensor }: { modelId: string; tensor: 
 }
 
 /** Axes and slice for rank > 2 views (the same rules as the exact explorer's controls). */
-function SliceControls({ shape, view, onView }: { shape: number[]; view: ViewState; onView: (v: ViewState) => void }) {
+export function SliceControls({ shape, view, onView }: { shape: number[]; view: ViewState; onView: (v: ViewState) => void }) {
   const rank = shape.length;
   function onAxis(which: "rowAxis" | "colAxis", axis: number) {
     const other = which === "rowAxis" ? "colAxis" : "rowAxis";

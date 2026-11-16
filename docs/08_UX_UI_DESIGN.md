@@ -50,6 +50,12 @@ Explore's tensor workbench has a **Histogram** tab for every non-empty tensor (r
 - **Mixed domains:** integer-vs-float pairs are refused, because their bins cannot be the same.
 - **Failure and cancel:** a failure on either side cancels the other, and canceling stops both. No partial overlay is drawn.
 
+**Delta heatmap (implemented, ROADMAP P1.1).** The Compare drill-down's "Delta heatmap (B − A)" section draws a matched entry's elementwise difference, computed by the server in a paired pass (`delta` tile and ROI sources).
+- **Nothing is read until it is opened.** It is offered only for entries with an elementwise difference (matched or dtype-mismatched); others say why. One full read (both checkpoints) is stated up front.
+- **What is shown:** B − A (signed), |B − A|, or |B − A| / max(|A|, ε) with ε validated (0 < ε ≤ 1). Signed B − A starts on a sign-symmetric diverging scale centred on zero, and Reset returns to it; magnitudes start on a sequential scale. A note says that a block's mean can cancel opposite changes, and that a delta shows where values changed, not why or whether it matters.
+- **Same machinery as the tensor overview:** levels, exact pyramids built as cancellable jobs, labelled row-sampled previews, coverage and precision badges, legend with non-finite and not-representable counts, and the tile's invalid-pair count. The source badge names the transform and the inputs' dtypes (float64 arithmetic).
+- **Exact paired values:** a selected block opens the Exact ROI tab on exactly that region; values are float64 B − A (precision `rounded` or `overflowed`, never `lossless`), with overflow shown as a state, never a number, and the server's caveats (lineage, mixed dtypes) listed.
+
 ## 3. Compare view
 
 Header requires A file and B file plus `compatibility badge` with click-through reasons. Shared tensor selector and four modes: A / B / delta / abs delta. Two-panel synchronized zoom with optional lock, legend that states whether scales shared. Below heatmaps: delta metric strip, per-layer summary list and links to exact ROI. Prominent caution when lineage unverified. Optional "Show alignment details" reveals raw keys/shapes/dtypes/mapping. Never imply "B is better" from delta without an eval result.

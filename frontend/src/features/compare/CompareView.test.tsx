@@ -193,7 +193,7 @@ describe("Compare: grid, rankings and drill-down", () => {
     expect(rows().every((r) => /layers\.2\./.test(within(r).getAllByRole("button")[0]!.textContent ?? ""))).toBe(true);
   });
 
-  it("drill-down shows metrics and counts, opens the tensor in A, and never offers a delta heatmap", async () => {
+  it("drill-down shows metrics and counts, opens the tensor in A, and reads no delta until it is opened", async () => {
     const user = userEvent.setup();
     const t: TensorRow = G.tensors.find((x) => x.key === "model.layers.0.mlp.down_proj.weight")!;
     const onInspect = vi.fn();
@@ -212,11 +212,14 @@ describe("Compare: grid, rankings and drill-down", () => {
     const detail = screen.getByRole("region", { name: t.key });
     expect(within(detail).getByText(String(t.metrics.relative_l2.value))).toBeInTheDocument();
     expect(within(detail).getByText("mlp.down")).toBeInTheDocument();
-    expect(within(detail).getByRole("button", { name: /Delta heatmap/ })).toBeDisabled();
-    expect(within(detail).getByText(/Not available yet/)).toBeInTheDocument();
+    const toggle = within(detail).getByRole("button", { name: "Show delta heatmap" });
+    expect(toggle).toBeEnabled();
+    expect(toggle).toHaveAttribute("aria-expanded", "false");
+    expect(within(detail).queryByText(/Not available yet/)).not.toBeInTheDocument();
     await user.click(within(detail).getByRole("button", { name: /Inspect in A/ }));
     await waitFor(() => expect(onInspect).toHaveBeenCalledWith("mod_a", "tns_down"));
     expect(calls.find((c) => c.url.pathname.endsWith("/tensors"))!.url.searchParams.get("q")).toBe(t.key);
+    expect(calls.some((c) => /\/entries$|\/tiles$|\/tensors\/roi$/.test(c.url.pathname))).toBe(false); // closed: nothing read
   });
 });
 

@@ -1,13 +1,17 @@
 // One tensor of the report: identity, every metric with its method and precision, counts (non-finite values per
-// side), caveats, and the existing single-tensor inspection of A or B. A graphical delta heatmap is not
-// implemented yet and is shown as unavailable, not as a working action.
+// side), caveats, the A/B value distributions, the delta heatmap (B − A, computed by the server in a paired pass;
+// only for entries that have an elementwise difference), and the single-tensor inspection of A or B.
 import { useState } from "react";
 import { ErrorPanel } from "../../components/ErrorPanel";
 import { TENSOR_METRICS, type TensorRow } from "../../lib/api/compare";
 import { formatInt, formatShape } from "../../lib/format";
+import { DeltaWorkbench } from "./DeltaWorkbench";
 import { DistributionCompare } from "./DistributionCompare";
 import { findTensor } from "./findTensor";
 import { METRIC_INFO, metricVal, valText, valTitle } from "./metrics";
+
+/** Report rows whose entry has an elementwise B − A (the server also checks that it is analyzable). */
+const DELTA_ROW_STATUSES: ReadonlySet<string> = new Set(["matched", "dtype_mismatch"]);
 
 const COUNT_LABELS: [string, string][] = [
   ["elements", "Elements"],
@@ -25,6 +29,7 @@ const COUNT_LABELS: [string, string][] = [
 ];
 
 interface Props {
+  comparisonId: string;
   row: TensorRow;
   modelA: { id: string; name: string } | null;
   modelB: { id: string; name: string } | null;
@@ -32,7 +37,7 @@ interface Props {
   onClose: () => void;
 }
 
-export function TensorDetail({ row, modelA, modelB, onInspect, onClose }: Props) {
+export function TensorDetail({ comparisonId, row, modelA, modelB, onInspect, onClose }: Props) {
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<unknown>(null);
 
@@ -142,6 +147,13 @@ export function TensorDetail({ row, modelA, modelB, onInspect, onClose }: Props)
         </dl>
       </details>
       <DistributionCompare key={row.key} row={row} modelA={modelA} modelB={modelB} />
+      {modelA && modelB && DELTA_ROW_STATUSES.has(row.status) ? (
+        <DeltaWorkbench key={row.key} comparisonId={comparisonId} row={row} modelA={modelA} modelB={modelB} />
+      ) : (
+        <p className="muted small" data-testid="delta-unavailable">
+          No delta heatmap: {modelA && modelB ? `this entry is ${row.status.replace(/_/g, " ")}, with no elementwise B − A` : "a checkpoint of this comparison is no longer in the project"}.
+        </p>
+      )}
       <div className="row">
         {modelA ? (
           <button type="button" className="btn btn-small" disabled={busy !== null} onClick={() => void inspect(modelA.id)}>
@@ -153,12 +165,6 @@ export function TensorDetail({ row, modelA, modelB, onInspect, onClose }: Props)
             {busy === modelB.id ? "Opening…" : `Inspect in B (${modelB.name})`}
           </button>
         ) : null}
-        <button type="button" className="btn btn-small" disabled aria-describedby="td-delta-note">
-          Delta heatmap (B − A)
-        </button>
-        <span id="td-delta-note" className="muted small">
-          Not available yet: graphical delta heatmaps are planned (ROADMAP P1.1). Inspect opens one checkpoint’s own values.
-        </span>
       </div>
       {error ? <ErrorPanel error={error} /> : null}
     </section>

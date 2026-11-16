@@ -41,7 +41,7 @@ export function SelectedCell({ grid, selected, tensorIndex, rank }: Props) {
             <div>
               <dt>Dtype</dt>
               <dd className="mono" data-testid="selected-dtype">
-                {grid.dtype}
+                {grid.valueType}
               </dd>
             </div>
             <div>
