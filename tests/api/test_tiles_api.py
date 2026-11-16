@@ -317,11 +317,27 @@ def test_invalid_tile_requests_get_the_error_envelope(env: Env, change: dict[str
     assert e["error"]["code"] in ("VALIDATION_ERROR", "INVALID_ROI")
 
 
-def test_derived_sources_are_refused_not_substituted(env: Env) -> None:
+@pytest.mark.parametrize(
+    "source",
+    [
+        {"kind": "lora_delta", "adapter_id": "adp_x", "module_id": "amd_x", "experiment_multiplier": 1.0},
+        {"kind": "virtual_effective", "adapter_id": "adp_x", "module_id": "amd_x", "experiment_multiplier": 1.0,
+         "research_mode": False},
+    ],
+)  # fmt: skip
+def test_lora_sources_are_refused_not_substituted(env: Env, source: dict[str, Any]) -> None:
+    e = env.api.post("/tiles", json_body={**env.req("mid", 0), "source": source}, expect=422)
+    assert e["error"]["code"] == "VALIDATION_ERROR"
+    assert "not available" in e["error"]["message"]
+    job = {"kind": "pyramid_build", "source": source, "view": VIEW2D,
+           "budget": {"max_working_set_mib": 512, "max_threads": 1, "max_wall_seconds": 60}}  # fmt: skip
+    assert env.api.post("/jobs", json_body=job, expect=422)["error"]["code"] == "VALIDATION_ERROR"
+
+
+def test_delta_tiles_of_unknown_comparisons_are_not_found(env: Env) -> None:
     body = {**env.req("mid", 0), "source": {"kind": "delta", "comparison_id": "cmp_x", "entry_id": "ent_x",
                                             "transform": "b_minus_a"}}  # fmt: skip
-    e = env.api.post("/tiles", json_body=body, expect=422)
-    assert "not available" in e["error"]["message"]
+    assert env.api.post("/tiles", json_body=body, expect=404)["error"]["code"] == "NOT_FOUND"
 
 
 def test_cross_project_ids_are_not_found(env: Env, models: Path) -> None:
@@ -568,19 +584,19 @@ def test_two_projects_one_checkpoint_two_workers_share_one_build(
     other project's job then builds the pyramid itself."""
     import weightlab.api.tiles as tiles_mod
 
-    real = tiles_mod.pyr.build_pyramid
+    real = tiles_mod.pyr.build_source_pyramid  # what the pyramid_build job runs for every source kind
     calls: list[str] = []
     release = threading.Event()
 
     def gated(*a: Any, **k: Any) -> Any:
-        ctl = a[6] if len(a) > 6 else k["control"]
+        ctl = a[5] if len(a) > 5 else k["control"]  # (src, view, identity, pyramid_id, sink, control)
         calls.append(ctl.job_id)
         if len(calls) == 1:  # hold the first build until the test has both jobs running side by side
             while not release.wait(0.01):
                 ctl.check()
         return real(*a, **k)
 
-    monkeypatch.setattr(tiles_mod.pyr, "build_pyramid", gated)
+    monkeypatch.setattr(tiles_mod.pyr, "build_source_pyramid", gated)
     cfg = ServerConfig(port=PORT, data_dir=tmp_path / "data", token=TOKEN)
     with TestClient(create_app(cfg), base_url=f"http://127.0.0.1:{PORT}") as c:
         Api(c, TOKEN).patch("/settings", json_body={"max_heavy_jobs": 2}, expect=200)

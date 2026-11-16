@@ -12,6 +12,11 @@ of squares), min/max combine, overflow flags propagate (a float64 sum that leave
 input was finite). Counter additions are checked; an overflow aborts the build with RESOURCE_LIMIT. A record without
 finite elements stores sums -0.0, min +Inf, max -Inf and no flags (its display is NO_FINITE, never a number).
 
+Derived sources (`delta`, doc 03 section 5) use the same record format, built by a paired pass (`readers.DeltaReader`).
+A value that overflowed float64 although its inputs were finite counts as finite and enters the sums and extrema as
++/-Inf (`tile.finite_mask`): its record always carries the sum_abs overflow flag, and only such a record of a derived
+pyramid (identity `source_kind` other than `tensor`) may hold an infinite extreme.
+
 Orientation. The pass follows storage order: when the view's columns are the slow storage axis (a transposed matrix),
 the builder streams the transposed view, so reads stay sequential; such a pyramid stores its grids transposed
 (`orientation = "cols"`), which the reader undoes. Contiguous views (any rank-0/1/2 tensor, contiguous slices of
@@ -42,6 +47,7 @@ from typing import Any, Protocol
 import numpy as np
 import numpy.typing as npt
 
+from weightlab.analysis.readers import Reader, TensorReader, Values
 from weightlab.analysis.tile import (
     PYRAMID_RECORD_FORMAT,
     TILE_NUMERICS_VERSION,
@@ -49,15 +55,14 @@ from weightlab.analysis.tile import (
     BlockAggregates,
     Tile,
     TileGeometry,
-    _as_float64,
     columns_are_slow,
     finish_tile,
+    finite_mask,
     storage_strides,
     tile_geometry,
 )
 from weightlab.core.errors import ErrorCode, fail
 from weightlab.formats.checkpoint import Checkpoint
-from weightlab.formats.dtypes import lookup
 from weightlab.formats.selection import ResolvedView, View, resolve_view
 
 BASE_LEVEL = 4
@@ -220,15 +225,16 @@ def from_records(rec: npt.NDArray[np.void]) -> BlockAggregates:
     )  # fmt: skip
 
 
-def base_records(v: npt.NDArray[np.float64]) -> BlockAggregates:
+def base_records(v: npt.NDArray[np.float64], overflow: npt.NDArray[np.bool_] | None = None) -> BlockAggregates:
     """Level-4 records of an array whose first row and column sit on 16-cell block boundaries.
 
     Each block's (up to) 256 values are laid out contiguously in one fixed order (row-major within the block, the
     reduction identity in the cells beyond a clipped edge) and reduced along that axis, so a block's float64 sums
-    are bitwise the same however the stream is cut into bands and column chunks."""
+    are bitwise the same however the stream is cut into bands and column chunks. `overflow`: derived values that
+    overflowed float64 (`tile.finite_mask`)."""
     h, w = v.shape
     gr, gc = -(-h // 16), -(-w // 16)
-    fin = np.isfinite(v)
+    fin, nan, pos, neg = finite_mask(v, overflow)
 
     def blocks(a: npt.NDArray[Any], fill: Any) -> npt.NDArray[Any]:
         if (gr * 16, gc * 16) != (h, w):
@@ -241,9 +247,9 @@ def base_records(v: npt.NDArray[np.float64]) -> BlockAggregates:
         fv = np.where(fin, v, -0.0)
         out = BlockAggregates(
             blocks(fin, False).sum(axis=2, dtype=np.int64),
-            blocks(np.isnan(v), False).sum(axis=2, dtype=np.int64),
-            blocks(np.isposinf(v), False).sum(axis=2, dtype=np.int64),
-            blocks(np.isneginf(v), False).sum(axis=2, dtype=np.int64),
+            blocks(nan, False).sum(axis=2, dtype=np.int64),
+            blocks(pos, False).sum(axis=2, dtype=np.int64),
+            blocks(neg, False).sum(axis=2, dtype=np.int64),
             np.zeros((gr, gc), np.uint8),
             blocks(fv, -0.0).sum(axis=2, initial=-0.0),
             blocks(np.abs(fv), -0.0).sum(axis=2, initial=-0.0),
@@ -358,12 +364,11 @@ class StreamPlan:
     dtype: str
 
 
-def stream_plan(ck: Checkpoint, key: str, view: View | None) -> StreamPlan:
-    meta = ck.tensor(key)
-    rv = resolve_view(meta.shape, view)
-    dt = lookup(meta.dtype)
-    orientation = "cols" if columns_are_slow(rv, meta.shape) else "rows"
-    st = storage_strides(meta.shape)
+def stream_plan(ck: Checkpoint | Reader, key: str, view: View | None) -> StreamPlan:
+    src = TensorReader(ck, key) if isinstance(ck, Checkpoint) else ck
+    rv = resolve_view(src.shape, view)
+    orientation = "cols" if columns_are_slow(rv, src.shape) else "rows"
+    st = storage_strides(src.shape)
     s_r = st[rv.row_axis] if rv.row_axis is not None else 0
     s_c = st[rv.col_axis] if rv.col_axis is not None else 1
     base = sum(idx * st[a] for a, idx in rv.fixed)
@@ -371,31 +376,29 @@ def stream_plan(ck: Checkpoint, key: str, view: View | None) -> StreamPlan:
     si, sj = (s_c, s_r) if orientation == "cols" else (s_r, s_c)
     # Stored element (i, j) is at base + i*si + j*sj: one C-order run iff consecutive j are adjacent and rows abut.
     contiguous = (sc == 1 or sj == 1) and (sr == 1 or si == sc)
-    return StreamPlan(key, view, rv, orientation, sr, sc, contiguous, base, dt.size, dt.name)
+    return StreamPlan(key, view, rv, orientation, sr, sc, contiguous, base, src.max_esize, src.source_dtype)
 
 
-def _read_band(
-    ck: Checkpoint, p: StreamPlan, i0: int, i1: int, j0: int, j1: int, max_cells: int
-) -> tuple[npt.NDArray[np.float64], bool, int]:
-    """Stored-orientation values [i0, i1) x [j0, j1) as float64, whether 64-bit integers were rounded, bytes read."""
-    dt = lookup(p.dtype)
+def _read_band(src: Reader, p: StreamPlan, i0: int, i1: int, j0: int, j1: int, max_cells: int) -> Values:
+    """Stored-orientation values [i0, i1) x [j0, j1) as float64 (with overflow mask, rounding flag, bytes read)."""
     h, w = i1 - i0, j1 - j0
     if p.contiguous:
         if j0 == 0 and j1 == p.stored_cols:
-            raw = ck.read_elements(p.key, p.base_offset + i0 * p.stored_cols, h * w).reshape(h, w)
+            got = src.elements(p.base_offset + i0 * p.stored_cols, h * w)
+            parts = [got]
         else:
-            raw = np.stack([ck.read_elements(p.key, p.base_offset + i * p.stored_cols + j0, w) for i in range(i0, i1)])
-        nbytes = h * w * p.esize
+            parts = [src.elements(p.base_offset + i * p.stored_cols + j0, w) for i in range(i0, i1)]
+        v = np.concatenate([x.v for x in parts]).reshape(h, w)
+        ovs = [x.overflow if x.overflow is not None else np.zeros(x.v.shape, bool) for x in parts]
+        any_over = any(x.overflow is not None for x in parts)
+        overflow = np.concatenate(ovs).reshape(h, w) if any_over else None
+        out = Values(v, overflow, any(x.rounded for x in parts), sum(x.nbytes for x in parts))
+    elif p.orientation == "cols":  # stored (i, j) = view (j, i)
+        out = src.roi(j0, j1, i0, i1, p.view, max_cells=max_cells).transposed()
     else:
-        if p.orientation == "cols":  # stored (i, j) = view (j, i)
-            roi = ck.read_roi_raw(p.key, j0, j1, i0, i1, p.view, max_cells=max_cells)
-            raw = roi.values().T
-        else:
-            roi = ck.read_roi_raw(p.key, i0, i1, j0, j1, p.view, max_cells=max_cells)
-            raw = roi.values()
-        nbytes = roi.stripe_bytes
-    vals, rounded = _as_float64(raw, dt)
-    return np.ascontiguousarray(vals), rounded, nbytes
+        out = src.roi(i0, i1, j0, j1, p.view, max_cells=max_cells)
+    ov = None if out.overflow is None else np.ascontiguousarray(out.overflow)
+    return Values(np.ascontiguousarray(out.v), ov, out.rounded, out.nbytes)
 
 
 # ------------------------------------------------------------------------------------------------------- build
@@ -469,10 +472,26 @@ def build_pyramid(
     *,
     band_cells: int = BAND_CELLS,
 ) -> BuildResult:
-    """One streaming pass: base records per band, parents merged as soon as both children rows exist. The source is
-    re-checked after the last read; any FILE_CHANGED (or a control that raises) aborts with nothing published."""
+    """The exact pyramid of a stored tensor (see `build_source_pyramid`)."""
+    return build_source_pyramid(TensorReader(ck, key), view, identity, pyramid_id, sink, control,
+                                band_cells=band_cells)  # fmt: skip
+
+
+def build_source_pyramid(
+    src: Reader,
+    view: View | None,
+    identity: Mapping[str, Any],
+    pyramid_id: str,
+    sink: Sink,
+    control: BuildControl | None = None,
+    *,
+    band_cells: int = BAND_CELLS,
+) -> BuildResult:
+    """One streaming pass: base records per band, parents merged as soon as both children rows exist. The sources
+    are re-checked after the last read; any FILE_CHANGED (or a control that raises) aborts with nothing published.
+    A paired source reads the same band of both inputs."""
     control = control or _NoControl()
-    p = stream_plan(ck, key, view)
+    p = stream_plan(src, src.key, view)
     lay = Layout.plan(p.rv.rows, p.rv.cols, p.orientation)
     crc = np.zeros(lay.crc_length // 4, dtype="<u4")
     writers = [_LevelWriter(sink, li, crc) for li in lay.levels]
@@ -501,9 +520,9 @@ def build_pyramid(
             feed(i + 1, None, True)
 
     sr, sc = p.stored_rows, p.stored_cols
-    cells_cap = min(band_cells, ck.limits.roi_hard_max_cells)
+    cells_cap = min(band_cells, src.limits.roi_hard_max_cells)
     if p.contiguous:
-        cells_cap = min(cells_cap, ck.limits.read_chunk_bytes // p.esize)
+        cells_cap = min(cells_cap, src.limits.read_chunk_bytes // p.esize)
     if 16 * sc <= cells_cap:
         width, k = sc, max(1, cells_cap // (16 * sc))
     else:
@@ -516,15 +535,15 @@ def build_pyramid(
         band = BlockAggregates.empty(-(-(i1 - i0) // 16), gc)
         for j0 in range(0, sc, width):
             j1 = min(sc, j0 + width)
-            vals, rnd, nbytes = _read_band(ck, p, i0, i1, j0, j1, cells_cap)
-            rounded |= rnd
-            bytes_read += nbytes
-            band.merge_into(base_records(vals), 0, j0 // 16)
-            control.tick(nbytes)
+            got = _read_band(src, p, i0, i1, j0, j1, cells_cap)
+            rounded |= got.rounded
+            bytes_read += got.nbytes
+            band.merge_into(base_records(got.v, got.overflow), 0, j0 // 16)
+            control.tick(got.nbytes)
         writers[0].write(band)
         feed(0, band, False)
     feed(0, None, True)
-    ck.check()  # a change after the last read invalidates the pyramid
+    src.check()  # a change after the last read invalidates the pyramid
     for w in writers:
         if w.row != w.info.stored_rows:
             raise AssertionError("pyramid level incomplete")  # a builder bug, never data dependent
@@ -626,6 +645,13 @@ class Pyramid:
     def rounded_inputs(self) -> bool:
         return bool(self.trailer["rounded_inputs"])
 
+    @property
+    def derived(self) -> bool:
+        """A derived source (delta): float64 arithmetic of its inputs, whose overflowed values are records with an
+        infinite extreme under the sum_abs overflow flag (`tile.finite_mask`)."""
+        ident = self.trailer["identity"]
+        return isinstance(ident, dict) and ident.get("source_kind", "tensor") != "tensor"
+
 
 def load(blob: Blob, identity: Mapping[str, Any], pyramid_id: str) -> Pyramid:
     """Validate a stored pyramid against the identity it must have; PyramidCorrupt on any mismatch."""
@@ -710,7 +736,7 @@ def read_records(blob: Blob, pyr: Pyramid, level: int, r0: int, r1: int, c0: int
     block = 1 << li.level
     sr_total, sc_total = lay.stored_shape
     expected = np.outer(_cells(sr0, sr1 - sr0, block, sr_total), _cells(sc0, sc1 - sc0, block, sc_total))
-    _validate(rec, expected)
+    _validate(rec, expected, derived=pyr.derived)
     agg = from_records(rec)
     if cols_orient:
         agg = BlockAggregates(*(getattr(agg, f).T.copy() for f in _AGG_FIELDS))
@@ -720,7 +746,7 @@ def read_records(blob: Blob, pyr: Pyramid, level: int, r0: int, r1: int, c0: int
 COUNT_SANE = 1 << 60  # no tensor holds 2^60 elements; four such counts still add up within int64
 
 
-def _validate(rec: npt.NDArray[np.void], expected_cells: npt.NDArray[np.int64]) -> None:
+def _validate(rec: npt.NDArray[np.void], expected_cells: npt.NDArray[np.int64], *, derived: bool = False) -> None:
     if any(rec[f].size and int(rec[f].max()) >= COUNT_SANE for f in COUNTS):
         raise PyramidCorrupt("record counter out of range")
     total = sum(rec[f].astype(np.int64) for f in COUNTS)
@@ -734,7 +760,11 @@ def _validate(rec: npt.NDArray[np.void], expected_cells: npt.NDArray[np.int64]) 
         raise PyramidCorrupt("a record without finite elements carries sums or flags")
     if np.any(none & ~((rec["min"] == np.inf) & (rec["max"] == -np.inf))):
         raise PyramidCorrupt("a record without finite elements carries extrema")
-    if np.any(fin & ~(np.isfinite(rec["min"]) & np.isfinite(rec["max"]) & (rec["min"] <= rec["max"]))):
+    # An infinite extreme of a finite record is an overflowed derived value, which always overflows sum_abs.
+    inf_ok = derived & ((rec["flags"] & 2) != 0)
+    lo_ok = np.isfinite(rec["min"]) | (inf_ok & np.isinf(rec["min"]))
+    hi_ok = np.isfinite(rec["max"]) | (inf_ok & np.isinf(rec["max"]))
+    if np.any(fin & ~(lo_ok & hi_ok & (rec["min"] <= rec["max"]))):
         raise PyramidCorrupt("record extrema")
     for bit, f in ((1, "sum"), (2, "sum_abs"), (4, "sum_sq")):
         flagged = (rec["flags"] & bit) != 0
@@ -770,7 +800,7 @@ def pyramid_tile(
         r0, c0 = y * size, x * size
     acc = read_records(blob, pyr, level, r0, r0 + g.rows, c0, c0 + g.cols)
     return finish_tile(
-        g, aggregation, acc, pyr.source_dtype, rounded=pyr.rounded_inputs,
+        g, aggregation, acc, pyr.source_dtype, rounded=pyr.rounded_inputs, derived=pyr.derived,
         covered_bytes=g.covered_cells * esize, bytes_read=0,
     )  # fmt: skip
 
